@@ -77,3 +77,13 @@
 - [x] Gestão de data de validade de documentos com alertas automáticos
 - [x] Enviar alertas por email para gestor e fornecedor quando documentos vencerem
 - [x] Implementar relatórios exportáveis em Excel/CSV
+
+## Melhorias Solicitadas (v1.3) - Área do Fornecedor
+- [x] Criar painel centralizado de gestão do fornecedor
+- [x] Área dedicada para upload e gestão de documentos com drag-and-drop
+- [x] Seção de contatos do fornecedor
+- [x] Histórico de interações e comunicações
+- [x] Avaliações de desempenho do fornecedor
+- [x] Workflow de aprovação/homologação visível
+- [x] Navegação por abas ou seções dentro da área do fornecedor
+- [x] Resumo/overview com indicadores do fornecedor
