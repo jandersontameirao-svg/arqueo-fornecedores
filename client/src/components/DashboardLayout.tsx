@@ -2,6 +2,11 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -17,6 +22,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarTrigger,
   useSidebar,
@@ -35,25 +43,33 @@ import {
   AlertTriangle,
   MessageSquare,
   BarChart3,
-  Settings,
   Shield,
   ClipboardList,
   FileSpreadsheet,
+  ChevronRight,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 
-const menuItems = [
+// Menu items structure with submenus
+const menuStructure = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: Building2, label: "Fornecedores", path: "/suppliers" },
+  {
+    icon: Building2,
+    label: "Fornecedores",
+    path: "/suppliers",
+    subItems: [
+      { icon: Building2, label: "Lista de Fornecedores", path: "/suppliers" },
+      { icon: FileText, label: "Documentos", path: "/documents" },
+      { icon: CheckSquare, label: "Aprovações", path: "/approvals" },
+      { icon: AlertTriangle, label: "Conformidade", path: "/compliance" },
+      { icon: MessageSquare, label: "Interações", path: "/interactions" },
+      { icon: BarChart3, label: "Avaliações", path: "/evaluations" },
+    ],
+  },
   { icon: FolderOpen, label: "Categorias", path: "/categories" },
-  { icon: FileText, label: "Documentos", path: "/documents" },
-  { icon: CheckSquare, label: "Aprovações", path: "/approvals" },
-  { icon: AlertTriangle, label: "Conformidade", path: "/compliance" },
-  { icon: MessageSquare, label: "Interações", path: "/interactions" },
-  { icon: BarChart3, label: "Avaliações", path: "/evaluations" },
   { icon: ClipboardList, label: "Auditoria", path: "/audit", adminOnly: true },
   { icon: FileSpreadsheet, label: "Relatórios", path: "/reports" },
   { icon: Users, label: "Usuários", path: "/users", adminOnly: true },
@@ -155,10 +171,39 @@ function DashboardLayoutContent({
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const activeMenuItem = menuItems.find((item) => item.path === location);
   const isMobile = useIsMobile();
 
-  const filteredMenuItems = menuItems.filter((item) => {
+  // Track which collapsible menus are open
+  const [openMenus, setOpenMenus] = useState<string[]>(() => {
+    // Auto-open Fornecedores if current path is a subitem
+    const supplierPaths = ["/suppliers", "/documents", "/approvals", "/compliance", "/interactions", "/evaluations"];
+    if (supplierPaths.some(p => location === p || location.startsWith("/suppliers/"))) {
+      return ["Fornecedores"];
+    }
+    return [];
+  });
+
+  const toggleMenu = (label: string) => {
+    setOpenMenus(prev => 
+      prev.includes(label) 
+        ? prev.filter(m => m !== label)
+        : [...prev, label]
+    );
+  };
+
+  // Find active menu item for mobile header
+  const findActiveLabel = () => {
+    for (const item of menuStructure) {
+      if (item.path === location) return item.label;
+      if (item.subItems) {
+        const sub = item.subItems.find(s => s.path === location || location.startsWith(s.path + "/"));
+        if (sub) return sub.label;
+      }
+    }
+    return "Menu";
+  };
+
+  const filteredMenuItems = menuStructure.filter((item) => {
     if (item.adminOnly && user?.role !== "admin") {
       return false;
     }
@@ -202,6 +247,18 @@ function DashboardLayoutContent({
     };
   }, [isResizing, setSidebarWidth]);
 
+  // Check if a path is active (exact match or starts with for detail pages)
+  const isPathActive = (path: string) => {
+    if (path === "/") return location === "/";
+    return location === path || location.startsWith(path + "/");
+  };
+
+  // Check if any subitem is active
+  const hasActiveSubitem = (subItems?: typeof menuStructure[0]["subItems"]) => {
+    if (!subItems) return false;
+    return subItems.some(sub => isPathActive(sub.path));
+  };
+
   return (
     <>
       <div className="relative" ref={sidebarRef}>
@@ -232,7 +289,65 @@ function DashboardLayoutContent({
           <SidebarContent className="gap-0 py-2">
             <SidebarMenu className="px-2 py-1">
               {filteredMenuItems.map((item) => {
-                const isActive = location === item.path;
+                const hasSubItems = item.subItems && item.subItems.length > 0;
+                const isOpen = openMenus.includes(item.label);
+                const isActive = hasSubItems 
+                  ? hasActiveSubitem(item.subItems) 
+                  : isPathActive(item.path);
+
+                if (hasSubItems) {
+                  return (
+                    <Collapsible
+                      key={item.label}
+                      open={isOpen}
+                      onOpenChange={() => toggleMenu(item.label)}
+                      className="group/collapsible"
+                    >
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton
+                            tooltip={item.label}
+                            className={`h-10 transition-all font-normal ${
+                              isActive
+                                ? "bg-primary/10 text-primary hover:bg-primary/15"
+                                : ""
+                            }`}
+                          >
+                            <item.icon
+                              className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                            />
+                            <span className="flex-1">{item.label}</span>
+                            <ChevronRight className={`h-4 w-4 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`} />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {item.subItems?.map((subItem) => {
+                              const isSubActive = isPathActive(subItem.path);
+                              return (
+                                <SidebarMenuSubItem key={subItem.path}>
+                                  <SidebarMenuSubButton
+                                    onClick={() => setLocation(subItem.path)}
+                                    isActive={isSubActive}
+                                    className={`transition-all ${
+                                      isSubActive
+                                        ? "bg-primary/10 text-primary"
+                                        : ""
+                                    }`}
+                                  >
+                                    <subItem.icon className={`h-3.5 w-3.5 ${isSubActive ? "text-primary" : ""}`} />
+                                    <span>{subItem.label}</span>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              );
+                            })}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  );
+                }
+
                 return (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
@@ -319,7 +434,7 @@ function DashboardLayoutContent({
               <div className="flex items-center gap-3">
                 <div className="flex flex-col gap-1">
                   <span className="tracking-tight text-foreground font-medium">
-                    {activeMenuItem?.label ?? "Menu"}
+                    {findActiveLabel()}
                   </span>
                 </div>
               </div>

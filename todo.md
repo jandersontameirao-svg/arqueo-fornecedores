@@ -87,3 +87,8 @@
 - [x] Workflow de aprovação/homologação visível
 - [x] Navegação por abas ou seções dentro da área do fornecedor
 - [x] Resumo/overview com indicadores do fornecedor
+
+## Melhorias Solicitadas (v1.4) - Reorganização do Menu
+- [x] Reorganizar menu lateral com submenus em Fornecedores
+- [x] Mover Documentos, Aprovações, Conformidade, Interações e Avaliações para dentro de Fornecedores
+- [x] Implementar menu colapsável com submenus
