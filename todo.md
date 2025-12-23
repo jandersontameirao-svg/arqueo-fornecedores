@@ -92,8 +92,3 @@
 - [x] Reorganizar menu lateral com submenus em Fornecedores
 - [x] Mover Documentos, Aprovações, Conformidade, Interações e Avaliações para dentro de Fornecedores
 - [x] Implementar menu colapsável com submenus
-
-## Melhorias Solicitadas (v1.5) - Documentos vinculados ao Fornecedor
-- [x] Remover página geral de Documentos do menu
-- [x] Documentos acessíveis apenas na área do fornecedor
-- [x] Ajustar navegação do submenu de Fornecedores

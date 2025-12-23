@@ -12,6 +12,7 @@ import Suppliers from "./pages/Suppliers";
 import SupplierDetail from "./pages/SupplierDetail";
 import SupplierForm from "./pages/SupplierForm";
 import Categories from "./pages/Categories";
+import Documents from "./pages/Documents";
 import Approvals from "./pages/Approvals";
 import Compliance from "./pages/Compliance";
 import Interactions from "./pages/Interactions";
@@ -60,6 +61,11 @@ function Router() {
       <Route path="/categories">
         <DashboardLayout>
           <Categories />
+        </DashboardLayout>
+      </Route>
+      <Route path="/documents">
+        <DashboardLayout>
+          <Documents />
         </DashboardLayout>
       </Route>
       <Route path="/approvals">

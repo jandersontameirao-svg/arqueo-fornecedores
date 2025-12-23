@@ -62,6 +62,7 @@ const menuStructure = [
     path: "/suppliers",
     subItems: [
       { icon: Building2, label: "Lista de Fornecedores", path: "/suppliers" },
+      { icon: FileText, label: "Documentos", path: "/documents" },
       { icon: CheckSquare, label: "Aprovações", path: "/approvals" },
       { icon: AlertTriangle, label: "Conformidade", path: "/compliance" },
       { icon: MessageSquare, label: "Interações", path: "/interactions" },
