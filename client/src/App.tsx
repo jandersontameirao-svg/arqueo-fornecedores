@@ -20,6 +20,7 @@ import Evaluations from "./pages/Evaluations";
 import Audit from "./pages/Audit";
 import Users from "./pages/Users";
 import Onboarding from "./pages/Onboarding";
+import Reports from "./pages/Reports";
 
 function Router() {
   return (
@@ -95,6 +96,11 @@ function Router() {
       <Route path="/users">
         <DashboardLayout>
           <Users />
+        </DashboardLayout>
+      </Route>
+      <Route path="/reports">
+        <DashboardLayout>
+          <Reports />
         </DashboardLayout>
       </Route>
       <Route path="/404" component={NotFound} />

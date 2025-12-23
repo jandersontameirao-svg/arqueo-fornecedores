@@ -70,3 +70,10 @@
 - [x] Cadastrar categorias iniciais de fornecedores (Serviços, Matérias-primas, Tecnologia, Logística)
 - [x] Configurar sistema de notificações por email para alertas
 - [x] Ajustar layout da página de usuários conforme exemplo (badges coloridos, layout de tabela)
+
+## Melhorias Solicitadas (v1.2)
+- [x] Atualizar identidade visual com cores do Grupo Arqueo (bordô, laranja, azul, amarelo)
+- [x] Implementar upload de documentos com drag-and-drop no cadastro de fornecedores
+- [x] Gestão de data de validade de documentos com alertas automáticos
+- [x] Enviar alertas por email para gestor e fornecedor quando documentos vencerem
+- [x] Implementar relatórios exportáveis em Excel/CSV

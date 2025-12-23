@@ -38,6 +38,7 @@ import {
   Settings,
   Shield,
   ClipboardList,
+  FileSpreadsheet,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -54,6 +55,7 @@ const menuItems = [
   { icon: MessageSquare, label: "Interações", path: "/interactions" },
   { icon: BarChart3, label: "Avaliações", path: "/evaluations" },
   { icon: ClipboardList, label: "Auditoria", path: "/audit", adminOnly: true },
+  { icon: FileSpreadsheet, label: "Relatórios", path: "/reports" },
   { icon: Users, label: "Usuários", path: "/users", adminOnly: true },
 ];
 
@@ -69,8 +71,8 @@ const roleLabels: Record<string, string> = {
 };
 
 const roleColors: Record<string, string> = {
-  admin: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  manager: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  admin: "bg-[oklch(0.90_0.05_15)] text-[oklch(0.40_0.15_15)] dark:bg-[oklch(0.30_0.10_15)] dark:text-[oklch(0.85_0.10_15)]",
+  manager: "bg-[oklch(0.90_0.03_250)] text-[oklch(0.35_0.10_250)] dark:bg-[oklch(0.25_0.05_250)] dark:text-[oklch(0.80_0.05_250)]",
   reader: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
 };
 
@@ -205,7 +207,7 @@ function DashboardLayoutContent({
       <div className="relative" ref={sidebarRef}>
         <Sidebar
           collapsible="icon"
-          className="border-r-0 bg-slate-50 dark:bg-slate-900"
+          className="border-r-0 bg-[oklch(0.98_0.005_90)] dark:bg-[oklch(0.15_0.02_250)]"
           disableTransition={isResizing}
         >
           <SidebarHeader className="h-16 justify-center border-b border-border/50">

@@ -7,6 +7,7 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { storagePut } from "./storage";
 import * as db from "./db";
 import * as notifications from "./notifications";
+import * as reports from "./reports";
 
 // ==================== RBAC MIDDLEWARE ====================
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -477,6 +478,66 @@ export const appRouter = router({
         const fileKey = `documents/${ctx.user.id}/${timestamp}-${randomSuffix}-${input.fileName}`;
         return { fileKey, contentType: input.contentType };
       }),
+
+    upload: managerProcedure
+      .input(z.object({
+        supplierId: z.number(),
+        name: z.string(),
+        type: z.string(),
+        fileData: z.string(), // base64 encoded file data
+        fileName: z.string(),
+        mimeType: z.string(),
+        expiresAt: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Upload file to S3
+        const timestamp = Date.now();
+        const randomSuffix = Math.random().toString(36).substring(2, 8);
+        const fileKey = `documents/${ctx.user.id}/${timestamp}-${randomSuffix}-${input.fileName}`;
+        
+        const fileBuffer = Buffer.from(input.fileData, "base64");
+        const { url } = await storagePut(fileKey, fileBuffer, input.mimeType);
+        
+        // Create document record
+        const id = await db.createDocument({
+          supplierId: input.supplierId,
+          name: input.name,
+          type: input.type as "contract" | "certificate" | "invoice" | "license" | "other",
+          fileUrl: url,
+          fileKey: fileKey,
+          fileName: input.fileName,
+          mimeType: input.mimeType,
+          fileSize: fileBuffer.length,
+          expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
+          uploadedById: ctx.user.id,
+        });
+        
+        // Create audit log
+        await db.createAuditLog({
+          entityType: "document",
+          entityId: id,
+          action: "upload",
+          changes: { name: input.name, type: input.type, fileName: input.fileName },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        
+        // Create expiration alert if document has expiration date
+        if (input.expiresAt) {
+          const expirationDate = new Date(input.expiresAt);
+          await db.createAlert({
+            supplierId: input.supplierId,
+            documentId: id,
+            alertType: "expiration",
+            severity: "medium",
+            title: `Documento "${input.name}" expira em breve`,
+            description: `O documento expira em ${expirationDate.toLocaleDateString("pt-BR")}`,
+            dueDate: expirationDate,
+          });
+        }
+        
+        return { id, url };
+      }),
   }),
 
   // ==================== WORKFLOWS ====================
@@ -791,6 +852,71 @@ export const appRouter = router({
       });
       return { success };
     }),
+  }),
+
+  // ==================== REPORTS ====================
+  reports: router({
+    suppliers: managerProcedure
+      .input(z.object({
+        format: z.enum(["csv", "json"]),
+        status: z.string().optional(),
+        categoryId: z.number().optional(),
+        criticality: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return reports.generateSuppliersReport({
+          format: input.format,
+          filters: {
+            status: input.status,
+            categoryId: input.categoryId,
+            criticality: input.criticality,
+          },
+        });
+      }),
+
+    documents: managerProcedure
+      .input(z.object({
+        format: z.enum(["csv", "json"]),
+        type: z.string().optional(),
+        expirationStatus: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return reports.generateDocumentsReport({
+          format: input.format,
+          filters: { status: input.type },
+          expirationStatus: input.expirationStatus,
+        });
+      }),
+
+    evaluations: managerProcedure
+      .input(z.object({
+        format: z.enum(["csv", "json"]),
+      }))
+      .mutation(async ({ input }) => {
+        return reports.generateEvaluationsReport({
+          format: input.format,
+        });
+      }),
+
+    audit: adminProcedure
+      .input(z.object({
+        format: z.enum(["csv", "json"]),
+        entityType: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return reports.generateAuditReport({
+          format: input.format,
+          entityType: input.entityType,
+        });
+      }),
+
+    expiringDocuments: managerProcedure
+      .input(z.object({
+        daysAhead: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return reports.generateExpiringDocumentsReport(input.daysAhead || 30);
+      }),
   }),
 });
 

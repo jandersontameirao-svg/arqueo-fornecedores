@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -22,6 +23,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import {
   FileText,
@@ -34,12 +40,29 @@ import {
   File,
   FileImage,
   FileArchive,
+  ChevronDown,
+  ChevronUp,
+  X,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
-import { storagePut } from "../../../../server/storage";
 
 interface SupplierDocumentsProps {
   supplierId: number;
   canEdit: boolean;
+}
+
+interface FileWithPreview {
+  file: File;
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  status: "pending" | "uploading" | "success" | "error";
+  progress: number;
+  documentType: string;
+  expiresAt: string;
+  error?: string;
 }
 
 const typeLabels: Record<string, string> = {
@@ -47,41 +70,41 @@ const typeLabels: Record<string, string> = {
   certificate: "Certidão",
   invoice: "Nota Fiscal",
   license: "Licença",
+  insurance: "Seguro",
+  registration: "Registro",
   other: "Outro",
 };
 
 const typeColors: Record<string, string> = {
-  contract: "bg-blue-100 text-blue-800",
+  contract: "bg-[oklch(0.90_0.03_250)] text-[oklch(0.35_0.10_250)]",
   certificate: "bg-green-100 text-green-800",
   invoice: "bg-purple-100 text-purple-800",
-  license: "bg-orange-100 text-orange-800",
+  license: "bg-[oklch(0.90_0.05_45)] text-[oklch(0.45_0.15_45)]",
+  insurance: "bg-cyan-100 text-cyan-800",
+  registration: "bg-indigo-100 text-indigo-800",
   other: "bg-gray-100 text-gray-800",
 };
 
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+};
+
 export default function SupplierDocuments({ supplierId, canEdit }: SupplierDocumentsProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    type: "other" as "contract" | "certificate" | "invoice" | "license" | "other",
-    description: "",
-    expiresAt: "",
-  });
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [files, setFiles] = useState<FileWithPreview[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const utils = trpc.useUtils();
   const { data: documents, isLoading } = trpc.documents.list.useQuery({ supplierId });
   
-  const createMutation = trpc.documents.create.useMutation({
+  const uploadMutation = trpc.documents.upload.useMutation({
     onSuccess: () => {
-      toast.success("Documento enviado com sucesso!");
       utils.documents.list.invalidate({ supplierId });
-      setIsOpen(false);
-      resetForm();
-    },
-    onError: (error) => {
-      toast.error(error.message);
     },
   });
 
@@ -95,66 +118,120 @@ export default function SupplierDocuments({ supplierId, canEdit }: SupplierDocum
     },
   });
 
-  const resetForm = () => {
-    setFormData({ name: "", type: "other", description: "", expiresAt: "" });
-    setSelectedFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
+  // Drag and Drop handlers
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      if (!formData.name) {
-        setFormData((prev) => ({ ...prev, name: file.name.split(".")[0] }));
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    addFiles(droppedFiles);
+  }, []);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files ? Array.from(e.target.files) : [];
+    addFiles(selectedFiles);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, []);
+
+  const addFiles = (newFiles: File[]) => {
+    const validFiles = newFiles.filter((file) => {
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        toast.error(`Arquivo "${file.name}" excede o limite de 10MB`);
+        return false;
       }
+      return true;
+    });
+
+    const fileObjects: FileWithPreview[] = validFiles.map((file) => ({
+      file,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      status: "pending" as const,
+      progress: 0,
+      documentType: "other",
+      expiresAt: "",
+    }));
+
+    setFiles((prev) => [...prev, ...fileObjects]);
+    if (!isUploadOpen) setIsUploadOpen(true);
+  };
+
+  const removeFile = (id: string) => {
+    setFiles((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const updateFileField = (id: string, field: keyof FileWithPreview, value: any) => {
+    setFiles((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, [field]: value } : f))
+    );
+  };
+
+  const uploadFile = async (fileItem: FileWithPreview) => {
+    updateFileField(fileItem.id, "status", "uploading");
+    updateFileField(fileItem.id, "progress", 10);
+
+    try {
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          const base64 = result.split(",")[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(fileItem.file);
+
+      updateFileField(fileItem.id, "progress", 30);
+      const base64Data = await base64Promise;
+      updateFileField(fileItem.id, "progress", 60);
+
+      await uploadMutation.mutateAsync({
+        supplierId,
+        name: fileItem.name.split(".")[0],
+        type: fileItem.documentType,
+        fileData: base64Data,
+        fileName: fileItem.name,
+        mimeType: fileItem.type,
+        expiresAt: fileItem.expiresAt ? new Date(fileItem.expiresAt).toISOString() : undefined,
+      });
+
+      updateFileField(fileItem.id, "progress", 100);
+      updateFileField(fileItem.id, "status", "success");
+      toast.success(`"${fileItem.name}" enviado com sucesso!`);
+    } catch (error: any) {
+      updateFileField(fileItem.id, "status", "error");
+      updateFileField(fileItem.id, "error", error.message || "Erro ao enviar arquivo");
+      toast.error(`Erro ao enviar "${fileItem.name}"`);
     }
   };
 
-  const handleSubmit = async () => {
-    if (!selectedFile) {
-      toast.error("Selecione um arquivo");
-      return;
+  const uploadAllFiles = async () => {
+    const pendingFiles = files.filter((f) => f.status === "pending");
+    for (const file of pendingFiles) {
+      await uploadFile(file);
     }
-    if (!formData.name) {
-      toast.error("Informe o nome do documento");
-      return;
-    }
+  };
 
-    setUploading(true);
-    try {
-      // Upload file to S3 using fetch to our API
-      const timestamp = Date.now();
-      const randomSuffix = Math.random().toString(36).substring(2, 8);
-      const fileKey = `documents/${supplierId}/${timestamp}-${randomSuffix}-${selectedFile.name}`;
-      
-      // Read file as base64
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(",")[1];
-        
-        // For now, we'll use a placeholder URL - in production, this would upload to S3
-        const fileUrl = `https://storage.example.com/${fileKey}`;
-        
-        await createMutation.mutateAsync({
-          supplierId,
-          name: formData.name,
-          type: formData.type,
-          description: formData.description || undefined,
-          fileKey,
-          fileUrl,
-          fileName: selectedFile.name,
-          fileSize: selectedFile.size,
-          mimeType: selectedFile.type,
-          expiresAt: formData.expiresAt || undefined,
-        });
-      };
-      reader.readAsDataURL(selectedFile);
-    } catch (error) {
-      toast.error("Erro ao enviar documento");
-    } finally {
-      setUploading(false);
-    }
+  const clearCompletedFiles = () => {
+    setFiles((prev) => prev.filter((f) => f.status !== "success"));
   };
 
   const isExpiringSoon = (expiresAt: Date | null) => {
@@ -178,92 +255,182 @@ export default function SupplierDocuments({ supplierId, canEdit }: SupplierDocum
     return <File className="h-8 w-8 text-muted-foreground" />;
   };
 
+  const pendingCount = files.filter((f) => f.status === "pending").length;
+  const successCount = files.filter((f) => f.status === "success").length;
+
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-base">Documentos</CardTitle>
-        {canEdit && (
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Novo Documento</DialogTitle>
-                <DialogDescription>
-                  Faça upload de um documento para este fornecedor
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Arquivo *</Label>
-                  <Input
-                    ref={fileInputRef}
-                    type="file"
-                    onChange={handleFileChange}
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Nome do Documento *</Label>
-                  <Input
-                    value={formData.name}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="Ex: Contrato de Prestação de Serviços"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Tipo</Label>
-                  <Select
-                    value={formData.type}
-                    onValueChange={(value: any) => setFormData((prev) => ({ ...prev, type: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="contract">Contrato</SelectItem>
-                      <SelectItem value="certificate">Certidão</SelectItem>
-                      <SelectItem value="invoice">Nota Fiscal</SelectItem>
-                      <SelectItem value="license">Licença</SelectItem>
-                      <SelectItem value="other">Outro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Data de Expiração</Label>
-                  <Input
-                    type="date"
-                    value={formData.expiresAt}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, expiresAt: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Descrição</Label>
-                  <Textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                    placeholder="Observações sobre o documento..."
-                    rows={3}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleSubmit} disabled={uploading || createMutation.isPending}>
-                  {uploading ? "Enviando..." : "Salvar"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {/* Drag and Drop Zone */}
+        {canEdit && (
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`
+              relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
+              transition-all duration-200 ease-in-out
+              ${isDragging
+                ? "border-primary bg-primary/5 scale-[1.01]"
+                : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50"
+              }
+            `}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif"
+            />
+            <div className="flex flex-col items-center gap-2">
+              <div className={`
+                h-12 w-12 rounded-full flex items-center justify-center
+                ${isDragging ? "bg-primary/20" : "bg-muted"}
+              `}>
+                <Upload className={`h-6 w-6 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
+              </div>
+              <div>
+                <p className="text-sm font-medium">
+                  {isDragging ? "Solte os arquivos aqui" : "Arraste e solte arquivos aqui"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  ou clique para selecionar (máx. 10MB)
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Upload Queue */}
+        {files.length > 0 && (
+          <Collapsible open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2">
+                  {isUploadOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  <span className="font-medium">
+                    Fila de Upload ({files.length})
+                    {successCount > 0 && (
+                      <span className="text-green-600 ml-2">• {successCount} enviado{successCount > 1 ? "s" : ""}</span>
+                    )}
+                  </span>
+                </Button>
+              </CollapsibleTrigger>
+              <div className="flex gap-2">
+                {successCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={clearCompletedFiles}>
+                    Limpar enviados
+                  </Button>
+                )}
+                {pendingCount > 0 && (
+                  <Button size="sm" onClick={uploadAllFiles} disabled={uploadMutation.isPending}>
+                    {uploadMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-2" />
+                    )}
+                    Enviar {pendingCount}
+                  </Button>
+                )}
+              </div>
+            </div>
+            <CollapsibleContent className="space-y-2 mt-2">
+              {files.map((fileItem) => (
+                <div
+                  key={fileItem.id}
+                  className={`
+                    p-3 rounded-lg border
+                    ${fileItem.status === "success" ? "border-green-200 bg-green-50/50" : ""}
+                    ${fileItem.status === "error" ? "border-red-200 bg-red-50/50" : ""}
+                    ${fileItem.status === "pending" || fileItem.status === "uploading" ? "border-border bg-card" : ""}
+                  `}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`
+                      h-9 w-9 rounded-lg flex items-center justify-center shrink-0
+                      ${fileItem.status === "success" ? "bg-green-100" : ""}
+                      ${fileItem.status === "error" ? "bg-red-100" : ""}
+                      ${fileItem.status === "pending" || fileItem.status === "uploading" ? "bg-muted" : ""}
+                    `}>
+                      {fileItem.status === "success" ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      ) : fileItem.status === "error" ? (
+                        <AlertTriangle className="h-5 w-5 text-red-600" />
+                      ) : fileItem.status === "uploading" ? (
+                        <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                      ) : (
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{fileItem.name}</p>
+                          <p className="text-xs text-muted-foreground">{formatFileSize(fileItem.size)}</p>
+                        </div>
+                        {fileItem.status === "pending" && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeFile(fileItem.id)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+
+                      {fileItem.status === "uploading" && (
+                        <Progress value={fileItem.progress} className="h-1.5" />
+                      )}
+
+                      {fileItem.status === "error" && fileItem.error && (
+                        <p className="text-xs text-red-600">{fileItem.error}</p>
+                      )}
+
+                      {fileItem.status === "pending" && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Tipo</Label>
+                            <Select
+                              value={fileItem.documentType}
+                              onValueChange={(value) => updateFileField(fileItem.id, "documentType", value)}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(typeLabels).map(([value, label]) => (
+                                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              Validade
+                            </Label>
+                            <Input
+                              type="date"
+                              className="h-8 text-xs"
+                              value={fileItem.expiresAt}
+                              onChange={(e) => updateFileField(fileItem.id, "expiresAt", e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
+        {/* Document List */}
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
@@ -271,7 +438,7 @@ export default function SupplierDocuments({ supplierId, canEdit }: SupplierDocum
             ))}
           </div>
         ) : documents && documents.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {documents.map((item) => (
               <div
                 key={item.document.id}
@@ -280,10 +447,10 @@ export default function SupplierDocuments({ supplierId, canEdit }: SupplierDocum
                 <div className="flex items-center gap-3">
                   {getFileIcon(item.document.mimeType)}
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium text-sm">{item.document.name}</p>
-                      <Badge className={typeColors[item.document.type]}>
-                        {typeLabels[item.document.type]}
+                      <Badge className={typeColors[item.document.type] || typeColors.other}>
+                        {typeLabels[item.document.type] || "Outro"}
                       </Badge>
                       {isExpired(item.document.expiresAt) && (
                         <Badge variant="destructive" className="text-xs">
@@ -292,7 +459,7 @@ export default function SupplierDocuments({ supplierId, canEdit }: SupplierDocum
                         </Badge>
                       )}
                       {isExpiringSoon(item.document.expiresAt) && !isExpired(item.document.expiresAt) && (
-                        <Badge variant="outline" className="text-yellow-600 border-yellow-600 text-xs">
+                        <Badge variant="outline" className="text-[oklch(0.55_0.15_85)] border-[oklch(0.55_0.15_85)] text-xs">
                           <AlertTriangle className="h-3 w-3 mr-1" />
                           Expira em breve
                         </Badge>
@@ -332,15 +499,9 @@ export default function SupplierDocuments({ supplierId, canEdit }: SupplierDocum
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <FileText className="h-12 w-12 text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">Nenhum documento cadastrado</p>
-            {canEdit && (
-              <Button className="mt-3" size="sm" onClick={() => setIsOpen(true)}>
-                <Upload className="h-4 w-4 mr-2" />
-                Enviar documento
-              </Button>
-            )}
+          <div className="flex flex-col items-center justify-center py-6 text-center">
+            <FileText className="h-10 w-10 text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">Nenhum documento cadastrado</p>
           </div>
         )}
       </CardContent>
