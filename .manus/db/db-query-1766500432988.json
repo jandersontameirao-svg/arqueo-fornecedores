@@ -1,0 +1,46 @@
+{
+  "query": "SHOW TABLES;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SHOW TABLES;",
+  "rows": [
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ": "__drizzle_migrations"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ": "approval_steps"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ": "approval_workflows"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ": "audit_logs"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ": "compliance_alerts"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ": "documents"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ": "interactions"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ": "performance_evaluations"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ": "supplier_categories"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ": "supplier_contacts"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ": "suppliers"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ": "users"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ\n__drizzle_migrations\napproval_steps\napproval_workflows\naudit_logs\ncompliance_alerts\ndocuments\ninteractions\nperformance_evaluations\nsupplier_categories\nsupplier_contacts\nsuppliers\nusers\n",
+  "stderr": "",
+  "execution_time_ms": 51
+}

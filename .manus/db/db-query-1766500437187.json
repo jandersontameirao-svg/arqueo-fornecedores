@@ -1,0 +1,46 @@
+{
+  "query": "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE();",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE();",
+  "rows": [
+    {
+      "table_name": "__drizzle_migrations"
+    },
+    {
+      "table_name": "users"
+    },
+    {
+      "table_name": "approval_steps"
+    },
+    {
+      "table_name": "approval_workflows"
+    },
+    {
+      "table_name": "audit_logs"
+    },
+    {
+      "table_name": "compliance_alerts"
+    },
+    {
+      "table_name": "documents"
+    },
+    {
+      "table_name": "interactions"
+    },
+    {
+      "table_name": "performance_evaluations"
+    },
+    {
+      "table_name": "supplier_categories"
+    },
+    {
+      "table_name": "supplier_contacts"
+    },
+    {
+      "table_name": "suppliers"
+    }
+  ],
+  "messages": [],
+  "stdout": "table_name\n__drizzle_migrations\nusers\napproval_steps\napproval_workflows\naudit_logs\ncompliance_alerts\ndocuments\ninteractions\nperformance_evaluations\nsupplier_categories\nsupplier_contacts\nsuppliers\n",
+  "stderr": "",
+  "execution_time_ms": 70
+}

@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO performance_evaluations (supplierId, evaluationPeriod, qualityScore, deliveryScore, priceScore, communicationScore, complianceScore, overallScore, strengths, improvements, comments, createdAt, updatedAt) VALUES \n(1, '2024-Q4', 85.50, 90.00, 78.00, 92.00, 88.00, 86.70, 'Excelente comunicação e pontualidade nas entregas. Equipe técnica qualificada.', 'Melhorar competitividade nos preços. Ampliar portfólio de produtos.', 'Fornecedor com bom potencial de parceria de longo prazo.', NOW(), NOW());",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute INSERT INTO performance_evaluations (supplierId, evaluationPeriod, qualityScore, deliveryScore, priceScore, communicationScore, complianceScore, overallScore, strengths, improvements, comments, createdAt, updatedAt) VALUES \n(1, '2024-Q4', 85.50, 90.00, 78.00, 92.00, 88.00, 86.70, 'Excelente comunicação e pontualidade nas entregas. Equipe técnica qualificada.', 'Melhorar competitividade nos preços. Ampliar portfólio de produtos.', 'Fornecedor com bom potencial de parceria de longo prazo.', NOW(), NOW());",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 67
+}

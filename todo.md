@@ -120,3 +120,20 @@
 - [x] Navegação fluida entre abas sem recarregar página
 - [x] Indicadores visuais de status e alertas
 - [x] Breadcrumb para navegação contextual
+
+## Melhorias Solicitadas (v2.1)
+
+### Fornecedor de Teste
+- [x] Cadastrar fornecedor de teste completo
+- [ ] Adicionar documentos de exemplo ao fornecedor (upload via interface)
+- [x] Adicionar contatos de exemplo
+- [x] Registrar interações de exemplo
+
+### Workflow de Aprovação
+- [x] Configurar etapas padrão de homologação
+- [x] Etapa 1: Análise Documental
+- [x] Etapa 2: Validação Fiscal
+- [x] Etapa 3: Aprovação Comercial
+- [x] Etapa 4: Aprovação Final
+- [x] Criar workflow para o fornecedor de teste
+- [x] Adicionar avaliação de desempenho de exemplo

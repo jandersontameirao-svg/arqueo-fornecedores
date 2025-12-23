@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO approval_steps (workflowId, stepNumber, stepName, status, createdAt, updatedAt) VALUES \n(1, 1, 'Análise Documental', 'pending', NOW(), NOW()),\n(1, 2, 'Validação Fiscal', 'pending', NOW(), NOW()),\n(1, 3, 'Aprovação Comercial', 'pending', NOW(), NOW()),\n(1, 4, 'Aprovação Final', 'pending', NOW(), NOW());",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute INSERT INTO approval_steps (workflowId, stepNumber, stepName, status, createdAt, updatedAt) VALUES \n(1, 1, 'Análise Documental', 'pending', NOW(), NOW()),\n(1, 2, 'Validação Fiscal', 'pending', NOW(), NOW()),\n(1, 3, 'Aprovação Comercial', 'pending', NOW(), NOW()),\n(1, 4, 'Aprovação Final', 'pending', NOW(), NOW());",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 76
+}
