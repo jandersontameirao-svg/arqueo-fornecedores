@@ -27,15 +27,30 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Plus,
   Search,
   Building2,
-  Mail,
-  Phone,
-  ExternalLink,
   Filter,
+  Settings,
+  Eye,
+  Edit,
+  FileText,
+  MoreHorizontal,
+  Users,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Pause,
 } from "lucide-react";
 
 const statusLabels: Record<string, string> = {
@@ -47,11 +62,19 @@ const statusLabels: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-800",
-  approved: "bg-green-100 text-green-800",
-  rejected: "bg-red-100 text-red-800",
-  suspended: "bg-orange-100 text-orange-800",
-  inactive: "bg-gray-100 text-gray-800",
+  pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  approved: "bg-green-100 text-green-800 border-green-200",
+  rejected: "bg-red-100 text-red-800 border-red-200",
+  suspended: "bg-orange-100 text-orange-800 border-orange-200",
+  inactive: "bg-gray-100 text-gray-800 border-gray-200",
+};
+
+const statusIcons: Record<string, React.ReactNode> = {
+  pending: <Clock className="h-3 w-3" />,
+  approved: <CheckCircle className="h-3 w-3" />,
+  rejected: <XCircle className="h-3 w-3" />,
+  suspended: <Pause className="h-3 w-3" />,
+  inactive: <AlertTriangle className="h-3 w-3" />,
 };
 
 const criticalityLabels: Record<string, string> = {
@@ -62,10 +85,10 @@ const criticalityLabels: Record<string, string> = {
 };
 
 const criticalityColors: Record<string, string> = {
-  low: "bg-green-100 text-green-800",
-  medium: "bg-yellow-100 text-yellow-800",
-  high: "bg-orange-100 text-orange-800",
-  critical: "bg-red-100 text-red-800",
+  low: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  medium: "bg-amber-100 text-amber-800 border-amber-200",
+  high: "bg-orange-100 text-orange-800 border-orange-200",
+  critical: "bg-red-100 text-red-800 border-red-200",
 };
 
 export default function Suppliers() {
@@ -85,22 +108,80 @@ export default function Suppliers() {
   });
 
   const canCreate = user?.role === "admin" || user?.role === "manager";
+  const canEdit = user?.role === "admin" || user?.role === "manager";
+
+  // Estatísticas rápidas
+  const stats = {
+    total: suppliers?.length || 0,
+    approved: suppliers?.filter(s => s.supplier.status === "approved").length || 0,
+    pending: suppliers?.filter(s => s.supplier.status === "pending").length || 0,
+    critical: suppliers?.filter(s => s.supplier.criticality === "critical" || s.supplier.criticality === "high").length || 0,
+  };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Fornecedores</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Cadastro de Fornecedores</h1>
           <p className="text-muted-foreground">
             Gerencie os fornecedores do Grupo Arqueo
           </p>
         </div>
         {canCreate && (
-          <Button onClick={() => setLocation("/suppliers/new")}>
+          <Button onClick={() => setLocation("/suppliers/new")} className="shadow-sm">
             <Plus className="h-4 w-4 mr-2" />
             Novo Fornecedor
           </Button>
         )}
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="border-l-4 border-l-primary">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
+              </div>
+              <Building2 className="h-8 w-8 text-primary/20" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-green-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Aprovados</p>
+                <p className="text-2xl font-bold text-green-600">{stats.approved}</p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-500/20" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-yellow-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Pendentes</p>
+                <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+              </div>
+              <Clock className="h-8 w-8 text-yellow-500/20" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-red-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Alta Criticidade</p>
+                <p className="text-2xl font-bold text-red-600">{stats.critical}</p>
+              </div>
+              <AlertTriangle className="h-8 w-8 text-red-500/20" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
@@ -176,31 +257,30 @@ export default function Suppliers() {
           ) : suppliers && suppliers.length > 0 ? (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Fornecedor</TableHead>
-                  <TableHead>CNPJ</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Criticidade</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="font-semibold">Fornecedor</TableHead>
+                  <TableHead className="font-semibold">CNPJ</TableHead>
+                  <TableHead className="font-semibold">Categoria</TableHead>
+                  <TableHead className="font-semibold">Criticidade</TableHead>
+                  <TableHead className="font-semibold">Status</TableHead>
+                  <TableHead className="text-right font-semibold">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {suppliers.map((item) => (
                   <TableRow
                     key={item.supplier.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => setLocation(`/suppliers/${item.supplier.id}`)}
+                    className="group hover:bg-muted/50 transition-colors"
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                           <Building2 className="h-5 w-5 text-primary" />
                         </div>
-                        <div>
-                          <p className="font-medium">{item.supplier.companyName}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {item.supplier.email}
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{item.supplier.companyName}</p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {item.supplier.tradeName || item.supplier.email}
                           </p>
                         </div>
                       </div>
@@ -212,7 +292,7 @@ export default function Suppliers() {
                       {item.category ? (
                         <div className="flex items-center gap-2">
                           <div
-                            className="h-2 w-2 rounded-full"
+                            className="h-2.5 w-2.5 rounded-full shrink-0"
                             style={{ backgroundColor: item.category.color || "#6B7280" }}
                           />
                           <span className="text-sm">{item.category.name}</span>
@@ -223,50 +303,100 @@ export default function Suppliers() {
                     </TableCell>
                     <TableCell>
                       <Badge
-                        className={
-                          criticalityColors[item.supplier.criticality || "medium"]
-                        }
+                        variant="outline"
+                        className={criticalityColors[item.supplier.criticality || "medium"]}
                       >
                         {criticalityLabels[item.supplier.criticality || "medium"]}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge className={statusColors[item.supplier.status]}>
+                      <Badge
+                        variant="outline"
+                        className={`${statusColors[item.supplier.status]} flex items-center gap-1 w-fit`}
+                      >
+                        {statusIcons[item.supplier.status]}
                         {statusLabels[item.supplier.status]}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setLocation(`/suppliers/${item.supplier.id}`);
-                        }}
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLocation(`/suppliers/${item.supplier.id}`);
+                          }}
+                          className="h-8 px-2"
+                        >
+                          <Settings className="h-4 w-4 mr-1" />
+                          Gerenciar
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => setLocation(`/suppliers/${item.supplier.id}`)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Visualizar
+                            </DropdownMenuItem>
+                            {canEdit && (
+                              <DropdownMenuItem
+                                onClick={() => setLocation(`/suppliers/${item.supplier.id}/edit`)}
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Editar
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => setLocation(`/suppliers/${item.supplier.id}?tab=documents`)}
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              Documentos
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setLocation(`/suppliers/${item.supplier.id}?tab=contacts`)}
+                            >
+                              <Users className="h-4 w-4 mr-2" />
+                              Contatos
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12">
-              <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <Building2 className="h-8 w-8 text-muted-foreground" />
+              </div>
               <h3 className="text-lg font-medium">Nenhum fornecedor encontrado</h3>
-              <p className="text-muted-foreground text-sm mt-1">
+              <p className="text-muted-foreground text-sm mt-1 text-center max-w-sm">
                 {search || statusFilter !== "all" || categoryFilter !== "all"
-                  ? "Tente ajustar os filtros de busca"
-                  : "Comece cadastrando um novo fornecedor"}
+                  ? "Tente ajustar os filtros de busca para encontrar o que procura"
+                  : "Comece cadastrando um novo fornecedor para gerenciar"}
               </p>
               {canCreate && !search && statusFilter === "all" && (
                 <Button
-                  className="mt-4"
+                  className="mt-6"
                   onClick={() => setLocation("/suppliers/new")}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Cadastrar Fornecedor
+                  Cadastrar Primeiro Fornecedor
                 </Button>
               )}
             </div>

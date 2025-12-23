@@ -364,14 +364,18 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
 
       {/* Main Content with Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-6 w-full h-auto p-1 bg-muted/50">
+        <TabsList className="grid grid-cols-8 w-full h-auto p-1 bg-muted/50">
           <TabsTrigger value="overview" className="flex items-center gap-2 py-2.5">
             <Building2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Visão Geral</span>
+            <span className="hidden lg:inline">Visão Geral</span>
+          </TabsTrigger>
+          <TabsTrigger value="cadastro" className="flex items-center gap-2 py-2.5">
+            <FileText className="h-4 w-4" />
+            <span className="hidden lg:inline">Cadastro</span>
           </TabsTrigger>
           <TabsTrigger value="documents" className="flex items-center gap-2 py-2.5">
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">Documentos</span>
+            <FileCheck className="h-4 w-4" />
+            <span className="hidden lg:inline">Documentos</span>
             {expiredDocs > 0 && (
               <Badge variant="destructive" className="h-5 w-5 p-0 text-xs justify-center">
                 {expiredDocs}
@@ -380,19 +384,23 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
           </TabsTrigger>
           <TabsTrigger value="contacts" className="flex items-center gap-2 py-2.5">
             <Users className="h-4 w-4" />
-            <span className="hidden sm:inline">Contatos</span>
+            <span className="hidden lg:inline">Contatos</span>
           </TabsTrigger>
           <TabsTrigger value="interactions" className="flex items-center gap-2 py-2.5">
             <MessageSquare className="h-4 w-4" />
-            <span className="hidden sm:inline">Interações</span>
+            <span className="hidden lg:inline">Interações</span>
           </TabsTrigger>
           <TabsTrigger value="evaluations" className="flex items-center gap-2 py-2.5">
             <BarChart3 className="h-4 w-4" />
-            <span className="hidden sm:inline">Avaliações</span>
+            <span className="hidden lg:inline">Avaliações</span>
+          </TabsTrigger>
+          <TabsTrigger value="financeiro" className="flex items-center gap-2 py-2.5">
+            <CreditCard className="h-4 w-4" />
+            <span className="hidden lg:inline">Financeiro</span>
           </TabsTrigger>
           <TabsTrigger value="workflow" className="flex items-center gap-2 py-2.5">
             <Shield className="h-4 w-4" />
-            <span className="hidden sm:inline">Aprovação</span>
+            <span className="hidden lg:inline">Aprovação</span>
           </TabsTrigger>
         </TabsList>
 
@@ -649,6 +657,175 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
           )}
         </TabsContent>
 
+        {/* Cadastro Tab - Dados Cadastrais Completos */}
+        <TabsContent value="cadastro" className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Identificação */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  Identificação
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Razão Social</p>
+                    <p className="text-sm font-medium">{supplier.companyName}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Nome Fantasia</p>
+                    <p className="text-sm font-medium">{supplier.tradeName || "-"}</p>
+                  </div>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">CNPJ</p>
+                    <p className="text-sm font-mono">{supplier.cnpj}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Inscrição Estadual</p>
+                    <p className="text-sm font-mono">{supplier.stateRegistration || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Inscrição Municipal</p>
+                    <p className="text-sm font-mono">{supplier.municipalRegistration || "-"}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Contato */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-primary" />
+                  Contato Principal
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">E-mail</p>
+                    <p className="text-sm">{supplier.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Telefone</p>
+                    <p className="text-sm">{supplier.phone || "-"}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Website</p>
+                  {supplier.website ? (
+                    <a href={supplier.website} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
+                      {supplier.website}
+                    </a>
+                  ) : (
+                    <p className="text-sm">-</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Endereço */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  Endereço
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground">Logradouro</p>
+                    <p className="text-sm">{supplier.street || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Número</p>
+                    <p className="text-sm">{supplier.number || "-"}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Complemento</p>
+                    <p className="text-sm">{supplier.complement || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Bairro</p>
+                    <p className="text-sm">{supplier.neighborhood || "-"}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Cidade</p>
+                    <p className="text-sm">{supplier.city || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Estado</p>
+                    <p className="text-sm">{supplier.state || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">CEP</p>
+                    <p className="text-sm font-mono">{supplier.zipCode || "-"}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Classificação */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  Classificação
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Categoria</p>
+                    {category ? (
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: category.color || "#6B7280" }} />
+                        <span className="text-sm font-medium">{category.name}</span>
+                      </div>
+                    ) : (
+                      <p className="text-sm">-</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Criticidade</p>
+                    <Badge className={`${criticalityColors[supplier.criticality || "medium"]} mt-1`}>
+                      {criticalityLabels[supplier.criticality || "medium"]}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Status</p>
+                  <Badge className={`${statusColors[supplier.status]} mt-1`}>
+                    {statusLabels[supplier.status]}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Observações */}
+          {supplier.notes && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Observações</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm whitespace-pre-wrap">{supplier.notes}</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
         {/* Documents Tab */}
         <TabsContent value="documents">
           <SupplierDocuments supplierId={id} canEdit={canEdit} />
@@ -667,6 +844,90 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
         {/* Evaluations Tab */}
         <TabsContent value="evaluations">
           <SupplierEvaluations supplierId={id} canEdit={canEdit} />
+        </TabsContent>
+
+        {/* Financeiro Tab */}
+        <TabsContent value="financeiro" className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Dados Bancários */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-primary" />
+                  Dados Bancários
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Banco</p>
+                  <p className="text-sm font-medium">{supplier.bankName || "-"}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Agência</p>
+                    <p className="text-sm font-mono">{supplier.bankAgency || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Conta</p>
+                    <p className="text-sm font-mono">{supplier.bankAccount || "-"}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Tipo de Conta</p>
+                  <p className="text-sm">{supplier.bankAccountType === "checking" ? "Conta Corrente" : supplier.bankAccountType === "savings" ? "Poupança" : "-"}</p>
+                </div>
+                <Separator />
+                <div>
+                  <p className="text-xs text-muted-foreground">Chave PIX</p>
+                  <p className="text-sm font-mono">{supplier.pixKey || "-"}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Informações Fiscais */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  Informações Fiscais
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">CNPJ</p>
+                    <p className="text-sm font-mono">{supplier.cnpj}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Inscrição Estadual</p>
+                    <p className="text-sm font-mono">{supplier.stateRegistration || "Isento"}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Inscrição Municipal</p>
+                  <p className="text-sm font-mono">{supplier.municipalRegistration || "-"}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Contratos Ativos - Placeholder */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileCheck className="h-4 w-4 text-primary" />
+                  Contratos Ativos
+                </CardTitle>
+                <CardDescription>Contratos e acordos comerciais vigentes</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">Nenhum contrato cadastrado</p>
+                  <p className="text-xs mt-1">Os contratos podem ser adicionados na aba de Documentos</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Workflow Tab */}

@@ -92,3 +92,31 @@
 - [x] Reorganizar menu lateral com submenus em Fornecedores
 - [x] Mover Documentos, Aprovações, Conformidade, Interações e Avaliações para dentro de Fornecedores
 - [x] Implementar menu colapsável com submenus
+
+## Implementação da Nova Arquitetura (v2.0)
+
+### Menu e Navegação
+- [x] Reorganizar menu lateral com "Gestão de Fornecedores" como grupo principal
+- [x] Submenu: Cadastro de Fornecedores, Aprovações Pendentes, Conformidade, Avaliações
+
+### Página de Listagem de Fornecedores
+- [x] Melhorar tabela com colunas: Nome, CNPJ, Categoria, Status, Criticidade, Ações
+- [x] Adicionar filtros avançados (status, categoria, criticidade)
+- [x] Botão "Gerenciar" para acesso à página individual
+- [x] Ações rápidas na lista
+
+### Página Individual do Fornecedor (Hub de Gestão)
+- [x] Cabeçalho fixo com informações essenciais e ações rápidas
+- [x] Aba 1: Visão Geral (cards de métricas, timeline, alertas)
+- [x] Aba 2: Dados Cadastrais (informações completas editáveis)
+- [x] Aba 3: Documentos (upload drag-and-drop, lista com status de validade)
+- [x] Aba 4: Contatos (gestão de pessoas de contato)
+- [x] Aba 5: Interações (timeline e registro de comunicações)
+- [x] Aba 6: Avaliações (scorecard, KPIs, histórico)
+- [x] Aba 7: Financeiro/Contratos (contratos ativos, resumo financeiro)
+- [x] Aba 8: Workflow (pipeline de aprovação, histórico)
+
+### Melhorias de UX
+- [x] Navegação fluida entre abas sem recarregar página
+- [x] Indicadores visuais de status e alertas
+- [x] Breadcrumb para navegação contextual

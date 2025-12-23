@@ -53,19 +53,17 @@ import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 
-// Menu items structure with submenus
+// Menu items structure with submenus - Nova Arquitetura v2.0
 const menuStructure = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   {
     icon: Building2,
-    label: "Fornecedores",
+    label: "Gestão de Fornecedores",
     path: "/suppliers",
     subItems: [
-      { icon: Building2, label: "Lista de Fornecedores", path: "/suppliers" },
-      { icon: FileText, label: "Documentos", path: "/documents" },
-      { icon: CheckSquare, label: "Aprovações", path: "/approvals" },
+      { icon: Building2, label: "Cadastro de Fornecedores", path: "/suppliers" },
+      { icon: CheckSquare, label: "Aprovações Pendentes", path: "/approvals" },
       { icon: AlertTriangle, label: "Conformidade", path: "/compliance" },
-      { icon: MessageSquare, label: "Interações", path: "/interactions" },
       { icon: BarChart3, label: "Avaliações", path: "/evaluations" },
     ],
   },
