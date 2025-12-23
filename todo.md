@@ -1,0 +1,67 @@
+# Gestão de Fornecedores Arqueo - TODO
+
+## Sistema de Autenticação e RBAC
+- [x] Sistema de autenticação com JWT
+- [x] Controle de acesso baseado em perfis (RBAC) - Administrador, Gestor, Leitura
+- [x] Middleware de autorização por perfil
+
+## Gestão de Usuários
+- [x] Cadastro de usuários
+- [x] Perfis de permissão configuráveis
+- [x] Controle de acesso granular
+- [x] Listagem e edição de usuários
+
+## Cadastro de Fornecedores
+- [x] Cadastro centralizado com informações de contato
+- [x] Dados fiscais (CNPJ, Inscrição Estadual)
+- [x] Dados bancários
+- [x] Listagem e busca de fornecedores
+- [x] Edição e exclusão de fornecedores
+
+## Portal de Onboarding
+- [x] Auto-cadastro para fornecedores
+- [x] Submissão de documentos iniciais
+- [x] Workflow de aprovação de cadastro
+
+## Gestão de Documentos
+- [x] Upload de documentos para S3
+- [x] Controle de versão de documentos
+- [x] Alertas de expiração para contratos e certidões
+- [x] Visualização e download de documentos
+
+## Categorização e Segmentação
+- [x] Categorização por tipo (serviços, matérias-primas, tecnologia)
+- [x] Classificação por criticidade
+- [x] Filtros e relatórios por categoria
+
+## Workflows de Aprovação
+- [x] Workflows configuráveis para homologação
+- [x] Etapas de aprovação com responsáveis
+- [x] Notificações de pendências
+
+## Conformidade e Auditoria
+- [x] Trilhas de auditoria digital
+- [x] Alertas automáticos de documentos vencidos
+- [x] Monitoramento de conformidade
+
+## Histórico de Interações
+- [x] Registro centralizado de comunicações
+- [x] Timeline de eventos por fornecedor
+- [x] Anexos em interações
+
+## Avaliação de Desempenho
+- [x] Scorecards com KPIs personalizados
+- [x] Avaliações periódicas
+- [x] Relatórios de performance
+- [x] Dashboard de indicadores
+
+## Interface Frontend
+- [x] Dashboard principal com métricas
+- [x] Layout responsivo e profissional
+- [x] Navegação intuitiva
+- [x] Temas corporativos
+
+## Testes
+- [x] Testes unitários para routers
+- [x] Testes de autenticação
+- [x] Testes de autorização RBAC

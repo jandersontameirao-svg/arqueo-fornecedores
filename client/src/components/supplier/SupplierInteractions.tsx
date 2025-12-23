@@ -1,0 +1,306 @@
+import { useState } from "react";
+import { trpc } from "@/lib/trpc";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import {
+  MessageSquare,
+  Plus,
+  Mail,
+  Phone,
+  Calendar,
+  Users,
+  MapPin,
+  FileText,
+  Trash2,
+} from "lucide-react";
+
+interface SupplierInteractionsProps {
+  supplierId: number;
+  canEdit: boolean;
+}
+
+const typeLabels: Record<string, string> = {
+  email: "Email",
+  phone: "Telefone",
+  meeting: "Reunião",
+  visit: "Visita",
+  note: "Anotação",
+  other: "Outro",
+};
+
+const typeIcons: Record<string, React.ReactNode> = {
+  email: <Mail className="h-4 w-4" />,
+  phone: <Phone className="h-4 w-4" />,
+  meeting: <Users className="h-4 w-4" />,
+  visit: <MapPin className="h-4 w-4" />,
+  note: <FileText className="h-4 w-4" />,
+  other: <MessageSquare className="h-4 w-4" />,
+};
+
+const typeColors: Record<string, string> = {
+  email: "bg-blue-100 text-blue-800",
+  phone: "bg-green-100 text-green-800",
+  meeting: "bg-purple-100 text-purple-800",
+  visit: "bg-orange-100 text-orange-800",
+  note: "bg-gray-100 text-gray-800",
+  other: "bg-slate-100 text-slate-800",
+};
+
+export default function SupplierInteractions({ supplierId, canEdit }: SupplierInteractionsProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    type: "note" as "email" | "phone" | "meeting" | "visit" | "note" | "other",
+    subject: "",
+    description: "",
+    contactName: "",
+    interactionDate: new Date().toISOString().split("T")[0],
+    followUpDate: "",
+  });
+
+  const utils = trpc.useUtils();
+  const { data: interactions, isLoading } = trpc.interactions.list.useQuery({ supplierId });
+
+  const createMutation = trpc.interactions.create.useMutation({
+    onSuccess: () => {
+      toast.success("Interação registrada!");
+      utils.interactions.list.invalidate({ supplierId });
+      setIsOpen(false);
+      resetForm();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const deleteMutation = trpc.interactions.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Interação removida");
+      utils.interactions.list.invalidate({ supplierId });
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const resetForm = () => {
+    setFormData({
+      type: "note",
+      subject: "",
+      description: "",
+      contactName: "",
+      interactionDate: new Date().toISOString().split("T")[0],
+      followUpDate: "",
+    });
+  };
+
+  const handleSubmit = () => {
+    if (!formData.subject) {
+      toast.error("Informe o assunto da interação");
+      return;
+    }
+
+    createMutation.mutate({
+      supplierId,
+      ...formData,
+      followUpDate: formData.followUpDate || undefined,
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-base">Histórico de Interações</CardTitle>
+        {canEdit && (
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Registrar
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Nova Interação</DialogTitle>
+                <DialogDescription>
+                  Registre uma interação com este fornecedor
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Tipo *</Label>
+                    <Select
+                      value={formData.type}
+                      onValueChange={(value: any) => setFormData((prev) => ({ ...prev, type: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="email">Email</SelectItem>
+                        <SelectItem value="phone">Telefone</SelectItem>
+                        <SelectItem value="meeting">Reunião</SelectItem>
+                        <SelectItem value="visit">Visita</SelectItem>
+                        <SelectItem value="note">Anotação</SelectItem>
+                        <SelectItem value="other">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data *</Label>
+                    <Input
+                      type="date"
+                      value={formData.interactionDate}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, interactionDate: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Assunto *</Label>
+                  <Input
+                    value={formData.subject}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, subject: e.target.value }))}
+                    placeholder="Resumo da interação"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Contato</Label>
+                  <Input
+                    value={formData.contactName}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, contactName: e.target.value }))}
+                    placeholder="Nome do contato"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Descrição</Label>
+                  <Textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                    placeholder="Detalhes da interação..."
+                    rows={4}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Data de Follow-up</Label>
+                  <Input
+                    type="date"
+                    value={formData.followUpDate}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, followUpDate: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSubmit} disabled={createMutation.isPending}>
+                  Salvar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
+            ))}
+          </div>
+        ) : interactions && interactions.length > 0 ? (
+          <div className="relative">
+            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
+            <div className="space-y-4">
+              {interactions.map((item) => (
+                <div key={item.interaction.id} className="relative pl-10">
+                  <div className="absolute left-2 top-2 h-5 w-5 rounded-full bg-background border-2 border-primary flex items-center justify-center">
+                    {typeIcons[item.interaction.type]}
+                  </div>
+                  <div className="p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge className={typeColors[item.interaction.type]}>
+                            {typeLabels[item.interaction.type]}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {new Date(item.interaction.interactionDate).toLocaleDateString("pt-BR")}
+                          </span>
+                        </div>
+                        <p className="font-medium text-sm">{item.interaction.subject}</p>
+                        {item.interaction.contactName && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Contato: {item.interaction.contactName}
+                          </p>
+                        )}
+                        {item.interaction.description && (
+                          <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
+                            {item.interaction.description}
+                          </p>
+                        )}
+                        {item.interaction.followUpDate && (
+                          <p className="text-xs text-primary mt-2">
+                            Follow-up: {new Date(item.interaction.followUpDate).toLocaleDateString("pt-BR")}
+                          </p>
+                        )}
+                      </div>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => deleteMutation.mutate({ id: item.interaction.id })}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    {item.createdBy && (
+                      <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                        Registrado por {item.createdBy.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <MessageSquare className="h-12 w-12 text-muted-foreground mb-3" />
+            <p className="text-muted-foreground">Nenhuma interação registrada</p>
+            {canEdit && (
+              <Button className="mt-3" size="sm" onClick={() => setIsOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Registrar interação
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
