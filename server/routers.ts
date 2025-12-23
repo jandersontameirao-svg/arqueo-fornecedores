@@ -6,6 +6,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { storagePut } from "./storage";
 import * as db from "./db";
+import * as notifications from "./notifications";
 
 // ==================== RBAC MIDDLEWARE ====================
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -769,8 +770,27 @@ export const appRouter = router({
           action: "create",
           changes: { source: "onboarding", companyName: input.companyName },
         });
+        // Send notification for new supplier registration
+        await notifications.notifyNewSupplierRegistration(input.companyName, input.cnpj);
         return { id, message: "Cadastro enviado com sucesso! Aguarde a aprovação." };
       }),
+  }),
+
+  // ==================== NOTIFICATIONS ====================
+  notifications: router({
+    checkExpiringDocuments: adminProcedure.mutation(async () => {
+      const result = await notifications.checkAndNotifyExpiringDocuments();
+      return result;
+    }),
+
+    sendTestNotification: adminProcedure.mutation(async () => {
+      const { notifyOwner } = await import("./_core/notification");
+      const success = await notifyOwner({
+        title: "🧪 Teste de Notificação",
+        content: "Esta é uma notificação de teste do Sistema de Gestão de Fornecedores do Grupo Arqueo.",
+      });
+      return { success };
+    }),
   }),
 });
 

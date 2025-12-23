@@ -65,3 +65,8 @@
 - [x] Testes unitários para routers
 - [x] Testes de autenticação
 - [x] Testes de autorização RBAC
+
+## Melhorias Solicitadas (v1.1)
+- [x] Cadastrar categorias iniciais de fornecedores (Serviços, Matérias-primas, Tecnologia, Logística)
+- [x] Configurar sistema de notificações por email para alertas
+- [x] Ajustar layout da página de usuários conforme exemplo (badges coloridos, layout de tabela)

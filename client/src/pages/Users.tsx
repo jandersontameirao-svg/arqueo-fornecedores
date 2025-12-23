@@ -28,11 +28,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import {
   Users as UsersIcon,
   Shield,
-  User,
+  UserCog,
+  Eye,
   Calendar,
   Mail,
   Edit,
@@ -45,10 +47,17 @@ const roleLabels: Record<string, string> = {
 };
 
 const roleColors: Record<string, string> = {
-  admin: "bg-red-100 text-red-800",
-  manager: "bg-blue-100 text-blue-800",
-  reader: "bg-gray-100 text-gray-800",
+  admin: "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
+  manager: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100",
+  reader: "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100",
 };
+
+function getInitials(name: string | null | undefined): string {
+  if (!name) return "U";
+  const parts = name.trim().split(" ");
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
 
 export default function Users() {
   const { user: currentUser } = useAuth();
@@ -81,6 +90,7 @@ export default function Users() {
     updateRoleMutation.mutate({ id: editingUser.id, role: newRole as "admin" | "manager" | "reader" });
   };
 
+  const totalCount = users?.length || 0;
   const adminCount = users?.filter((u) => u.role === "admin").length || 0;
   const managerCount = users?.filter((u) => u.role === "manager").length || 0;
   const readerCount = users?.filter((u) => u.role === "reader").length || 0;
@@ -94,50 +104,50 @@ export default function Users() {
         </p>
       </div>
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
             <UsersIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{users?.length || 0}</div>
+            <div className="text-3xl font-bold">{totalCount}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Administradores</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Administradores</CardTitle>
             <Shield className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{adminCount}</div>
+            <div className="text-3xl font-bold text-red-600">{adminCount}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gestores</CardTitle>
-            <User className="h-4 w-4 text-blue-500" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Gestores</CardTitle>
+            <UserCog className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{managerCount}</div>
+            <div className="text-3xl font-bold text-blue-600">{managerCount}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Leitura</CardTitle>
-            <User className="h-4 w-4 text-gray-500" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Leitura</CardTitle>
+            <Eye className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-600">{readerCount}</div>
+            <div className="text-3xl font-bold text-gray-600">{readerCount}</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Users Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Lista de Usuários</CardTitle>
+      <Card className="border shadow-sm">
+        <CardHeader className="border-b bg-muted/30">
+          <CardTitle className="text-base font-medium">Lista de Usuários</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -149,34 +159,39 @@ export default function Users() {
           ) : users && users.length > 0 ? (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Usuário</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Permissão</TableHead>
-                  <TableHead>Último Acesso</TableHead>
-                  <TableHead>Cadastro</TableHead>
-                  {isAdmin && <TableHead className="text-right">Ações</TableHead>}
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableHead className="font-medium">Usuário</TableHead>
+                  <TableHead className="font-medium">Email</TableHead>
+                  <TableHead className="font-medium">Permissão</TableHead>
+                  <TableHead className="font-medium">Último Acesso</TableHead>
+                  <TableHead className="font-medium">Cadastro</TableHead>
+                  {isAdmin && <TableHead className="font-medium text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.map((user) => (
-                  <TableRow key={user.id}>
+                  <TableRow key={user.id} className="hover:bg-muted/20">
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="h-4 w-4 text-primary" />
-                        </div>
+                        <Avatar className="h-9 w-9 border">
+                          <AvatarFallback className="bg-muted text-muted-foreground text-sm font-medium">
+                            {getInitials(user.name)}
+                          </AvatarFallback>
+                        </Avatar>
                         <span className="font-medium">{user.name || "Sem nome"}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Mail className="h-4 w-4" />
                         {user.email || "—"}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge className={roleColors[user.role]}>
+                      <Badge 
+                        variant="outline" 
+                        className={`${roleColors[user.role]} font-medium px-3 py-1`}
+                      >
                         {roleLabels[user.role]}
                       </Badge>
                     </TableCell>
@@ -197,11 +212,12 @@ export default function Users() {
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={() => handleEditRole(user)}
                           disabled={user.id === currentUser?.id}
+                          className="h-8 w-8 hover:bg-muted"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-4 w-4 text-muted-foreground" />
                         </Button>
                       </TableCell>
                     )}

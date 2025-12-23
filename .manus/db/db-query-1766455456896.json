@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO supplier_categories (name, description, color, createdAt, updatedAt) VALUES \n('Serviços', 'Fornecedores de serviços gerais', '#3B82F6', NOW(), NOW()),\n('Matérias-primas', 'Fornecedores de matérias-primas e insumos', '#10B981', NOW(), NOW()),\n('Tecnologia', 'Fornecedores de tecnologia e software', '#8B5CF6', NOW(), NOW()),\n('Logística', 'Fornecedores de transporte e logística', '#F59E0B', NOW(), NOW()),\n('Equipamentos', 'Fornecedores de máquinas e equipamentos', '#EF4444', NOW(), NOW()),\n('Consultoria', 'Fornecedores de consultoria e assessoria', '#06B6D4', NOW(), NOW())\nON DUPLICATE KEY UPDATE description = VALUES(description), color = VALUES(color);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute INSERT INTO supplier_categories (name, description, color, createdAt, updatedAt) VALUES \n('Serviços', 'Fornecedores de serviços gerais', '#3B82F6', NOW(), NOW()),\n('Matérias-primas', 'Fornecedores de matérias-primas e insumos', '#10B981', NOW(), NOW()),\n('Tecnologia', 'Fornecedores de tecnologia e software', '#8B5CF6', NOW(), NOW()),\n('Logística', 'Fornecedores de transporte e logística', '#F59E0B', NOW(), NOW()),\n('Equipamentos', 'Fornecedores de máquinas e equipamentos', '#EF4444', NOW(), NOW()),\n('Consultoria', 'Fornecedores de consultoria e assessoria', '#06B6D4', NOW(), NOW())\nON DUPLICATE KEY UPDATE description = VALUES(description), color = VALUES(color);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 135
+}
