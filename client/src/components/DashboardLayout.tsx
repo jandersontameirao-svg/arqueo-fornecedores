@@ -276,11 +276,22 @@ function DashboardLayoutContent({
               </button>
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-semibold tracking-tight truncate text-primary">
+                  <img 
+                    src="/logo-arqueo.svg" 
+                    alt="Grupo Arqueo" 
+                    className="h-8 w-8 shrink-0"
+                  />
+                  <span className="font-semibold text-lg text-foreground truncate">
                     Arqueo Fornecedores
                   </span>
                 </div>
-              ) : null}
+              ) : (
+                <img 
+                  src="/logo-arqueo.svg" 
+                  alt="Grupo Arqueo" 
+                  className="h-8 w-8 mx-auto"
+                />
+              )}
             </div>
           </SidebarHeader>
 

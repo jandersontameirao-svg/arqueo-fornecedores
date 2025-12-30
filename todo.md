@@ -137,3 +137,11 @@
 - [x] Etapa 4: Aprovação Final
 - [x] Criar workflow para o fornecedor de teste
 - [x] Adicionar avaliação de desempenho de exemplo
+
+## Melhorias Solicitadas (v2.2)
+
+### Logo e Identidade Visual
+- [x] Copiar logo do Grupo Arqueo para o diretório public
+- [x] Adicionar logo ao cabeçalho do DashboardLayout
+- [x] Atualizar favicon com a logo do Grupo Arqueo
+- [x] Ajustar título da aplicação no navegador
