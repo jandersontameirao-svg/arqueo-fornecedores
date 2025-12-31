@@ -35,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ExportDialog } from "@/components/ExportDialog";
 import {
   Plus,
   Search,
@@ -48,6 +49,7 @@ import {
   Users,
   AlertTriangle,
   CheckCircle,
+  Download,
   Clock,
   XCircle,
   Pause,
@@ -95,9 +97,10 @@ export default function Suppliers() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [criticalityFilter, setCriticalityFilter] = useState<string>("all");
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
   const { data: categories } = trpc.categories.list.useQuery();
   const { data: suppliers, isLoading } = trpc.suppliers.list.useQuery({
@@ -128,12 +131,22 @@ export default function Suppliers() {
             Gerencie os fornecedores do Grupo Arqueo
           </p>
         </div>
-        {canCreate && (
-          <Button onClick={() => setLocation("/suppliers/new")} className="shadow-sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Fornecedor
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setExportDialogOpen(true)}
+            className="shadow-sm"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Exportar
           </Button>
-        )}
+          {canCreate && (
+            <Button onClick={() => setLocation("/suppliers/new")} className="shadow-sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Fornecedor
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -403,6 +416,13 @@ export default function Suppliers() {
           )}
         </CardContent>
       </Card>
+
+      {/* Export Dialog */}
+      <ExportDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        categories={categories}
+      />
     </div>
   );
 }

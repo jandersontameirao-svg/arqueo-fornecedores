@@ -145,3 +145,19 @@
 - [x] Adicionar logo ao cabeçalho do DashboardLayout
 - [x] Atualizar favicon com a logo do Grupo Arqueo
 - [x] Ajustar título da aplicação no navegador
+
+## Melhorias Solicitadas (v2.3) - Exportação de Dados
+
+### Backend
+- [x] Instalar bibliotecas necessárias (exceljs para Excel, pdfkit para PDF)
+- [x] Criar serviço de exportação para Excel com formatação
+- [x] Criar serviço de exportação para PDF com layout profissional
+- [x] Adicionar endpoints tRPC para exportação
+
+### Frontend
+- [x] Criar modal/dialog de exportação com opções
+- [x] Adicionar seleção de formato (Excel/PDF)
+- [x] Implementar filtros de exportação (categoria, status, criticidade)
+- [x] Adicionar seleção de campos para exportar
+- [x] Botão de exportação na página de listagem de fornecedores
+- [x] Feedback visual durante exportação (loading, sucesso, erro)

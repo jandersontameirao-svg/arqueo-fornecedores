@@ -8,6 +8,7 @@ import { storagePut } from "./storage";
 import * as db from "./db";
 import * as notifications from "./notifications";
 import * as reports from "./reports";
+import * as exportService from "./export";
 
 // ==================== RBAC MIDDLEWARE ====================
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -916,6 +917,47 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         return reports.generateExpiringDocumentsReport(input.daysAhead || 30);
+      }),
+  }),
+
+  // ==================== EXPORT ====================
+  export: router({
+    suppliers: managerProcedure
+      .input(z.object({
+        format: z.enum(["excel", "pdf"]),
+        filters: z.object({
+          categoryId: z.number().optional(),
+          status: z.string().optional(),
+          criticality: z.string().optional(),
+          searchTerm: z.string().optional(),
+        }).optional(),
+        fields: z.array(z.string()).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        // Get suppliers with filters
+        const result = await db.getAllSuppliers({
+          categoryId: input.filters?.categoryId,
+          status: input.filters?.status,
+          criticality: input.filters?.criticality,
+          search: input.filters?.searchTerm,
+        });
+        
+        // Extract supplier objects
+        const suppliers = result.map((r) => r.supplier);
+
+        // Generate export
+        const buffer = input.format === "excel"
+          ? await exportService.exportToExcel(suppliers, input)
+          : await exportService.exportToPDF(suppliers, input);
+
+        // Return base64 encoded buffer
+        return {
+          data: buffer.toString("base64"),
+          filename: `fornecedores_${new Date().toISOString().split('T')[0]}.${input.format === "excel" ? "xlsx" : "pdf"}`,
+          mimeType: input.format === "excel" 
+            ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            : "application/pdf",
+        };
       }),
   }),
 });
