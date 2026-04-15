@@ -172,19 +172,19 @@ function UnitCard({
 // Cores estáticas por unidade (evita classes dinâmicas do Tailwind)
 const UNIT_STYLES = [
   {
-    accentBar: "bg-arqueo-bordo",
-    iconClass: "icon-bordo",
-    btnClass: "bg-arqueo-bordo hover:bg-arqueo-bordo-light text-white",
-  },
-  {
     accentBar: "bg-arqueo-laranja",
     iconClass: "icon-laranja",
     btnClass: "bg-arqueo-laranja hover:bg-arqueo-laranja-light text-white",
   },
   {
-    accentBar: "bg-arqueo-azul",
-    iconClass: "icon-azul",
-    btnClass: "bg-arqueo-azul hover:bg-arqueo-azul-light text-white",
+    accentBar: "bg-arqueo-bordo",
+    iconClass: "icon-bordo",
+    btnClass: "bg-arqueo-bordo hover:bg-arqueo-bordo-light text-white",
+  },
+  {
+    accentBar: "bg-arqueo-roxo",
+    iconClass: "icon-roxo",
+    btnClass: "bg-arqueo-roxo hover:bg-arqueo-roxo-light text-white",
   },
   {
     accentBar: "bg-arqueo-amarelo",
@@ -192,6 +192,19 @@ const UNIT_STYLES = [
     btnClass: "bg-arqueo-amarelo hover:bg-arqueo-amarelo-light text-foreground",
   },
 ];
+
+// Ordem personalizada das unidades de negócio
+const UNIT_ORDER = ["Grupo Arqueo Brasil", "Foods and Drinks", "Grupo Arqueo Africa"];
+
+function sortUnits(units: Array<{ id: number; name: string; code: string | null; description: string | null; status: string }>) {
+  return [...units].sort((a, b) => {
+    const idxA = UNIT_ORDER.findIndex((n) => a.name.toLowerCase().includes(n.toLowerCase()) || n.toLowerCase().includes(a.name.toLowerCase()));
+    const idxB = UNIT_ORDER.findIndex((n) => b.name.toLowerCase().includes(n.toLowerCase()) || n.toLowerCase().includes(b.name.toLowerCase()));
+    const posA = idxA === -1 ? 999 : idxA;
+    const posB = idxB === -1 ? 999 : idxB;
+    return posA - posB;
+  });
+}
 
 export default function SelectBusinessUnit() {
   const { user } = useAuth();
@@ -335,7 +348,7 @@ export default function SelectBusinessUnit() {
           </div>
         ) : units && units.length > 0 ? (
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {units.map((unit, idx) => (
+            {sortUnits(units).map((unit, idx) => (
               <UnitCard
                 key={unit.id}
                 unit={unit}

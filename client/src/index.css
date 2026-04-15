@@ -255,6 +255,12 @@
   .bg-arqueo-verde {
     background-color: oklch(0.55 0.15 155);
   }
+  .bg-arqueo-roxo {
+    background-color: oklch(0.52 0.22 300);
+  }
+  .bg-arqueo-roxo-light {
+    background-color: oklch(0.58 0.20 300);
+  }
 
   /* Icon utility classes */
   .icon-bordo {
@@ -278,8 +284,8 @@
     color: oklch(0.45 0.15 155);
   }
   .icon-roxo {
-    background-color: oklch(0.92 0.04 300);
-    color: oklch(0.45 0.15 300);
+    background-color: oklch(0.92 0.06 300);
+    color: oklch(0.52 0.22 300);
   }
 
   /* Shadow utilities */
