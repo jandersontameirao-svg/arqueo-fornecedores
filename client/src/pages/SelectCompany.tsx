@@ -17,8 +17,8 @@ interface CompanyDef {
 const COMPANIES_BY_GROUP: Record<string, CompanyDef[]> = {
   "Grupo Arqueo Brasil": [
     { id: "arqueogis-preventiva", name: "Arqueogis Preventiva", color: "#F09327", description: "Arqueologia preventiva e licenciamento ambiental" },
-    { id: "arqueoproject", name: "Arqueoproject", color: "#4A103B", description: "Gestão e execução de projetos arqueológicos" },
-    { id: "arqueogis-geoprocessamento", name: "Arqueogis Geoprocessamento", color: "#C34C2E", description: "Geoprocessamento e análise espacial" },
+    { id: "arqueoproject", name: "Arqueoproject", color: "#6E0F2B", description: "Gestão e execução de projetos arqueológicos" },
+    { id: "arqueogis-geoprocessamento", name: "Arqueogis Geoprocessamento", color: "#D4A017", description: "Geoprocessamento e análise espacial" },
     { id: "arqueocean", name: "Arqueocean", color: "#3178C1", description: "Arqueologia subaquática e oceanografia" },
   ],
   "Foods and Drinks": [
