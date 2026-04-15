@@ -17,9 +17,9 @@ export type ImageContent = {
 
 export type FileContent = {
   type: "file";
-  file_url: {
-    url: string;
-    mime_type?: "audio/mpeg" | "audio/wav" | "application/pdf" | "audio/mp4" | "video/mp4" ;
+  file: {
+    data: string; // base64 encoded file data
+    mime_type: "audio/mpeg" | "audio/wav" | "application/pdf" | "audio/mp4" | "video/mp4" | "image/jpeg" | "image/png" | "image/gif" | "image/webp";
   };
 };
 
