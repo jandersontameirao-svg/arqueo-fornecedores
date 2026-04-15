@@ -13,6 +13,69 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { useLocation } from "wouter";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+
+// Cores do Grupo Arqueo para os gráficos
+const CATEGORY_COLORS = [
+  "#8B1538", // bordô
+  "#E85D04", // laranja
+  "#1A56DB", // azul
+  "#F5A623", // amarelo
+  "#10B981", // verde
+  "#8B5CF6", // roxo
+  "#EC4899", // rosa
+  "#06B6D4", // ciano
+];
+
+const CRITICALITY_COLORS: Record<string, string> = {
+  low: "#10B981",
+  medium: "#F5A623",
+  high: "#E85D04",
+  critical: "#EF4444",
+};
+
+const criticalityLabels: Record<string, string> = {
+  low: "Baixa",
+  medium: "Média",
+  high: "Alta",
+  critical: "Crítica",
+};
+
+const CustomPieTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-popover text-popover-foreground border border-border rounded-lg px-3 py-2 shadow-md text-sm">
+        <p className="font-medium">{payload[0].name}</p>
+        <p className="text-muted-foreground">{payload[0].value} fornecedor{payload[0].value !== 1 ? "es" : ""}</p>
+      </div>
+    );
+  }
+  return null;
+};
+
+const CustomBarTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-popover text-popover-foreground border border-border rounded-lg px-3 py-2 shadow-md text-sm">
+        <p className="font-medium">{label}</p>
+        <p className="text-muted-foreground">{payload[0].value} fornecedor{payload[0].value !== 1 ? "es" : ""}</p>
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -22,19 +85,20 @@ export default function Home() {
   const { data: alerts } = trpc.compliance.getAlerts.useQuery();
   const { data: pendingWorkflows } = trpc.workflows.getPending.useQuery();
 
-  const criticalityColors: Record<string, string> = {
-    low: "bg-green-100 text-green-800",
-    medium: "bg-yellow-100 text-yellow-800",
-    high: "bg-orange-100 text-orange-800",
-    critical: "bg-red-100 text-red-800",
-  };
+  // Preparar dados para o gráfico de pizza (categorias)
+  const categoryChartData = byCategory?.map((cat, idx) => ({
+    name: cat.categoryName || "Sem categoria",
+    value: cat.count,
+    color: cat.categoryColor || CATEGORY_COLORS[idx % CATEGORY_COLORS.length],
+  })) || [];
 
-  const criticalityLabels: Record<string, string> = {
-    low: "Baixa",
-    medium: "Média",
-    high: "Alta",
-    critical: "Crítica",
-  };
+  // Preparar dados para o gráfico de barras (criticidade)
+  const criticalityChartData = byCriticality?.map((crit) => ({
+    name: criticalityLabels[crit.criticality || "medium"] || crit.criticality,
+    value: crit.count,
+    color: CRITICALITY_COLORS[crit.criticality || "medium"] || "#6B7280",
+    key: crit.criticality,
+  })) || [];
 
   return (
     <div className="space-y-6">
@@ -81,7 +145,7 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/documents")}>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/suppliers")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Documentos</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
@@ -116,8 +180,9 @@ export default function Home() {
         </Card>
       </div>
 
+      {/* Charts Row */}
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Suppliers by Category */}
+        {/* Pie Chart - Suppliers by Category */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -128,40 +193,49 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             {categoryLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-10 w-full" />
-                ))}
+              <div className="flex items-center justify-center h-[260px]">
+                <div className="space-y-3 w-full">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
               </div>
-            ) : byCategory && byCategory.length > 0 ? (
-              <div className="space-y-3">
-                {byCategory.map((cat, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: cat.categoryColor || "#6B7280" }}
-                      />
-                      <span className="font-medium">
-                        {cat.categoryName || "Sem categoria"}
-                      </span>
-                    </div>
-                    <Badge variant="secondary">{cat.count}</Badge>
-                  </div>
-                ))}
+            ) : categoryChartData.length > 0 ? (
+              <div className="h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categoryChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={90}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {categoryChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomPieTooltip />} />
+                    <Legend
+                      formatter={(value) => (
+                        <span className="text-xs text-foreground">{value}</span>
+                      )}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
             ) : (
-              <p className="text-muted-foreground text-center py-4">
-                Nenhuma categoria cadastrada
-              </p>
+              <div className="flex flex-col items-center justify-center h-[260px] text-center">
+                <FolderOpen className="h-12 w-12 text-muted-foreground mb-3 opacity-50" />
+                <p className="text-muted-foreground text-sm">Nenhuma categoria cadastrada</p>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Suppliers by Criticality */}
+        {/* Bar Chart - Suppliers by Criticality */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -172,29 +246,47 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             {criticalityLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <Skeleton key={i} className="h-10 w-full" />
-                ))}
+              <div className="flex items-center justify-center h-[260px]">
+                <div className="space-y-3 w-full">
+                  {[1, 2, 3, 4].map((i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
               </div>
-            ) : byCriticality && byCriticality.length > 0 ? (
-              <div className="space-y-3">
-                {byCriticality.map((crit, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+            ) : criticalityChartData.length > 0 ? (
+              <div className="h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={criticalityChartData}
+                    margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
                   >
-                    <Badge className={criticalityColors[crit.criticality || "medium"]}>
-                      {criticalityLabels[crit.criticality || "medium"]}
-                    </Badge>
-                    <span className="font-bold">{crit.count}</span>
-                  </div>
-                ))}
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip content={<CustomBarTooltip />} />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={60}>
+                      {criticalityChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             ) : (
-              <p className="text-muted-foreground text-center py-4">
-                Nenhum fornecedor cadastrado
-              </p>
+              <div className="flex flex-col items-center justify-center h-[260px] text-center">
+                <TrendingUp className="h-12 w-12 text-muted-foreground mb-3 opacity-50" />
+                <p className="text-muted-foreground text-sm">Nenhum fornecedor cadastrado</p>
+              </div>
             )}
           </CardContent>
         </Card>

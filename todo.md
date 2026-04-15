@@ -161,3 +161,12 @@
 - [x] Adicionar seleção de campos para exportar
 - [x] Botão de exportação na página de listagem de fornecedores
 - [x] Feedback visual durante exportação (loading, sucesso, erro)
+## Melhorias Solicitadas (v2.4) - Gráficos no Dashboard
+- [x] Adicionar gráfico de pizza (donut) para Fornecedores por Categoria usando Recharts
+- [x] Adicionar gráfico de barras para Fornecedores por Criticidade usando Recharts
+- [x] Tooltips customizados nos gráficos com cores do Grupo Arqueo
+- [x] Estado vazio para quando não há dados nos gráficos
+- [x] Verificar e confirmar funcionamento do upload de documentos (drag-and-drop + S3)
+- [x] Verificar e confirmar funcionamento do fluxo de aprovação
+- [x] Verificar e confirmar funcionamento da exportação Excel/PDF
+- [x] Confirmar 19 testes unitários passando
