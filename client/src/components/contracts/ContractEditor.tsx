@@ -34,6 +34,7 @@ import {
   FileText,
 } from "lucide-react";
 import type { ContractCreationMode } from "./ContractCreationModal";
+import AIAutoFillSection, { type AIAutofillResult } from "./AIAutoFillSection";
 
 interface ContractItem {
   description: string;
@@ -179,6 +180,22 @@ export function ContractEditor({
     }
   }, [selectedTemplateId, templates, mode]);
 
+  // AI Autofill handler — only fills empty fields
+  const handleApplyAutofill = (data: Partial<AIAutofillResult>) => {
+    if (data.title && !title) setTitle(data.title);
+    if (data.number && !number) setNumber(data.number);
+    if (data.object && !object) setObject(data.object);
+    if (data.contractType) setContractType(data.contractType);
+    if (data.totalValue && !totalValue) setTotalValue(data.totalValue);
+    if (data.startDate && !startDate) setStartDate(data.startDate);
+    if (data.endDate && !endDate) setEndDate(data.endDate);
+    if (data.paymentTerms && !paymentTerms) setPaymentTerms(data.paymentTerms);
+    if (data.contractorName && contractorName === "Grupo Arqueo Participações") setContractorName(data.contractorName);
+    if (data.contractorCnpj && !contractorCnpj) setContractorCnpj(data.contractorCnpj);
+    if (data.legalRepresentative && !contractorRepresentative) setContractorRepresentative(data.legalRepresentative);
+    if (data.notes && !notes) setNotes(data.notes);
+  };
+
   // Mutations
   const generateAIMutation = trpc.contracts.generateWithAI.useMutation({
     onSuccess: (data) => {
@@ -303,7 +320,7 @@ export function ContractEditor({
             </div>
           )}
 
-          {/* === TEMPLATE MODE: select template === */}
+          {/* === TEMPLATE MODE: select template + AI autofill === */}
           {mode === "template" && (
             <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-3">
               <div className="flex items-center gap-2">
@@ -326,6 +343,20 @@ export function ContractEditor({
               ) : (
                 <p className="text-sm text-orange-700">Nenhum template disponível. O contrato será criado em branco.</p>
               )}
+
+              {/* AI Autofill — only shown when a template is selected */}
+              {selectedTemplateId && templates && (() => {
+                const tpl = templates.find((t) => t.id === parseInt(selectedTemplateId));
+                if (!tpl) return null;
+                return (
+                  <AIAutoFillSection
+                    templateId={tpl.id}
+                    templateName={tpl.name}
+                    templateContent={tpl.content || undefined}
+                    onApplySuggestions={handleApplyAutofill}
+                  />
+                );
+              })()}
             </div>
           )}
 

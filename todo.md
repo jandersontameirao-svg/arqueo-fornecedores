@@ -214,3 +214,10 @@
 ## Reestruturação do Menu (v5.2)
 - [x] Menu lateral: Dashboard, Gestão de Fornecedores, Categorias e Templates só visíveis após seleção de unidade de negócio
 - [x] Menu lateral: sem unidade ativa, exibir apenas Início e Usuários (e Auditoria/Relatórios globais se aplicável)
+
+## Autopreenchimento com I.A. na Modal de Contrato (v5.3)
+- [x] Endpoint tRPC contracts.analyzeFileForAutofill para análise de arquivo com IA
+- [x] Componente AIAutoFillSection com estados: inicial, upload, análise, sugestão, erro, sucesso
+- [x] Integração do AIAutoFillSection no ContractEditor (modo template)
+- [x] Suporte a PDF, DOCX, TXT com extração de dados contratuais
+- [x] Revisão obrigatória antes de aplicar sugestões ao formulário

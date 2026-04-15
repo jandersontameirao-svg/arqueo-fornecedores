@@ -1509,10 +1509,135 @@ Retorne APENAS o texto do template, sem comentários.`,
           extracted = { title: input.fileName.replace(".pdf", ""), summary: "Não foi possível extrair os dados automaticamente." };
         }
 
-        return { extracted, pdfUrl };
+         return { extracted, pdfUrl };
+      }),
+
+    analyzeFileForAutofill: managerProcedure
+      .input(z.object({
+        fileBase64: z.string(),
+        fileName: z.string(),
+        mimeType: z.string(),
+        templateId: z.number(),
+        templateName: z.string(),
+        templateContent: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        // Upload file to S3
+        const buffer = Buffer.from(input.fileBase64, "base64");
+        const ext = input.fileName.split(".").pop()?.toLowerCase() || "bin";
+        const fileKey = `contracts/autofill/${Date.now()}-${input.fileName}`;
+        const mimeMap: Record<string, string> = {
+          pdf: "application/pdf",
+          docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          doc: "application/msword",
+          txt: "text/plain",
+        };
+        const resolvedMime = mimeMap[ext] || input.mimeType || "application/octet-stream";
+        const { url: fileUrl } = await storagePut(fileKey, buffer, resolvedMime);
+
+        // Build AI prompt based on template context
+        const templateContext = input.templateContent
+          ? `\n\nO template selecionado é "${input.templateName}" e possui a seguinte estrutura:\n${input.templateContent.substring(0, 3000)}...`
+          : `\n\nO template selecionado é "${input.templateName}".`;
+
+        const systemPrompt = `Você é um especialista em análise de documentos contratuais brasileiros. Analise o arquivo fornecido e extraia dados para preencher um contrato baseado no template indicado.
+
+REGRAS CRÍTICAS:
+- Extraia APENAS dados presentes no documento. NUNCA invente ou alucie informações.
+- Se um campo não estiver claramente no documento, retorne string vazia "" e marque confidence como "low".
+- Não invente CNPJs, valores, datas, nomes ou cláusulas.
+- Seja conservador: prefira deixar vazio a inventar.${templateContext}`;
+
+        const userPrompt = `Analise este documento e extraia os dados para preencher o formulário de contrato. Retorne JSON com a estrutura abaixo:
+{
+  "title": "título sugerido para o contrato",
+  "number": "número do contrato se encontrado",
+  "contractType": "service|supply|lease|consulting|maintenance|other",
+  "object": "objeto/escopo do contrato",
+  "totalValue": "valor total em número (somente dígitos e ponto decimal, ex: 150000.00)",
+  "startDate": "data início YYYY-MM-DD ou vazio",
+  "endDate": "data fim YYYY-MM-DD ou vazio",
+  "paymentTerms": "condições de pagamento",
+  "contractorName": "nome da contratante",
+  "contractorCnpj": "CNPJ da contratante (somente números)",
+  "contracteeName": "nome da contratada",
+  "contracteeCnpj": "CNPJ da contratada (somente números)",
+  "legalRepresentative": "representante legal",
+  "deliverables": "entregáveis principais",
+  "notes": "informações complementares relevantes",
+  "missingFields": ["lista de campos exigidos pelo template que não foram encontrados no documento"],
+  "confidence": "high|medium|low",
+  "confidenceNotes": "observações sobre a confiança da extração",
+  "summary": "resumo executivo em 2-3 frases do que foi encontrado"
+}`;
+
+        const isTextFile = ["txt"].includes(ext);
+        const messages: any[] = [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: isTextFile
+              ? userPrompt + "\n\nConteúdo do arquivo:\n" + buffer.toString("utf-8").substring(0, 8000)
+              : [
+                  { type: "text", text: userPrompt },
+                  { type: "file_url", file_url: { url: fileUrl, mime_type: resolvedMime } },
+                ],
+          },
+        ];
+
+        const response = await invokeLLM({
+          messages,
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "contract_autofill",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  number: { type: "string" },
+                  contractType: { type: "string" },
+                  object: { type: "string" },
+                  totalValue: { type: "string" },
+                  startDate: { type: "string" },
+                  endDate: { type: "string" },
+                  paymentTerms: { type: "string" },
+                  contractorName: { type: "string" },
+                  contractorCnpj: { type: "string" },
+                  contracteeName: { type: "string" },
+                  contracteeCnpj: { type: "string" },
+                  legalRepresentative: { type: "string" },
+                  deliverables: { type: "string" },
+                  notes: { type: "string" },
+                  missingFields: { type: "array", items: { type: "string" } },
+                  confidence: { type: "string" },
+                  confidenceNotes: { type: "string" },
+                  summary: { type: "string" },
+                },
+                required: ["title", "number", "contractType", "object", "totalValue", "startDate", "endDate", "paymentTerms", "contractorName", "contractorCnpj", "contracteeName", "contracteeCnpj", "legalRepresentative", "deliverables", "notes", "missingFields", "confidence", "confidenceNotes", "summary"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const rawContent = response.choices[0]?.message?.content || "{}";
+        const contentStr = typeof rawContent === "string" ? rawContent : "{}";
+        let extracted: any = {};
+        try {
+          extracted = JSON.parse(contentStr);
+        } catch {
+          return {
+            success: false,
+            error: "Não foi possível processar o arquivo. Tente novamente ou use um formato diferente.",
+            extracted: null,
+          };
+        }
+
+        return { success: true, extracted, fileUrl };
       }),
   }),
-
   // ==================== EXPORT ====================
   export: router({
     suppliers: managerProcedure
