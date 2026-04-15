@@ -223,6 +223,7 @@ export const appRouter = router({
         categoryId: z.number().optional(),
         criticality: z.string().optional(),
         search: z.string().optional(),
+        companyId: z.string().optional(),
       }).optional())
       .query(async ({ input }) => {
         return db.getAllSuppliers(input);

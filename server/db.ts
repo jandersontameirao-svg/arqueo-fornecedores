@@ -160,6 +160,7 @@ export async function getAllSuppliers(filters?: {
   categoryId?: number;
   criticality?: string;
   search?: string;
+  companyId?: string;
 }) {
   const db = await getDb();
   if (!db) return [];
@@ -192,6 +193,9 @@ export async function getAllSuppliers(filters?: {
         like(suppliers.email, `%${filters.search}%`)
       )
     );
+  }
+  if (filters?.companyId) {
+    conditions.push(eq(suppliers.companyId, filters.companyId));
   }
 
   if (conditions.length > 0) {

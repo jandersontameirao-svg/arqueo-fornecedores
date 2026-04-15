@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -96,6 +97,7 @@ const criticalityColors: Record<string, string> = {
 export default function Suppliers() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const { selectedCompany } = useSelectedCompany();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -108,6 +110,7 @@ export default function Suppliers() {
     status: statusFilter !== "all" ? statusFilter : undefined,
     categoryId: categoryFilter !== "all" ? parseInt(categoryFilter) : undefined,
     criticality: criticalityFilter !== "all" ? criticalityFilter : undefined,
+    companyId: selectedCompany?.id,
   });
 
   const canCreate = user?.role === "admin" || user?.role === "manager";

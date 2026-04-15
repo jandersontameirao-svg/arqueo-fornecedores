@@ -62,6 +62,8 @@ export const suppliers = mysqlTable("suppliers", {
   // Classification
   categoryId: int("categoryId").references(() => supplierCategories.id),
   criticality: mysqlEnum("criticality", ["low", "medium", "high", "critical"]).default("medium"),
+  // Company Association
+  companyId: varchar("companyId", { length: 100 }),
   // Status
   status: mysqlEnum("status", ["pending", "approved", "rejected", "suspended", "inactive"]).default("pending").notNull(),
   approvedAt: timestamp("approvedAt"),

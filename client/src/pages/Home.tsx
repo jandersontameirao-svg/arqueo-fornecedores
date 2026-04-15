@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useBusinessUnitContext } from "@/contexts/BusinessUnitContext";
+import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
 import { ArrowLeft, Globe } from "lucide-react";
 import {
   PieChart,
@@ -82,6 +84,7 @@ const CustomBarTooltip = ({ active, payload, label }: any) => {
 export default function Home() {
   const [, setLocation] = useLocation();
   const { activeUnit, setActiveUnitId } = useBusinessUnitContext();
+  const { selectedCompany } = useSelectedCompany();
   const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery();
   const { data: byCategory, isLoading: categoryLoading } = trpc.dashboard.suppliersByCategory.useQuery();
   const { data: byCriticality, isLoading: criticalityLoading } = trpc.dashboard.suppliersByCriticality.useQuery();
@@ -116,16 +119,16 @@ export default function Home() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-            {activeUnit && (
-              <Badge className="bg-[#8B1538]/10 text-[#8B1538] border-[#8B1538]/20 font-medium">
+            {selectedCompany && (
+              <Badge style={{ backgroundColor: `${selectedCompany.color}20`, color: selectedCompany.color, borderColor: `${selectedCompany.color}40` }} className="font-medium border">
                 <Globe className="h-3 w-3 mr-1" />
-                {activeUnit.name}
+                {selectedCompany.name}
               </Badge>
             )}
           </div>
           <p className="text-muted-foreground">
-            {activeUnit
-              ? `Gestão de fornecedores — ${activeUnit.name}`
+            {selectedCompany
+              ? `Gestão de fornecedores — ${selectedCompany.name}`
               : "Visão geral da gestão de fornecedores do Grupo Arqueo"}
           </p>
         </div>
