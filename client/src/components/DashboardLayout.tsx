@@ -47,6 +47,7 @@ import {
   ClipboardList,
   FileSpreadsheet,
   ChevronRight,
+  LayoutTemplate,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -68,6 +69,7 @@ const menuStructure = [
     ],
   },
   { icon: FolderOpen, label: "Categorias", path: "/categories" },
+  { icon: LayoutTemplate, label: "Templates de Contratos", path: "/contract-templates" },
   { icon: ClipboardList, label: "Auditoria", path: "/audit", adminOnly: true },
   { icon: FileSpreadsheet, label: "Relatórios", path: "/reports" },
   { icon: Users, label: "Usuários", path: "/users", adminOnly: true },

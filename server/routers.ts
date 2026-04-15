@@ -1133,6 +1133,360 @@ Estruture o contrato com:
       }),
   }),
 
+  // ==================== AMENDMENTS (ADITIVOS) ====================
+  amendments: router({
+    listByContract: protectedProcedure
+      .input(z.object({ contractId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getAmendmentsByContract(input.contractId);
+      }),
+
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const amendment = await db.getAmendmentById(input.id);
+        if (!amendment) throw new TRPCError({ code: "NOT_FOUND", message: "Aditivo não encontrado" });
+        const milestones = await db.getMilestonesByAmendment(input.id);
+        return { amendment, milestones };
+      }),
+
+    create: managerProcedure
+      .input(z.object({
+        contractId: z.number(),
+        title: z.string().min(1),
+        number: z.string().optional(),
+        amendmentType: z.enum(["financial", "scope", "term", "mixed"]),
+        status: z.enum(["draft", "review", "active", "terminated"]).optional(),
+        description: z.string().optional(),
+        valueChange: z.string().optional(),
+        newTotalValue: z.string().optional(),
+        newEndDate: z.string().optional(),
+        content: z.string().optional(),
+        notes: z.string().optional(),
+        signedAt: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { newEndDate, signedAt, ...rest } = input;
+        const id = await db.createAmendment({
+          ...rest,
+          newEndDate: newEndDate ? new Date(newEndDate) : undefined,
+          signedAt: signedAt ? new Date(signedAt) : undefined,
+          createdById: ctx.user.id,
+        });
+        await db.createAuditLog({
+          entityType: "contract_amendment",
+          entityId: id,
+          action: "create",
+          changes: { title: input.title, type: input.amendmentType },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { id };
+      }),
+
+    update: managerProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).optional(),
+        number: z.string().optional(),
+        amendmentType: z.enum(["financial", "scope", "term", "mixed"]).optional(),
+        status: z.enum(["draft", "review", "active", "terminated"]).optional(),
+        description: z.string().optional(),
+        valueChange: z.string().optional(),
+        newTotalValue: z.string().optional(),
+        newEndDate: z.string().optional(),
+        content: z.string().optional(),
+        notes: z.string().optional(),
+        signedAt: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { id, newEndDate, signedAt, ...rest } = input;
+        await db.updateAmendment(id, {
+          ...rest,
+          newEndDate: newEndDate ? new Date(newEndDate) : undefined,
+          signedAt: signedAt ? new Date(signedAt) : undefined,
+        });
+        return { success: true };
+      }),
+
+    delete: managerProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await db.deleteAmendment(input.id);
+        await db.createAuditLog({
+          entityType: "contract_amendment",
+          entityId: input.id,
+          action: "delete",
+          changes: {},
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { success: true };
+      }),
+  }),
+
+  // ==================== FINANCIAL MILESTONES ====================
+  milestones: router({
+    listByContract: protectedProcedure
+      .input(z.object({ contractId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getMilestonesByContract(input.contractId);
+      }),
+
+    listByAmendment: protectedProcedure
+      .input(z.object({ amendmentId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getMilestonesByAmendment(input.amendmentId);
+      }),
+
+    create: managerProcedure
+      .input(z.object({
+        contractId: z.number(),
+        amendmentId: z.number().optional(),
+        title: z.string().min(1),
+        description: z.string().optional(),
+        plannedValue: z.string().min(1),
+        paidValue: z.string().optional(),
+        dueDate: z.string(),
+        paidAt: z.string().optional(),
+        paymentDeadlineDays: z.number().optional(),
+        status: z.enum(["pending", "paid", "overdue", "cancelled"]).optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { dueDate, paidAt, ...rest } = input;
+        const id = await db.createMilestone({
+          ...rest,
+          dueDate: new Date(dueDate),
+          paidAt: paidAt ? new Date(paidAt) : undefined,
+          createdById: ctx.user.id,
+        });
+        return { id };
+      }),
+
+    update: managerProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).optional(),
+        description: z.string().optional(),
+        plannedValue: z.string().optional(),
+        paidValue: z.string().optional(),
+        dueDate: z.string().optional(),
+        paidAt: z.string().optional(),
+        paymentDeadlineDays: z.number().optional(),
+        status: z.enum(["pending", "paid", "overdue", "cancelled"]).optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, dueDate, paidAt, ...rest } = input;
+        await db.updateMilestone(id, {
+          ...rest,
+          dueDate: dueDate ? new Date(dueDate) : undefined,
+          paidAt: paidAt ? new Date(paidAt) : undefined,
+        });
+        return { success: true };
+      }),
+
+    delete: managerProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.deleteMilestone(input.id);
+        return { success: true };
+      }),
+  }),
+
+  // ==================== TEMPLATE MANAGEMENT ====================
+  templates: router({
+    listAll: protectedProcedure.query(async () => {
+      return db.getAllContractTemplates();
+    }),
+
+    create: managerProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        contractType: z.enum(["service", "supply", "lease", "consulting", "maintenance", "other"]).optional(),
+        content: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const id = await db.createContractTemplate({ ...input, createdById: ctx.user.id });
+        return { id };
+      }),
+
+    update: managerProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        description: z.string().optional(),
+        contractType: z.enum(["service", "supply", "lease", "consulting", "maintenance", "other"]).optional(),
+        content: z.string().optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await db.updateContractTemplate(id, data);
+        return { success: true };
+      }),
+
+    delete: managerProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.deleteContractTemplate(input.id);
+        return { success: true };
+      }),
+
+    generateWithAI: managerProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        contractType: z.enum(["service", "supply", "lease", "consulting", "maintenance", "other"]),
+        description: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const typeLabels: Record<string, string> = {
+          service: "Prestação de Serviços",
+          supply: "Fornecimento",
+          lease: "Locação",
+          consulting: "Consultoria",
+          maintenance: "Manutenção",
+          other: "Outro",
+        };
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: `Você é um especialista jurídico brasileiro. Crie um template de contrato reutilizável do tipo "${typeLabels[input.contractType]}". 
+Use marcadores como [NOME_EMPRESA], [CNPJ], [VALOR], [DATA_INICIO], [DATA_FIM], [OBJETO] para campos variáveis.
+O template deve ser completo, com todas as cláusulas padrão para este tipo de contrato.
+Retorne APENAS o texto do template, sem comentários.`,
+            },
+            {
+              role: "user",
+              content: `Crie um template de contrato de ${typeLabels[input.contractType]}:\n${input.description}`,
+            },
+          ],
+        });
+        const rawContent = response.choices[0]?.message?.content || "";
+        const content = typeof rawContent === "string" ? rawContent : "";
+        const id = await db.createContractTemplate({
+          name: input.name,
+          description: input.description,
+          contractType: input.contractType,
+          content,
+          createdById: ctx.user.id,
+        });
+        return { id, content };
+      }),
+
+    extractFromPDF: managerProcedure
+      .input(z.object({
+        supplierId: z.number(),
+        contractId: z.number().optional(),
+        pdfBase64: z.string(),
+        fileName: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        // Upload PDF to S3 first
+        const buffer = Buffer.from(input.pdfBase64, "base64");
+        const fileKey = `contracts/pdf/${Date.now()}-${input.fileName}`;
+        const { url: pdfUrl } = await storagePut(fileKey, buffer, "application/pdf");
+
+        // Use AI to extract contract data
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: `Você é um especialista em análise de contratos brasileiros. Analise o contrato fornecido e extraia as informações estruturadas. Retorne APENAS JSON válido sem markdown.`,
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text" as const,
+                  text: `Analise este contrato PDF e extraia as seguintes informações em JSON:\n{
+  "title": "título do contrato",
+  "number": "número do contrato se houver",
+  "contractType": "service|supply|lease|consulting|maintenance|other",
+  "object": "objeto do contrato",
+  "totalValue": "valor total em número (somente dígitos e ponto decimal)",
+  "startDate": "data início no formato YYYY-MM-DD ou null",
+  "endDate": "data fim no formato YYYY-MM-DD ou null",
+  "paymentTerms": "condições de pagamento",
+  "contractorName": "nome do contratante",
+  "contractorCnpj": "CNPJ do contratante",
+  "risks": ["risco 1", "risco 2"],
+  "milestones": [
+    {
+      "title": "título do marco",
+      "plannedValue": "valor em número",
+      "dueDate": "data YYYY-MM-DD",
+      "description": "descrição"
+    }
+  ],
+  "summary": "resumo executivo do contrato em 2-3 frases"
+}`,
+                },
+                {
+                  type: "file_url" as const,
+                  file_url: { url: pdfUrl, mime_type: "application/pdf" as const },
+                },
+              ],
+            },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "contract_extraction",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  number: { type: "string" },
+                  contractType: { type: "string" },
+                  object: { type: "string" },
+                  totalValue: { type: "string" },
+                  startDate: { type: "string" },
+                  endDate: { type: "string" },
+                  paymentTerms: { type: "string" },
+                  contractorName: { type: "string" },
+                  contractorCnpj: { type: "string" },
+                  risks: { type: "array", items: { type: "string" } },
+                  milestones: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        title: { type: "string" },
+                        plannedValue: { type: "string" },
+                        dueDate: { type: "string" },
+                        description: { type: "string" },
+                      },
+                      required: ["title", "plannedValue", "dueDate", "description"],
+                      additionalProperties: false,
+                    },
+                  },
+                  summary: { type: "string" },
+                },
+                required: ["title", "number", "contractType", "object", "totalValue", "startDate", "endDate", "paymentTerms", "contractorName", "contractorCnpj", "risks", "milestones", "summary"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const rawContent = response.choices[0]?.message?.content || "{}";
+        const contentStr = typeof rawContent === "string" ? rawContent : "{}";
+        let extracted: any = {};
+        try {
+          extracted = JSON.parse(contentStr);
+        } catch {
+          extracted = { title: input.fileName.replace(".pdf", ""), summary: "Não foi possível extrair os dados automaticamente." };
+        }
+
+        return { extracted, pdfUrl };
+      }),
+  }),
+
   // ==================== EXPORT ====================
   export: router({
     suppliers: managerProcedure

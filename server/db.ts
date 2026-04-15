@@ -15,6 +15,8 @@ import {
   contracts, InsertContract,
   contractItems, InsertContractItem,
   contractTemplates, InsertContractTemplate,
+  contractAmendments, InsertContractAmendment,
+  financialMilestones, InsertFinancialMilestone,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -741,4 +743,104 @@ export async function createContractTemplate(data: InsertContractTemplate): Prom
   if (!db) throw new Error("Database not available");
   const result = await db.insert(contractTemplates).values(data);
   return (result[0] as any).insertId;
+}
+
+export async function updateContractTemplate(id: number, data: Partial<InsertContractTemplate>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(contractTemplates).set(data).where(eq(contractTemplates.id, id));
+}
+
+export async function deleteContractTemplate(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(contractTemplates).set({ isActive: false }).where(eq(contractTemplates.id, id));
+}
+
+export async function getAllContractTemplates() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contractTemplates).orderBy(contractTemplates.name);
+}
+
+// ==================== AMENDMENT FUNCTIONS ====================
+export async function getAmendmentsByContract(contractId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contractAmendments)
+    .where(eq(contractAmendments.contractId, contractId))
+    .orderBy(desc(contractAmendments.createdAt));
+}
+
+export async function getAmendmentById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(contractAmendments).where(eq(contractAmendments.id, id)).limit(1);
+  return rows[0] || null;
+}
+
+export async function createAmendment(data: InsertContractAmendment): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(contractAmendments).values(data);
+  return (result[0] as any).insertId;
+}
+
+export async function updateAmendment(id: number, data: Partial<InsertContractAmendment>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(contractAmendments).set(data).where(eq(contractAmendments.id, id));
+}
+
+export async function deleteAmendment(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(contractAmendments).where(eq(contractAmendments.id, id));
+}
+
+// ==================== FINANCIAL MILESTONE FUNCTIONS ====================
+export async function getMilestonesByContract(contractId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  // Auto-update overdue status
+  const now = new Date();
+  await db.update(financialMilestones)
+    .set({ status: "overdue" })
+    .where(
+      and(
+        eq(financialMilestones.contractId, contractId),
+        eq(financialMilestones.status, "pending"),
+        lte(financialMilestones.dueDate, now)
+      )
+    );
+  return db.select().from(financialMilestones)
+    .where(eq(financialMilestones.contractId, contractId))
+    .orderBy(financialMilestones.dueDate);
+}
+
+export async function getMilestonesByAmendment(amendmentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(financialMilestones)
+    .where(eq(financialMilestones.amendmentId, amendmentId))
+    .orderBy(financialMilestones.dueDate);
+}
+
+export async function createMilestone(data: InsertFinancialMilestone): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(financialMilestones).values(data);
+  return (result[0] as any).insertId;
+}
+
+export async function updateMilestone(id: number, data: Partial<InsertFinancialMilestone>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(financialMilestones).set(data).where(eq(financialMilestones.id, id));
+}
+
+export async function deleteMilestone(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(financialMilestones).where(eq(financialMilestones.id, id));
 }

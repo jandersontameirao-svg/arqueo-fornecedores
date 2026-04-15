@@ -34,6 +34,7 @@ import {
 import { ContractCreationModal, type ContractCreationMode } from "./ContractCreationModal";
 import { ContractEditor } from "./ContractEditor";
 import { ContractViewer } from "./ContractViewer";
+import { ContractPDFImport } from "./ContractPDFImport";
 
 interface SupplierContractsProps {
   supplierId: number;
@@ -81,9 +82,15 @@ export default function SupplierContracts({ supplierId, supplierName, supplierCn
     onError: (err) => toast.error("Erro ao excluir", { description: err.message }),
   });
 
+  const [pdfImportOpen, setPdfImportOpen] = useState(false);
+
   const handleModeSelect = (mode: ContractCreationMode) => {
     setSelectedMode(mode);
-    setEditorOpen(true);
+    if (mode === "pdf") {
+      setPdfImportOpen(true);
+    } else {
+      setEditorOpen(true);
+    }
   };
 
   const formatCurrency = (value: string | null | undefined) => {
@@ -264,6 +271,14 @@ export default function SupplierContracts({ supplierId, supplierName, supplierCn
           onOpenChange={(v: boolean) => { if (!v) setViewerId(null); }}
         />
       )}
+
+      {/* PDF Import */}
+      <ContractPDFImport
+        supplierId={supplierId}
+        open={pdfImportOpen}
+        onClose={() => setPdfImportOpen(false)}
+        onSuccess={() => utils.contracts.listBySupplier.invalidate({ supplierId })}
+      />
 
       {/* Delete Confirmation */}
       <AlertDialog open={deleteId !== null} onOpenChange={(v) => { if (!v) setDeleteId(null); }}>

@@ -5,9 +5,10 @@ import {
   LayoutTemplate,
   Copy,
   Sparkles,
+  FileUp,
 } from "lucide-react";
 
-export type ContractCreationMode = "manual" | "template" | "duplicate" | "ai";
+export type ContractCreationMode = "manual" | "template" | "duplicate" | "ai" | "pdf";
 
 interface ContractCreationModalProps {
   open: boolean;
@@ -47,6 +48,14 @@ const modes = [
     iconBg: "bg-emerald-50",
     title: "Gerar com IA",
     description: "Entre com o escopo (texto, PDF ou foto) e a IA gera a proposta completa",
+  },
+  {
+    id: "pdf" as ContractCreationMode,
+    icon: FileUp,
+    iconColor: "text-rose-600",
+    iconBg: "bg-rose-50",
+    title: "Importar PDF",
+    description: "Faça upload de um contrato em PDF e a IA extrai os dados automaticamente",
   },
 ];
 

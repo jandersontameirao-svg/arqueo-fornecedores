@@ -308,3 +308,48 @@ export const contractTemplates = mysqlTable("contract_templates", {
 
 export type ContractTemplate = typeof contractTemplates.$inferSelect;
 export type InsertContractTemplate = typeof contractTemplates.$inferInsert;
+
+// ==================== CONTRACT AMENDMENTS (ADITIVOS) ====================
+export const contractAmendments = mysqlTable("contract_amendments", {
+  id: int("id").autoincrement().primaryKey(),
+  contractId: int("contractId").notNull().references(() => contracts.id, { onDelete: "cascade" }),
+  number: varchar("number", { length: 50 }),
+  title: varchar("title", { length: 255 }).notNull(),
+  amendmentType: mysqlEnum("amendmentType", ["financial", "scope", "term", "mixed"]).notNull().default("financial"),
+  status: mysqlEnum("status", ["draft", "review", "active", "terminated"]).default("draft").notNull(),
+  description: text("description"),
+  valueChange: varchar("valueChange", { length: 50 }),
+  newTotalValue: varchar("newTotalValue", { length: 50 }),
+  newEndDate: timestamp("newEndDate"),
+  content: text("content"),
+  notes: text("notes"),
+  signedAt: timestamp("signedAt"),
+  createdById: int("createdById").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ContractAmendment = typeof contractAmendments.$inferSelect;
+export type InsertContractAmendment = typeof contractAmendments.$inferInsert;
+
+// ==================== FINANCIAL MILESTONES (MARCOS FINANCEIROS) ====================
+export const financialMilestones = mysqlTable("financial_milestones", {
+  id: int("id").autoincrement().primaryKey(),
+  contractId: int("contractId").notNull().references(() => contracts.id, { onDelete: "cascade" }),
+  amendmentId: int("amendmentId").references(() => contractAmendments.id, { onDelete: "set null" }),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  plannedValue: varchar("plannedValue", { length: 50 }).notNull(),
+  paidValue: varchar("paidValue", { length: 50 }),
+  dueDate: timestamp("dueDate").notNull(),
+  paidAt: timestamp("paidAt"),
+  paymentDeadlineDays: int("paymentDeadlineDays").default(30),
+  status: mysqlEnum("status", ["pending", "paid", "overdue", "cancelled"]).default("pending").notNull(),
+  notes: text("notes"),
+  createdById: int("createdById").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FinancialMilestone = typeof financialMilestones.$inferSelect;
+export type InsertFinancialMilestone = typeof financialMilestones.$inferInsert;

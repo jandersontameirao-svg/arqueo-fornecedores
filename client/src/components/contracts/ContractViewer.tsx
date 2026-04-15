@@ -1,4 +1,6 @@
 import { trpc } from "@/lib/trpc";
+import { ContractAmendments } from "./ContractAmendments";
+import { useAuth } from "@/_core/hooks/useAuth";
 import {
   Dialog,
   DialogContent,
@@ -66,6 +68,8 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
     return new Date(date).toLocaleDateString("pt-BR");
   };
 
+  const { user } = useAuth();
+  const canManage = user?.role === "admin" || user?.role === "manager";
   const contract = data?.contract;
   const items = data?.items || [];
   const sc = contract ? (statusConfig[contract.status] || statusConfig.draft) : null;
@@ -245,6 +249,10 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
                   </div>
                 </>
               )}
+
+              {/* Amendments */}
+              <Separator />
+              <ContractAmendments contractId={contractId} canManage={canManage} />
 
               {/* Footer meta */}
               <div className="flex items-center justify-between pt-2 text-xs text-muted-foreground border-t">

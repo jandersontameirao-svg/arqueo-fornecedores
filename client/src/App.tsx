@@ -21,6 +21,7 @@ import Audit from "./pages/Audit";
 import Users from "./pages/Users";
 import Onboarding from "./pages/Onboarding";
 import Reports from "./pages/Reports";
+import ContractTemplates from "./pages/ContractTemplates";
 
 function Router() {
   return (
@@ -102,6 +103,9 @@ function Router() {
         <DashboardLayout>
           <Reports />
         </DashboardLayout>
+      </Route>
+      <Route path="/contract-templates">
+        <ContractTemplates />
       </Route>
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />

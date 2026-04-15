@@ -31,6 +31,7 @@ import {
   Copy,
   PenLine,
   X,
+  FileText,
 } from "lucide-react";
 import type { ContractCreationMode } from "./ContractCreationModal";
 
@@ -77,6 +78,7 @@ const modeInfo: Record<ContractCreationMode, { label: string; icon: React.Elemen
   template: { label: "A partir de Template", icon: LayoutTemplate, color: "text-orange-600" },
   duplicate: { label: "Duplicar Existente", icon: Copy, color: "text-purple-600" },
   ai: { label: "Gerar com IA", icon: Sparkles, color: "text-emerald-600" },
+  pdf: { label: "Importado via PDF", icon: FileText, color: "text-rose-600" },
 };
 
 const emptyItem = (): ContractItem => ({
@@ -222,7 +224,7 @@ export function ContractEditor({
       object: object || undefined,
       contractType: contractType as any,
       status: status as any,
-      creationMode: mode,
+      creationMode: (mode === "pdf" ? "ai" : mode) as "manual" | "template" | "duplicate" | "ai" | undefined,
       totalValue: totalValue || undefined,
       paymentTerms: paymentTerms || undefined,
       startDate: startDate || undefined,

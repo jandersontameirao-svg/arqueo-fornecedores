@@ -180,3 +180,21 @@
 - [x] Geração de contrato via IA (invokeLLM com dados do fornecedor)
 - [x] Listagem de contratos na aba Financeiro do fornecedor
 - [x] Testes unitários para o módulo de contratos
+
+## Melhorias v3.1 - Aditivos, Templates e PDF com IA
+### Módulo de Aditivos
+- [ ] Schema contract_amendments e financial_milestones no banco
+- [ ] Helpers db.ts para aditivos e marcos financeiros
+- [ ] Endpoints tRPC para aditivos (CRUD, tipo financeiro/escopo)
+- [ ] Frontend: listagem e criação de aditivos dentro do contrato
+- [ ] Marcos financeiros com valor previsto/pago e flag de atraso
+### Gerenciador de Templates
+- [ ] Página dedicada de templates em Configurações ou menu lateral
+- [ ] CRUD de templates (criar, editar, excluir)
+- [ ] Geração de template por IA com prompt
+- [ ] Filtro por tipo de contrato
+### Upload de PDF com IA
+- [ ] Endpoint tRPC para receber PDF e extrair dados via IA
+- [ ] Modal de upload drag-and-drop de PDF
+- [ ] Revisão obrigatória dos dados extraídos antes de salvar
+- [ ] Criação automática de marcos financeiros identificados pela IA
