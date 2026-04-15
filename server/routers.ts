@@ -1452,7 +1452,7 @@ Retorne APENAS o texto do template, sem comentários.`,
 }`,
                 },
                 {
-                  type: "file_url" as const,
+                  type: "file" as const,
                   file_url: { url: pdfUrl, mime_type: "application/pdf" as const },
                 },
               ],
@@ -1580,7 +1580,7 @@ REGRAS CRÍTICAS:
               ? userPrompt + "\n\nConteúdo do arquivo:\n" + buffer.toString("utf-8").substring(0, 8000)
               : [
                   { type: "text", text: userPrompt },
-                  { type: "file_url", file_url: { url: fileUrl, mime_type: resolvedMime } },
+                   { type: "file", file_url: { url: fileUrl, mime_type: resolvedMime } },
                 ],
           },
         ];
@@ -1687,7 +1687,7 @@ REGRAS CRÍTICAS:
               ? userPrompt + "\n\nConteúdo do arquivo:\n" + buffer.toString("utf-8").substring(0, 10000)
               : [
                   { type: "text", text: userPrompt },
-                  { type: "file_url", file_url: { url: fileUrl, mime_type: resolvedMime } },
+                  { type: "file", file_url: { url: fileUrl, mime_type: resolvedMime } },
                 ],
           },
         ];
