@@ -210,3 +210,7 @@
 - [x] Página SelectBusinessUnit como Home (sem Termômetro)
 - [ ] Adaptar Dashboard para filtrar por unidade selecionada
 - [x] Upload de Word (.docx) como templates na biblioteca
+
+## Reestruturação do Menu (v5.2)
+- [x] Menu lateral: Dashboard, Gestão de Fornecedores, Categorias e Templates só visíveis após seleção de unidade de negócio
+- [x] Menu lateral: sem unidade ativa, exibir apenas Início e Usuários (e Auditoria/Relatórios globais se aplicável)

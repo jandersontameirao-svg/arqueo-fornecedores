@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useBusinessUnitContext } from "@/contexts/BusinessUnitContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -54,6 +55,17 @@ import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
+
+// Menu items que requerem unidade de negócio selecionada
+const UNIT_REQUIRED_PATHS = [
+  "/dashboard",
+  "/suppliers",
+  "/approvals",
+  "/compliance",
+  "/evaluations",
+  "/categories",
+  "/contract-templates",
+];
 
 // Menu items structure with submenus - Nova Arquitetura v2.0
 const menuStructure = [
@@ -205,8 +217,17 @@ function DashboardLayoutContent({
     return "Menu";
   };
 
+  const { activeUnitId } = useBusinessUnitContext();
+  const hasActiveUnit = !!activeUnitId;
+
   const filteredMenuItems = menuStructure.filter((item) => {
     if (item.adminOnly && user?.role !== "admin") {
+      return false;
+    }
+    // Itens que requerem unidade de negócio selecionada
+    const requiresUnit = UNIT_REQUIRED_PATHS.includes(item.path) ||
+      (item.subItems?.some(s => UNIT_REQUIRED_PATHS.includes(s.path)) ?? false);
+    if (requiresUnit && !hasActiveUnit) {
       return false;
     }
     return true;
