@@ -1637,6 +1637,101 @@ REGRAS CRÍTICAS:
 
         return { success: true, extracted, fileUrl };
       }),
+
+    // ==================== TEMPLATE AUTO-INSERT ====================
+    analyzeFileForTemplate: managerProcedure
+      .input(z.object({
+        fileBase64: z.string(),
+        fileName: z.string(),
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const buffer = Buffer.from(input.fileBase64, "base64");
+        const ext = input.fileName.split(".").pop()?.toLowerCase() || "bin";
+        const fileKey = `templates/autofill/${Date.now()}-${input.fileName}`;
+        const mimeMap: Record<string, string> = {
+          pdf: "application/pdf",
+          docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          doc: "application/msword",
+          txt: "text/plain",
+        };
+        const resolvedMime = mimeMap[ext] || input.mimeType || "application/octet-stream";
+        const { url: fileUrl } = await storagePut(fileKey, buffer, resolvedMime);
+
+        const systemPrompt = `Você é um especialista em análise de documentos contratuais brasileiros. Analise o arquivo fornecido e extraia dados para preencher um TEMPLATE de contrato.
+REGRAS CRÍTICAS:
+- Extraia APENAS dados presentes no documento. NUNCA invente ou alucie informações.
+- Se um campo não estiver claramente no documento, retorne string vazia "" e marque confidence como "low".
+- Para o campo "content", preserve a estrutura jurídica e formalidade do texto original.
+- Substitua dados específicos de partes por placeholders como [NOME_EMPRESA], [CNPJ], [VALOR], [DATA_INICIO], [DATA_FIM], [OBJETO].
+- Seja conservador: prefira deixar vazio a inventar.`;
+
+        const userPrompt = `Analise este documento e extraia os dados para preencher um template de contrato. Retorne JSON com a estrutura abaixo:
+{
+  "name": "nome sugerido para o template (ex: Contrato de Prestação de Serviços de TI)",
+  "contractType": "service|supply|lease|consulting|maintenance|other",
+  "description": "descrição curta e profissional do template (máx 120 caracteres)",
+  "content": "conteúdo completo do template preservando estrutura jurídica, substituindo dados específicos por placeholders [NOME_EMPRESA], [CNPJ], [VALOR], [DATA_INICIO], [DATA_FIM], [OBJETO]",
+  "confidence": "high|medium|low",
+  "confidenceNotes": "observações sobre a confiança da extração",
+  "summary": "resumo do que foi encontrado no arquivo em 2-3 frases",
+  "missingFields": ["campos que não puderam ser identificados no documento"]
+}`;
+
+        const isTextFile = ["txt"].includes(ext);
+        const messages: any[] = [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: isTextFile
+              ? userPrompt + "\n\nConteúdo do arquivo:\n" + buffer.toString("utf-8").substring(0, 10000)
+              : [
+                  { type: "text", text: userPrompt },
+                  { type: "file_url", file_url: { url: fileUrl, mime_type: resolvedMime } },
+                ],
+          },
+        ];
+
+        const response = await invokeLLM({
+          messages,
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "template_autofill",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  contractType: { type: "string" },
+                  description: { type: "string" },
+                  content: { type: "string" },
+                  confidence: { type: "string" },
+                  confidenceNotes: { type: "string" },
+                  summary: { type: "string" },
+                  missingFields: { type: "array", items: { type: "string" } },
+                },
+                required: ["name", "contractType", "description", "content", "confidence", "confidenceNotes", "summary", "missingFields"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const rawContent = response.choices[0]?.message?.content || "{}";
+        const contentStr = typeof rawContent === "string" ? rawContent : "{}";
+        let extracted: any = {};
+        try {
+          extracted = JSON.parse(contentStr);
+        } catch {
+          return {
+            success: false,
+            error: "Não foi possível processar o arquivo. Tente novamente ou use um formato diferente.",
+            extracted: null,
+          };
+        }
+        return { success: true, extracted, fileUrl };
+      }),
   }),
   // ==================== EXPORT ====================
   export: router({

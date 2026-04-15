@@ -48,6 +48,7 @@ import {
   FileUp,
 } from "lucide-react";
 import { useCallback, useRef } from "react";
+import { TemplateAIAutoInsert } from "@/components/contracts/TemplateAIAutoInsert";
 
 const contractTypeLabels: Record<string, string> = {
   service: "Prestação de Serviços",
@@ -144,6 +145,16 @@ function TemplateFormDialog({ open, onClose, initial, templateId, onSuccess }: T
             <div className="space-y-1">
               <Label>Descrição</Label>
               <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Breve descrição do template..." />
+            </div>
+            <div className="col-span-2">
+              <TemplateAIAutoInsert
+                onApply={(data) => {
+                  if (data.name) setName(data.name);
+                  if (data.contractType) setContractType(data.contractType);
+                  if (data.description) setDescription(data.description);
+                  if (data.content) setContent(data.content);
+                }}
+              />
             </div>
             <div className="col-span-2 space-y-1">
               <Label>Conteúdo do Template *</Label>

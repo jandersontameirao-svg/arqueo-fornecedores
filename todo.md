@@ -221,3 +221,8 @@
 - [x] Integração do AIAutoFillSection no ContractEditor (modo template)
 - [x] Suporte a PDF, DOCX, TXT com extração de dados contratuais
 - [x] Revisão obrigatória antes de aplicar sugestões ao formulário
+
+## Auto-Inserção com I.A. na Modal Editar Template (v5.4)
+- [ ] Endpoint tRPC templates.analyzeFileForTemplate
+- [ ] Componente TemplateAIAutoInsert com 8 estados
+- [ ] Integração no topo da modal Editar Template (ContractTemplates.tsx)
