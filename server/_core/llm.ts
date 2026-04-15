@@ -16,7 +16,7 @@ export type ImageContent = {
 };
 
 export type FileContent = {
-  type: "file_url";
+  type: "file";
   file_url: {
     url: string;
     mime_type?: "audio/mpeg" | "audio/wav" | "application/pdf" | "audio/mp4" | "video/mp4" ;
@@ -129,7 +129,7 @@ const normalizeContentPart = (
     return part;
   }
 
-  if (part.type === "file_url") {
+  if (part.type === "file") {
     return part;
   }
 
