@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, json } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, json, longtext } from "drizzle-orm/mysql-core";
 
 // ==================== USERS ====================
 export const users = mysqlTable("users", {
@@ -299,7 +299,7 @@ export const contractTemplates = mysqlTable("contract_templates", {
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   contractType: mysqlEnum("contractType", ["service", "supply", "lease", "consulting", "maintenance", "other"]).default("service"),
-  content: text("content").notNull(),
+  content: longtext("content").notNull(),
   isActive: boolean("isActive").default(true).notNull(),
   createdById: int("createdById").references(() => users.id),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

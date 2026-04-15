@@ -29,6 +29,13 @@
       "when": 1776262369480,
       "tag": "0003_curly_roughhouse",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1776269844353,
+      "tag": "0004_wet_northstar",
+      "breakpoints": true
     }
   ]
 }

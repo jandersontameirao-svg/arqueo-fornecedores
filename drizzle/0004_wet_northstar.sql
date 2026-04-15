@@ -1,0 +1,1 @@
+ALTER TABLE `contract_templates` MODIFY COLUMN `content` longtext NOT NULL;
