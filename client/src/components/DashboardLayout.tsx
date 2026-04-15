@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useBusinessUnitContext } from "@/contexts/BusinessUnitContext";
+import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -217,8 +218,15 @@ function DashboardLayoutContent({
     return "Menu";
   };
 
-  const { activeUnitId } = useBusinessUnitContext();
+  const { activeUnitId, activeUnit } = useBusinessUnitContext();
+  const { selectedCompany, clearSelectedCompany } = useSelectedCompany();
   const hasActiveUnit = !!activeUnitId;
+
+  // Ao navegar para "/", limpar empresa selecionada
+  const handleGoHome = () => {
+    clearSelectedCompany();
+    setLocation("/");
+  };
 
   const filteredMenuItems = menuStructure.filter((item) => {
     if (item.adminOnly && user?.role !== "admin") {
@@ -290,8 +298,8 @@ function DashboardLayoutContent({
           className="border-r-0 bg-[oklch(0.98_0.005_90)] dark:bg-[oklch(0.15_0.02_250)]"
           disableTransition={isResizing}
         >
-          <SidebarHeader className="h-16 justify-center border-b border-border/50">
-            <div className="flex items-center gap-3 px-2 transition-all w-full">
+          <SidebarHeader className="border-b border-border/50">
+            <div className="flex items-center gap-3 px-2 py-3 transition-all w-full">
               <button
                 onClick={toggleSidebar}
                 className="h-8 w-8 flex items-center justify-center hover:bg-accent rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shrink-0"
@@ -318,6 +326,23 @@ function DashboardLayoutContent({
                 />
               )}
             </div>
+            {/* Indicador de empresa selecionada */}
+            {selectedCompany && !isCollapsed && (
+              <div
+                className="mx-3 mb-2 px-3 py-2 rounded-xl flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: `${selectedCompany.color}15`, borderLeft: `3px solid ${selectedCompany.color}` }}
+                onClick={() => setLocation("/select-company")}
+                title="Clique para trocar de empresa"
+              >
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: selectedCompany.color }} />
+                <div className="min-w-0">
+                  <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Empresa ativa</p>
+                  <p className="text-xs font-semibold truncate leading-tight" style={{ color: selectedCompany.color }}>
+                    {selectedCompany.name}
+                  </p>
+                </div>
+              </div>
+            )}
           </SidebarHeader>
 
           <SidebarContent className="gap-0 py-2">
@@ -386,7 +411,7 @@ function DashboardLayoutContent({
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
                       isActive={isActive}
-                      onClick={() => setLocation(item.path)}
+                      onClick={() => item.path === "/" ? handleGoHome() : setLocation(item.path)}
                       tooltip={item.label}
                       className={`h-10 transition-all font-normal ${
                         isActive

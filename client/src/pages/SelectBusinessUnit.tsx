@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { hasCompanySelection } from "@/pages/SelectCompany";
 
 // ─── Unit Card Component (isolates per-unit hook) ────────────────────
 function UnitCard({
@@ -281,7 +282,13 @@ export default function SelectBusinessUnit() {
 
   const handleSelectUnit = (unitId: number) => {
     setActiveUnitId(unitId);
-    setLocation("/dashboard");
+    // Se o grupo tem tela intermediária de empresas, redireciona para ela
+    const unit = units.find((u) => u.id === unitId);
+    if (unit && hasCompanySelection(unit.name)) {
+      setLocation("/select-company");
+    } else {
+      setLocation("/dashboard");
+    }
   };
 
   const firstName = user?.name?.split(" ")[0] || "Usuário";

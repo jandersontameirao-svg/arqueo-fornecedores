@@ -6,10 +6,12 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { BusinessUnitProvider } from "./contexts/BusinessUnitContext";
 import { CompanyProvider } from "./contexts/CompanyContext";
+import { SelectedCompanyProvider } from "./contexts/SelectedCompanyContext";
 import DashboardLayout from "./components/DashboardLayout";
 
 // Pages
 import SelectBusinessUnit from "./pages/SelectBusinessUnit";
+import SelectCompany from "./pages/SelectCompany";
 import Home from "./pages/Home";
 import Suppliers from "./pages/Suppliers";
 import SupplierDetail from "./pages/SupplierDetail";
@@ -36,6 +38,13 @@ function Router() {
       <Route path="/">
         <DashboardLayout>
           <SelectBusinessUnit />
+        </DashboardLayout>
+      </Route>
+
+      {/* Intermediate company selection screen */}
+      <Route path="/select-company">
+        <DashboardLayout>
+          <SelectCompany />
         </DashboardLayout>
       </Route>
 
@@ -132,12 +141,14 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
         <BusinessUnitProvider>
+          <SelectedCompanyProvider>
           <CompanyProvider>
             <TooltipProvider>
               <Toaster />
               <Router />
             </TooltipProvider>
           </CompanyProvider>
+          </SelectedCompanyProvider>
         </BusinessUnitProvider>
       </ThemeProvider>
     </ErrorBoundary>
