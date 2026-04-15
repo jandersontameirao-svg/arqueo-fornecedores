@@ -1573,6 +1573,10 @@ REGRAS CRÍTICAS:
 }`;
 
         const isTextFile = ["txt"].includes(ext);
+        // Validate mime_type for OpenAI - only allow supported types
+        const supportedMimes = ["audio/mpeg", "audio/wav", "application/pdf", "audio/mp4", "video/mp4", "image/jpeg", "image/png", "image/gif", "image/webp"];
+        const llmMimeType = supportedMimes.includes(resolvedMime) ? (resolvedMime as any) : "application/pdf";
+        
         const messages: any[] = [
           { role: "system", content: systemPrompt },
           {
@@ -1581,7 +1585,7 @@ REGRAS CRÍTICAS:
               ? userPrompt + "\n\nConteúdo do arquivo:\n" + buffer.toString("utf-8").substring(0, 8000)
               : [
                   { type: "text", text: userPrompt },
-                   { type: "file", file: { data: input.fileBase64, mime_type: resolvedMime } },
+                   { type: "file", file: { data: input.fileBase64, mime_type: llmMimeType } },
                 ],
           },
         ];
@@ -1680,6 +1684,10 @@ REGRAS CRÍTICAS:
 }`;
 
         const isTextFile = ["txt"].includes(ext);
+        // Validate mime_type for OpenAI - only allow supported types
+        const supportedMimes = ["audio/mpeg", "audio/wav", "application/pdf", "audio/mp4", "video/mp4", "image/jpeg", "image/png", "image/gif", "image/webp"];
+        const llmMimeType = supportedMimes.includes(resolvedMime) ? (resolvedMime as any) : "application/pdf";
+        
         const messages: any[] = [
           { role: "system", content: systemPrompt },
           {
@@ -1688,7 +1696,7 @@ REGRAS CRÍTICAS:
               ? userPrompt + "\n\nConteúdo do arquivo:\n" + buffer.toString("utf-8").substring(0, 10000)
               : [
                   { type: "text", text: userPrompt },
-                  { type: "file", file: { data: input.fileBase64, mime_type: resolvedMime } },
+                  { type: "file", file: { data: input.fileBase64, mime_type: llmMimeType } },
                 ],
           },
         ];
