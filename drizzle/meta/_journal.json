@@ -57,6 +57,13 @@
       "when": 1776283440695,
       "tag": "0007_tiny_captain_america",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1776289613926,
+      "tag": "0008_lumpy_the_professor",
+      "breakpoints": true
     }
   ]
 }

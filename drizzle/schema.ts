@@ -364,6 +364,7 @@ export const businessUnits = mysqlTable("business_units", {
   name: varchar("name", { length: 255 }).notNull(),
   code: varchar("code", { length: 50 }),
   description: text("description"),
+  logoUrl: varchar("logoUrl", { length: 1000 }),
   status: mysqlEnum("status", ["active", "inactive"]).default("active").notNull(),
   createdById: int("createdById").references(() => users.id),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

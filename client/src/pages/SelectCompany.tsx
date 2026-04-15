@@ -12,6 +12,7 @@ interface CompanyDef {
   name: string;
   color: string;
   description?: string;
+  logoUrl?: string;
 }
 
 const COMPANIES_BY_GROUP: Record<string, CompanyDef[]> = {
@@ -22,7 +23,7 @@ const COMPANIES_BY_GROUP: Record<string, CompanyDef[]> = {
     { id: "arqueocean", name: "Arqueocean", color: "#3178C1", description: "Arqueologia subaquática e oceanografia" },
   ],
   "Foods and Drinks": [
-    { id: "vinho24hbsb", name: "Vinho24hBSB", color: "#6E0F2B", description: "Distribuição e varejo de vinhos e bebidas" },
+    { id: "vinho24hbsb", name: "Vinho24hBSB", color: "#6E0F2B", description: "Distribuição e varejo de vinhos e bebidas", logoUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310419663028979380/tpVGXZuyboWbtFfx.png" },
   ],
 };
 
@@ -65,12 +66,20 @@ function CompanyCard({
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
-              style={{ backgroundColor: `${company.color}18`, color: company.color }}
-            >
-              <Building2 size={20} />
-            </div>
+            {company.logoUrl ? (
+              <img
+                src={company.logoUrl}
+                alt={company.name}
+                className="w-11 h-11 rounded-xl object-contain shrink-0 shadow-sm"
+              />
+            ) : (
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
+                style={{ backgroundColor: `${company.color}18`, color: company.color }}
+              >
+                <Building2 size={20} />
+              </div>
+            )}
             <div>
               <h3 className="font-bold font-heading text-foreground text-[15px] leading-tight">{company.name}</h3>
               {company.description && (
