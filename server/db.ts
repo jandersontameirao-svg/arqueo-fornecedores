@@ -220,7 +220,13 @@ export async function getSupplierById(id: number) {
 export async function createSupplier(data: InsertSupplier) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(suppliers).values(data);
+  // Provide default values for required fields
+  const supplierData: InsertSupplier = {
+    ...data,
+    criticality: data.criticality || "medium",
+    status: data.status || "pending",
+  };
+  const result = await db.insert(suppliers).values(supplierData);
   return result[0].insertId;
 }
 
