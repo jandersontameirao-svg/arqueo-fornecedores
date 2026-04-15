@@ -4,9 +4,12 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { BusinessUnitProvider } from "./contexts/BusinessUnitContext";
+import { CompanyProvider } from "./contexts/CompanyContext";
 import DashboardLayout from "./components/DashboardLayout";
 
 // Pages
+import SelectBusinessUnit from "./pages/SelectBusinessUnit";
 import Home from "./pages/Home";
 import Suppliers from "./pages/Suppliers";
 import SupplierDetail from "./pages/SupplierDetail";
@@ -29,12 +32,21 @@ function Router() {
       {/* Public onboarding route */}
       <Route path="/onboarding" component={Onboarding} />
       
-      {/* Protected routes with DashboardLayout */}
+      {/* SelectBusinessUnit as landing page */}
       <Route path="/">
+        <DashboardLayout>
+          <SelectBusinessUnit />
+        </DashboardLayout>
+      </Route>
+
+      {/* Dashboard (former Home) */}
+      <Route path="/dashboard">
         <DashboardLayout>
           <Home />
         </DashboardLayout>
       </Route>
+
+      {/* Protected routes with DashboardLayout */}
       <Route path="/suppliers">
         <DashboardLayout>
           <Suppliers />
@@ -105,7 +117,9 @@ function Router() {
         </DashboardLayout>
       </Route>
       <Route path="/contract-templates">
-        <ContractTemplates />
+        <DashboardLayout>
+          <ContractTemplates />
+        </DashboardLayout>
       </Route>
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
@@ -117,10 +131,14 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <BusinessUnitProvider>
+          <CompanyProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </CompanyProvider>
+        </BusinessUnitProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

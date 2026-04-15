@@ -48,6 +48,7 @@ import {
   FileSpreadsheet,
   ChevronRight,
   LayoutTemplate,
+  Home,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -56,7 +57,8 @@ import { Button } from "./ui/button";
 
 // Menu items structure with submenus - Nova Arquitetura v2.0
 const menuStructure = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+  { icon: Home, label: "Início", path: "/" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   {
     icon: Building2,
     label: "Gestão de Fornecedores",

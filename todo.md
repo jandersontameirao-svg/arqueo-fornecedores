@@ -198,3 +198,15 @@
 - [ ] Modal de upload drag-and-drop de PDF
 - [ ] Revisão obrigatória dos dados extraídos antes de salvar
 - [ ] Criação automática de marcos financeiros identificados pela IA
+
+## Página Home - SelectBusinessUnit (v5.0)
+- [x] Tabela business_units no banco de dados
+- [x] Tabela companies (empresas vinculadas) no banco de dados
+- [x] Helpers db.ts para business_units e companies
+- [x] Endpoints tRPC CRUD business_units + getCompanies
+- [x] BusinessUnitContext (contexto React)
+- [x] CompanyContext (contexto React)
+- [x] Classes CSS customizadas Arqueo (bordo, laranja, shadow-warm, etc.)
+- [x] Página SelectBusinessUnit como Home (sem Termômetro)
+- [ ] Adaptar Dashboard para filtrar por unidade selecionada
+- [x] Upload de Word (.docx) como templates na biblioteca

@@ -13,6 +13,8 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { useLocation } from "wouter";
+import { useBusinessUnitContext } from "@/contexts/BusinessUnitContext";
+import { ArrowLeft, Globe } from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -79,6 +81,7 @@ const CustomBarTooltip = ({ active, payload, label }: any) => {
 
 export default function Home() {
   const [, setLocation] = useLocation();
+  const { activeUnit, setActiveUnitId } = useBusinessUnitContext();
   const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery();
   const { data: byCategory, isLoading: categoryLoading } = trpc.dashboard.suppliersByCategory.useQuery();
   const { data: byCriticality, isLoading: criticalityLoading } = trpc.dashboard.suppliersByCriticality.useQuery();
@@ -102,11 +105,30 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Visão geral da gestão de fornecedores do Grupo Arqueo
-        </p>
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => { setActiveUnitId(null); setLocation("/"); }}
+          className="w-9 h-9 rounded-xl bg-muted/50 hover:bg-muted flex items-center justify-center transition-colors shrink-0"
+          title="Voltar para Áreas de Negócio"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+            {activeUnit && (
+              <Badge className="bg-[#8B1538]/10 text-[#8B1538] border-[#8B1538]/20 font-medium">
+                <Globe className="h-3 w-3 mr-1" />
+                {activeUnit.name}
+              </Badge>
+            )}
+          </div>
+          <p className="text-muted-foreground">
+            {activeUnit
+              ? `Gestão de fornecedores — ${activeUnit.name}`
+              : "Visão geral da gestão de fornecedores do Grupo Arqueo"}
+          </p>
+        </div>
       </div>
 
       {/* Stats Cards */}

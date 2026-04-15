@@ -36,6 +36,20 @@
       "when": 1776269844353,
       "tag": "0004_wet_northstar",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1776271990319,
+      "tag": "0005_slippery_cannonball",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1776272489497,
+      "tag": "0006_numerous_luke_cage",
+      "breakpoints": true
     }
   ]
 }

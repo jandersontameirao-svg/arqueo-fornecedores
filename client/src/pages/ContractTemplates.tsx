@@ -43,7 +43,11 @@ import {
   Copy,
   LayoutTemplate,
   Wand2,
+  Upload,
+  Download,
+  FileUp,
 } from "lucide-react";
+import { useCallback, useRef } from "react";
 
 const contractTypeLabels: Record<string, string> = {
   service: "Prestação de Serviços",
@@ -170,6 +174,153 @@ VIGÊNCIA: De [DATA_INICIO] a [DATA_FIM]..."
           <Button onClick={handleSave} disabled={isPending}>
             {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
             {templateId ? "Salvar Alterações" : "Criar Template"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ===== UPLOAD WORD DIALOG =====
+function UploadWordDialog({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [contractType, setContractType] = useState("service");
+  const [file, setFile] = useState<File | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadMutation = trpc.templates.uploadWord.useMutation({
+    onSuccess: () => {
+      toast.success("Template Word importado com sucesso!");
+      onSuccess();
+      onClose();
+      setName(""); setDescription(""); setFile(null);
+    },
+    onError: (e: any) => toast.error("Erro ao importar template", { description: e.message }),
+  });
+
+  const handleFile = useCallback((f: File) => {
+    if (!f.name.endsWith(".docx") && !f.name.endsWith(".doc")) {
+      toast.error("Apenas arquivos .docx ou .doc são aceitos");
+      return;
+    }
+    if (f.size > 16 * 1024 * 1024) {
+      toast.error("Arquivo muito grande (máximo 16MB)");
+      return;
+    }
+    setFile(f);
+    if (!name) setName(f.name.replace(/\.(docx?|doc)$/i, "").replace(/[_-]/g, " "));
+  }, [name]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); setIsDragOver(false);
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  }, [handleFile]);
+
+  const handleUpload = async () => {
+    if (!file || !name.trim()) {
+      toast.error("Selecione um arquivo e preencha o nome");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(",")[1];
+      uploadMutation.mutate({
+        name,
+        description: description || undefined,
+        contractType: contractType as any,
+        fileBase64: base64,
+        fileName: file.name,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="h-5 w-5 text-blue-600" />
+            Importar Template Word
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
+            <p className="text-xs text-blue-700">
+              Faça upload de um arquivo Word (.docx) como template. O arquivo será armazenado e ficará disponível para download ao criar novos contratos.
+            </p>
+          </div>
+          <div
+            className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer ${
+              isDragOver ? "border-blue-500 bg-blue-50" : file ? "border-emerald-400 bg-emerald-50" : "border-muted-foreground/25 hover:border-muted-foreground/50"
+            }`}
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".docx,.doc"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+            />
+            {file ? (
+              <div className="flex items-center justify-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-medium">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <FileUp className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm font-medium">Arraste o arquivo Word aqui</p>
+                <p className="text-xs text-muted-foreground mt-1">ou clique para selecionar (.docx, .doc)</p>
+              </>
+            )}
+          </div>
+          <div className="space-y-1">
+            <Label>Nome do Template *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Contrato Padrão de Serviços" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Tipo de Contrato</Label>
+              <Select value={contractType} onValueChange={setContractType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(contractTypeLabels).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Descrição</Label>
+              <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Breve descrição..." />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button
+            onClick={handleUpload}
+            disabled={uploadMutation.isPending || !file}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {uploadMutation.isPending ? (
+              <><Loader2 className="h-4 w-4 animate-spin mr-1.5" />Enviando...</>
+            ) : (
+              <><Upload className="h-4 w-4 mr-1.5" />Importar Template</>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -309,6 +460,7 @@ export default function ContractTemplatesPage() {
   const [editTemplate, setEditTemplate] = useState<Record<string, unknown> | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<Record<string, unknown> | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [showUploadWord, setShowUploadWord] = useState(false);
 
   const { data: templates, isLoading } = trpc.templates.listAll.useQuery();
 
@@ -342,6 +494,10 @@ export default function ContractTemplatesPage() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowUploadWord(true)}>
+              <Upload className="h-4 w-4 mr-1.5 text-blue-600" />
+              Importar Word
+            </Button>
             <Button variant="outline" onClick={() => setShowAI(true)}>
               <Sparkles className="h-4 w-4 mr-1.5 text-emerald-600" />
               Gerar com IA
@@ -434,9 +590,22 @@ export default function ContractTemplatesPage() {
                       {contractTypeLabels[t.contractType] || String(t.contractType)}
                     </Badge>
                   )}
-                  <span className="text-xs text-muted-foreground">
-                    {t.content ? `${String(t.content).length} chars` : "Vazio"}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {(t as any).fileUrl && (
+                      <a
+                        href={(t as any).fileUrl}
+                        download={(t as any).fileName || "template.docx"}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        <Download className="h-3 w-3" />
+                        .docx
+                      </a>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {(t as any).fileUrl ? (t as any).fileName : t.content ? `${String(t.content).length} chars` : "Vazio"}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -454,6 +623,9 @@ export default function ContractTemplatesPage() {
             </p>
             {!search && filterType === "all" && (
               <div className="flex gap-2 justify-center mt-4">
+                <Button variant="outline" size="sm" onClick={() => setShowUploadWord(true)}>
+                  <Upload className="h-4 w-4 mr-1.5 text-blue-600" />Importar Word
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setShowAI(true)}>
                   <Sparkles className="h-4 w-4 mr-1.5 text-emerald-600" />Gerar com IA
                 </Button>
@@ -486,6 +658,12 @@ export default function ContractTemplatesPage() {
       <AIGenerateDialog
         open={showAI}
         onClose={() => setShowAI(false)}
+        onSuccess={handleSuccess}
+      />
+
+      <UploadWordDialog
+        open={showUploadWord}
+        onClose={() => setShowUploadWord(false)}
         onSuccess={handleSuccess}
       />
 

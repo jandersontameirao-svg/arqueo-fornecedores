@@ -1377,6 +1377,32 @@ Retorne APENAS o texto do template, sem comentários.`,
         return { id, content };
       }),
 
+    uploadWord: managerProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        contractType: z.enum(["service", "supply", "lease", "consulting", "maintenance", "other"]).optional(),
+        fileBase64: z.string(),
+        fileName: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const buffer = Buffer.from(input.fileBase64, "base64");
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const fileKey = `templates/word/${Date.now()}-${safeName}`;
+        const contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        const { url: fileUrl } = await storagePut(fileKey, buffer, contentType);
+        const id = await db.createContractTemplate({
+          name: input.name,
+          description: input.description || `Template importado de ${input.fileName}`,
+          contractType: input.contractType,
+          content: `[Arquivo Word] ${input.fileName}\n\nEste template foi importado como arquivo Word (.docx). Faça o download para visualizar o conteúdo completo.`,
+          fileUrl,
+          fileName: input.fileName,
+          createdById: ctx.user.id,
+        });
+        return { id, fileUrl };
+      }),
+
     extractFromPDF: managerProcedure
       .input(z.object({
         supplierId: z.number(),
@@ -1525,6 +1551,108 @@ Retorne APENAS o texto do template, sem comentários.`,
             ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             : "application/pdf",
         };
+      }),
+  }),
+
+  // ==================== BUSINESS UNITS ====================
+  businessUnits: router({
+    list: protectedProcedure.query(async () => {
+      return db.listBusinessUnits();
+    }),
+
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return db.getBusinessUnitById(input.id);
+      }),
+
+    getCompanies: protectedProcedure
+      .input(z.object({ businessUnitId: z.number() }))
+      .query(async ({ input }) => {
+        return db.listCompaniesByUnit(input.businessUnitId);
+      }),
+
+    create: adminProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        code: z.string().optional(),
+        description: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        return db.createBusinessUnit({ ...input, createdById: ctx.user.id });
+      }),
+
+    update: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        code: z.string().optional(),
+        description: z.string().optional(),
+        status: z.enum(["active", "inactive"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return db.updateBusinessUnit(id, data);
+      }),
+
+    delete: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.deleteBusinessUnit(input.id);
+        return { success: true };
+      }),
+  }),
+
+  // ==================== COMPANIES ====================
+  companies: router({
+    listByUnit: protectedProcedure
+      .input(z.object({ businessUnitId: z.number() }))
+      .query(async ({ input }) => {
+        return db.listCompaniesByUnit(input.businessUnitId);
+      }),
+
+    listAll: protectedProcedure.query(async () => {
+      return db.listAllCompanies();
+    }),
+
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return db.getCompanyById(input.id);
+      }),
+
+    create: adminProcedure
+      .input(z.object({
+        businessUnitId: z.number(),
+        legalName: z.string().min(1),
+        tradeName: z.string().optional(),
+        cnpj: z.string().optional(),
+        logoUrl: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        return db.createCompany({ ...input, createdById: ctx.user.id });
+      }),
+
+    update: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        legalName: z.string().min(1).optional(),
+        tradeName: z.string().optional(),
+        cnpj: z.string().optional(),
+        logoUrl: z.string().optional(),
+        businessUnitId: z.number().optional(),
+        status: z.enum(["active", "inactive"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return db.updateCompany(id, data);
+      }),
+
+    delete: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.deleteCompany(input.id);
+        return { success: true };
       }),
   }),
 });

@@ -300,6 +300,8 @@ export const contractTemplates = mysqlTable("contract_templates", {
   description: text("description"),
   contractType: mysqlEnum("contractType", ["service", "supply", "lease", "consulting", "maintenance", "other"]).default("service"),
   content: longtext("content").notNull(),
+  fileUrl: varchar("fileUrl", { length: 1000 }),
+  fileName: varchar("fileName", { length: 500 }),
   isActive: boolean("isActive").default(true).notNull(),
   createdById: int("createdById").references(() => users.id),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -353,3 +355,35 @@ export const financialMilestones = mysqlTable("financial_milestones", {
 
 export type FinancialMilestone = typeof financialMilestones.$inferSelect;
 export type InsertFinancialMilestone = typeof financialMilestones.$inferInsert;
+
+// ==================== BUSINESS UNITS (ÁREAS DE NEGÓCIO) ====================
+export const businessUnits = mysqlTable("business_units", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  code: varchar("code", { length: 50 }),
+  description: text("description"),
+  status: mysqlEnum("status", ["active", "inactive"]).default("active").notNull(),
+  createdById: int("createdById").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type BusinessUnit = typeof businessUnits.$inferSelect;
+export type InsertBusinessUnit = typeof businessUnits.$inferInsert;
+
+// ==================== COMPANIES (EMPRESAS VINCULADAS) ====================
+export const companies = mysqlTable("companies", {
+  id: int("id").autoincrement().primaryKey(),
+  businessUnitId: int("businessUnitId").notNull().references(() => businessUnits.id, { onDelete: "cascade" }),
+  legalName: varchar("legalName", { length: 255 }).notNull(),
+  tradeName: varchar("tradeName", { length: 255 }),
+  cnpj: varchar("cnpj", { length: 18 }),
+  logoUrl: varchar("logoUrl", { length: 1000 }),
+  status: mysqlEnum("status", ["active", "inactive"]).default("active").notNull(),
+  createdById: int("createdById").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Company = typeof companies.$inferSelect;
+export type InsertCompany = typeof companies.$inferInsert;

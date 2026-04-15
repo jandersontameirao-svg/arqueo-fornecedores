@@ -17,6 +17,8 @@ import {
   contractTemplates, InsertContractTemplate,
   contractAmendments, InsertContractAmendment,
   financialMilestones, InsertFinancialMilestone,
+  businessUnits, InsertBusinessUnit,
+  companies, InsertCompany,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -843,4 +845,78 @@ export async function deleteMilestone(id: number): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(financialMilestones).where(eq(financialMilestones.id, id));
+}
+
+// ==================== BUSINESS UNITS ====================
+export async function listBusinessUnits() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(businessUnits).orderBy(businessUnits.name);
+}
+
+export async function getBusinessUnitById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(businessUnits).where(eq(businessUnits.id, id));
+  return rows[0] || null;
+}
+
+export async function createBusinessUnit(data: Omit<InsertBusinessUnit, "id" | "createdAt" | "updatedAt">) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(businessUnits).values(data);
+  return { id: result.insertId, ...data };
+}
+
+export async function updateBusinessUnit(id: number, data: Partial<InsertBusinessUnit>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(businessUnits).set(data).where(eq(businessUnits.id, id));
+  return getBusinessUnitById(id);
+}
+
+export async function deleteBusinessUnit(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(businessUnits).where(eq(businessUnits.id, id));
+}
+
+// ==================== COMPANIES ====================
+export async function listCompaniesByUnit(businessUnitId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(companies).where(eq(companies.businessUnitId, businessUnitId)).orderBy(companies.legalName);
+}
+
+export async function getCompanyById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(companies).where(eq(companies.id, id));
+  return rows[0] || null;
+}
+
+export async function createCompany(data: Omit<InsertCompany, "id" | "createdAt" | "updatedAt">) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(companies).values(data);
+  return { id: result.insertId, ...data };
+}
+
+export async function updateCompany(id: number, data: Partial<InsertCompany>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(companies).set(data).where(eq(companies.id, id));
+  return getCompanyById(id);
+}
+
+export async function deleteCompany(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(companies).where(eq(companies.id, id));
+}
+
+export async function listAllCompanies() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(companies).orderBy(companies.legalName);
 }
