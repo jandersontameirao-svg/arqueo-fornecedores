@@ -44,6 +44,7 @@ import {
   Calendar,
   Shield,
   Star,
+  FilePlus,
 } from "lucide-react";
 
 // Sub-components
@@ -256,6 +257,16 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
               >
                 <Edit className="h-4 w-4 mr-2" />
                 Editar
+              </Button>
+            )}
+            {canEdit && (
+              <Button
+                variant="secondary"
+                className="bg-white/20 hover:bg-white/30 text-white border-0"
+                onClick={() => setActiveTab("financeiro")}
+              >
+                <FilePlus className="h-4 w-4 mr-2" />
+                Adicionar contrato
               </Button>
             )}
             {isAdmin && (
