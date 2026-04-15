@@ -235,3 +235,76 @@ export const complianceAlerts = mysqlTable("compliance_alerts", {
 
 export type ComplianceAlert = typeof complianceAlerts.$inferSelect;
 export type InsertComplianceAlert = typeof complianceAlerts.$inferInsert;
+
+// ==================== CONTRACTS ====================
+export const contracts = mysqlTable("contracts", {
+  id: int("id").autoincrement().primaryKey(),
+  supplierId: int("supplierId").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
+  // Identification
+  number: varchar("number", { length: 50 }),
+  title: varchar("title", { length: 255 }).notNull(),
+  object: text("object"),
+  // Type & Status
+  contractType: mysqlEnum("contractType", ["service", "supply", "lease", "consulting", "maintenance", "other"]).default("service"),
+  status: mysqlEnum("status", ["draft", "review", "active", "suspended", "expired", "terminated"]).default("draft").notNull(),
+  // Creation mode tracking
+  creationMode: mysqlEnum("creationMode", ["manual", "template", "duplicate", "ai"]).default("manual"),
+  // Financial
+  totalValue: decimal("totalValue", { precision: 15, scale: 2 }),
+  currency: varchar("currency", { length: 3 }).default("BRL"),
+  paymentTerms: text("paymentTerms"),
+  // Dates
+  startDate: timestamp("startDate"),
+  endDate: timestamp("endDate"),
+  signedAt: timestamp("signedAt"),
+  // Parties
+  contractorName: varchar("contractorName", { length: 255 }),
+  contractorCnpj: varchar("contractorCnpj", { length: 18 }),
+  contractorRepresentative: varchar("contractorRepresentative", { length: 255 }),
+  // Content
+  content: text("content"),
+  notes: text("notes"),
+  // S3 attachment (signed PDF)
+  fileKey: varchar("fileKey", { length: 500 }),
+  fileUrl: varchar("fileUrl", { length: 1000 }),
+  fileName: varchar("fileName", { length: 255 }),
+  // Metadata
+  createdById: int("createdById").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Contract = typeof contracts.$inferSelect;
+export type InsertContract = typeof contracts.$inferInsert;
+
+// ==================== CONTRACT ITEMS ====================
+export const contractItems = mysqlTable("contract_items", {
+  id: int("id").autoincrement().primaryKey(),
+  contractId: int("contractId").notNull().references(() => contracts.id, { onDelete: "cascade" }),
+  description: varchar("description", { length: 500 }).notNull(),
+  unit: varchar("unit", { length: 50 }),
+  quantity: decimal("quantity", { precision: 10, scale: 3 }),
+  unitPrice: decimal("unitPrice", { precision: 15, scale: 2 }),
+  totalPrice: decimal("totalPrice", { precision: 15, scale: 2 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ContractItem = typeof contractItems.$inferSelect;
+export type InsertContractItem = typeof contractItems.$inferInsert;
+
+// ==================== CONTRACT TEMPLATES ====================
+export const contractTemplates = mysqlTable("contract_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  contractType: mysqlEnum("contractType", ["service", "supply", "lease", "consulting", "maintenance", "other"]).default("service"),
+  content: text("content").notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdById: int("createdById").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ContractTemplate = typeof contractTemplates.$inferSelect;
+export type InsertContractTemplate = typeof contractTemplates.$inferInsert;

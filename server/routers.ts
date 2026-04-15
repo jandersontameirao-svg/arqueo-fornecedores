@@ -9,6 +9,7 @@ import * as db from "./db";
 import * as notifications from "./notifications";
 import * as reports from "./reports";
 import * as exportService from "./export";
+import { invokeLLM } from "./_core/llm";
 
 // ==================== RBAC MIDDLEWARE ====================
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -917,6 +918,218 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         return reports.generateExpiringDocumentsReport(input.daysAhead || 30);
+      }),
+  }),
+
+  // ==================== CONTRACTS ====================
+  contracts: router({
+    listBySupplier: protectedProcedure
+      .input(z.object({ supplierId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getContractsBySupplier(input.supplierId);
+      }),
+
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const contract = await db.getContractById(input.id);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        const items = await db.getContractItems(input.id);
+        return { contract, items };
+      }),
+
+    getTemplates: protectedProcedure.query(async () => {
+      return db.getContractTemplates();
+    }),
+
+    create: managerProcedure
+      .input(z.object({
+        supplierId: z.number(),
+        title: z.string().min(1),
+        number: z.string().optional(),
+        object: z.string().optional(),
+        contractType: z.enum(["service", "supply", "lease", "consulting", "maintenance", "other"]).optional(),
+        status: z.enum(["draft", "review", "active", "suspended", "expired", "terminated"]).optional(),
+        creationMode: z.enum(["manual", "template", "duplicate", "ai"]).optional(),
+        totalValue: z.string().optional(),
+        currency: z.string().optional(),
+        paymentTerms: z.string().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        contractorName: z.string().optional(),
+        contractorCnpj: z.string().optional(),
+        contractorRepresentative: z.string().optional(),
+        content: z.string().optional(),
+        notes: z.string().optional(),
+        items: z.array(z.object({
+          description: z.string(),
+          unit: z.string().optional(),
+          quantity: z.string().optional(),
+          unitPrice: z.string().optional(),
+          totalPrice: z.string().optional(),
+          notes: z.string().optional(),
+        })).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { items, startDate, endDate, ...contractData } = input;
+        const id = await db.createContract({
+          ...contractData,
+          startDate: startDate ? new Date(startDate) : undefined,
+          endDate: endDate ? new Date(endDate) : undefined,
+          createdById: ctx.user.id,
+        });
+        if (items && items.length > 0) {
+          for (const item of items) {
+            await db.createContractItem({ ...item, contractId: id });
+          }
+        }
+        await db.createAuditLog({
+          entityType: "contract",
+          entityId: id,
+          action: "create",
+          changes: { title: input.title, mode: input.creationMode },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { id };
+      }),
+
+    update: managerProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).optional(),
+        number: z.string().optional(),
+        object: z.string().optional(),
+        contractType: z.enum(["service", "supply", "lease", "consulting", "maintenance", "other"]).optional(),
+        status: z.enum(["draft", "review", "active", "suspended", "expired", "terminated"]).optional(),
+        totalValue: z.string().optional(),
+        currency: z.string().optional(),
+        paymentTerms: z.string().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        contractorName: z.string().optional(),
+        contractorCnpj: z.string().optional(),
+        contractorRepresentative: z.string().optional(),
+        content: z.string().optional(),
+        notes: z.string().optional(),
+        items: z.array(z.object({
+          description: z.string(),
+          unit: z.string().optional(),
+          quantity: z.string().optional(),
+          unitPrice: z.string().optional(),
+          totalPrice: z.string().optional(),
+          notes: z.string().optional(),
+        })).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { id, items, startDate, endDate, ...contractData } = input;
+        await db.updateContract(id, {
+          ...contractData,
+          startDate: startDate ? new Date(startDate) : undefined,
+          endDate: endDate ? new Date(endDate) : undefined,
+        });
+        if (items !== undefined) {
+          await db.deleteContractItems(id);
+          for (const item of items) {
+            await db.createContractItem({ ...item, contractId: id });
+          }
+        }
+        await db.createAuditLog({
+          entityType: "contract",
+          entityId: id,
+          action: "update",
+          changes: contractData,
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { success: true };
+      }),
+
+    delete: managerProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await db.deleteContract(input.id);
+        await db.createAuditLog({
+          entityType: "contract",
+          entityId: input.id,
+          action: "delete",
+          changes: {},
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { success: true };
+      }),
+
+    generateWithAI: managerProcedure
+      .input(z.object({
+        supplierId: z.number(),
+        prompt: z.string().min(1, "Descreva o contrato que deseja gerar"),
+      }))
+      .mutation(async ({ input }) => {
+        // Fetch supplier data to enrich the AI prompt
+        const supplierData = await db.getSupplierById(input.supplierId);
+        const supplier = supplierData?.supplier;
+
+        const systemPrompt = `Você é um especialista jurídico brasileiro especializado em elaboração de contratos empresariais. 
+Gere um contrato completo e profissional em português brasileiro, seguindo as normas do Código Civil Brasileiro.
+O contrato deve ser estruturado com cláusulas numeradas, linguagem formal e juridicamente adequada.
+Retorne APENAS o texto do contrato, sem comentários adicionais.`;
+
+        const userPrompt = `Elabore um contrato com as seguintes informações:
+
+Fornecedor (CONTRATADA):
+- Razão Social: ${supplier?.companyName || "[NOME DA EMPRESA]"}
+- CNPJ: ${supplier?.cnpj || "[CNPJ]"}
+- Endereço: ${supplier ? `${supplier.street || ""}, ${supplier.city || ""} - ${supplier.state || ""}` : "[ENDEREÇO]"}
+
+Contratante (CONTRATANTE):
+- Grupo Arqueo Participações
+- CNPJ: [CNPJ DO GRUPO ARQUEO]
+
+Descrição do contrato solicitado:
+${input.prompt}
+
+Estruture o contrato com:
+1. Identificação das partes
+2. Objeto do contrato
+3. Prazo de vigência
+4. Valor e forma de pagamento
+5. Obrigações das partes
+6. Confidencialidade
+7. Rescisão
+8. Foro
+9. Assinaturas`;
+
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+        });
+
+        const rawContent = response.choices[0]?.message?.content || "";
+        const content = typeof rawContent === "string" ? rawContent : "";
+
+        // Extract a title from the first line or prompt
+        const firstLine = content.split("\n").find((l: string) => l.trim().length > 0) || "";
+        const title = firstLine.length > 100 ? firstLine.substring(0, 100) : firstLine || `Contrato - ${supplier?.companyName || "Fornecedor"}`;
+
+        return { content, suggestedTitle: title.replace(/^#+\s*/, "").trim() };
+      }),
+
+    createTemplate: managerProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        contractType: z.enum(["service", "supply", "lease", "consulting", "maintenance", "other"]).optional(),
+        content: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const id = await db.createContractTemplate({
+          ...input,
+          createdById: ctx.user.id,
+        });
+        return { id };
       }),
   }),
 

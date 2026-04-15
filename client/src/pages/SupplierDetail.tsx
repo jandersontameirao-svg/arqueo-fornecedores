@@ -52,6 +52,7 @@ import SupplierContacts from "@/components/supplier/SupplierContacts";
 import SupplierInteractions from "@/components/supplier/SupplierInteractions";
 import SupplierEvaluations from "@/components/supplier/SupplierEvaluations";
 import SupplierWorkflow from "@/components/supplier/SupplierWorkflow";
+import SupplierContracts from "@/components/contracts/SupplierContracts";
 
 interface SupplierDetailProps {
   id: number;
@@ -910,23 +911,14 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
               </CardContent>
             </Card>
 
-            {/* Contratos Ativos - Placeholder */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileCheck className="h-4 w-4 text-primary" />
-                  Contratos Ativos
-                </CardTitle>
-                <CardDescription>Contratos e acordos comerciais vigentes</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">Nenhum contrato cadastrado</p>
-                  <p className="text-xs mt-1">Os contratos podem ser adicionados na aba de Documentos</p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Contratos */}
+            <div className="lg:col-span-2">
+              <SupplierContracts
+                supplierId={id}
+                supplierName={supplier.companyName}
+                supplierCnpj={supplier.cnpj}
+              />
+            </div>
           </div>
         </TabsContent>
 

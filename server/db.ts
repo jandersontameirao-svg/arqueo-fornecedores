@@ -12,6 +12,9 @@ import {
   interactions, InsertInteraction,
   performanceEvaluations, InsertPerformanceEvaluation,
   complianceAlerts, InsertComplianceAlert,
+  contracts, InsertContract,
+  contractItems, InsertContractItem,
+  contractTemplates, InsertContractTemplate,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -673,4 +676,69 @@ export async function getSuppliersByCriticality() {
   })
     .from(suppliers)
     .groupBy(suppliers.criticality);
+}
+
+// ==================== CONTRACT FUNCTIONS ====================
+export async function getContractsBySupplier(supplierId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contracts).where(eq(contracts.supplierId, supplierId)).orderBy(desc(contracts.createdAt));
+}
+
+export async function getContractById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(contracts).where(eq(contracts.id, id)).limit(1);
+  return rows[0] || null;
+}
+
+export async function createContract(data: InsertContract): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(contracts).values(data);
+  return (result[0] as any).insertId;
+}
+
+export async function updateContract(id: number, data: Partial<InsertContract>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(contracts).set(data).where(eq(contracts.id, id));
+}
+
+export async function deleteContract(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(contracts).where(eq(contracts.id, id));
+}
+
+export async function getContractItems(contractId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contractItems).where(eq(contractItems.contractId, contractId));
+}
+
+export async function createContractItem(data: InsertContractItem): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(contractItems).values(data);
+  return (result[0] as any).insertId;
+}
+
+export async function deleteContractItems(contractId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(contractItems).where(eq(contractItems.contractId, contractId));
+}
+
+export async function getContractTemplates() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contractTemplates).where(eq(contractTemplates.isActive, true)).orderBy(contractTemplates.name);
+}
+
+export async function createContractTemplate(data: InsertContractTemplate): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(contractTemplates).values(data);
+  return (result[0] as any).insertId;
 }

@@ -170,3 +170,13 @@
 - [x] Verificar e confirmar funcionamento do fluxo de aprovação
 - [x] Verificar e confirmar funcionamento da exportação Excel/PDF
 - [x] Confirmar 19 testes unitários passando
+
+## Módulo de Contratos (v3.0)
+- [x] Schema de contratos no banco de dados (tabela contracts + contract_items)
+- [x] Helpers de banco de dados para contratos (db.ts)
+- [x] Endpoints tRPC para contratos (CRUD + geração por IA)
+- [x] Modal de seleção de modo de criação (Do Zero, Template, Duplicar, IA)
+- [x] Editor de contrato completo com campos estruturados
+- [x] Geração de contrato via IA (invokeLLM com dados do fornecedor)
+- [x] Listagem de contratos na aba Financeiro do fornecedor
+- [x] Testes unitários para o módulo de contratos
