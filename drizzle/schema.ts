@@ -390,3 +390,32 @@ export const companies = mysqlTable("companies", {
 
 export type Company = typeof companies.$inferSelect;
 export type InsertCompany = typeof companies.$inferInsert;
+
+// ==================== SUPPLIER LINKS (VÍNCULOS ENTRE EMPRESAS) ====================
+// Permite que um fornecedor já cadastrado em uma empresa seja vinculado a outra empresa
+// do MESMO grupo empresarial. Vínculos entre grupos diferentes são proibidos.
+export const supplierLinks = mysqlTable("supplier_links", {
+  id: int("id").autoincrement().primaryKey(),
+  // Fornecedor que está sendo vinculado
+  supplierId: int("supplierId").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
+  // Empresa de destino do vínculo (companyId estático, ex: "arqueogis-preventiva")
+  targetCompanyId: varchar("targetCompanyId", { length: 100 }).notNull(),
+  targetCompanyName: varchar("targetCompanyName", { length: 255 }).notNull(),
+  // Empresa de origem (onde o fornecedor foi originalmente cadastrado)
+  sourceCompanyId: varchar("sourceCompanyId", { length: 100 }).notNull(),
+  sourceCompanyName: varchar("sourceCompanyName", { length: 255 }).notNull(),
+  // Grupo empresarial (obrigatório para validação de regra de negócio)
+  groupName: varchar("groupName", { length: 100 }).notNull(),
+  // Status do vínculo
+  status: mysqlEnum("status", ["active", "inactive"]).default("active").notNull(),
+  // Auditoria
+  linkedById: int("linkedById").references(() => users.id),
+  linkedByEmail: varchar("linkedByEmail", { length: 320 }),
+  linkedByName: varchar("linkedByName", { length: 255 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SupplierLink = typeof supplierLinks.$inferSelect;
+export type InsertSupplierLink = typeof supplierLinks.$inferInsert;

@@ -51,6 +51,7 @@ import {
   ChevronRight,
   LayoutTemplate,
   Home,
+  Link2,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -77,7 +78,7 @@ const menuStructure = [
     label: "Gestão de Fornecedores",
     path: "/suppliers",
     subItems: [
-      { icon: Building2, label: "Cadastro de Fornecedores", path: "/suppliers" },
+      { icon: Link2, label: "Vincular Fornecedores", path: "/suppliers/link" },
       { icon: CheckSquare, label: "Aprovações Pendentes", path: "/approvals" },
       { icon: AlertTriangle, label: "Conformidade", path: "/compliance" },
       { icon: BarChart3, label: "Avaliações", path: "/evaluations" },

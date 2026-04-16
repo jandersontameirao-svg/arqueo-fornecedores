@@ -19,6 +19,7 @@ import {
   financialMilestones, InsertFinancialMilestone,
   businessUnits, InsertBusinessUnit,
   companies, InsertCompany,
+  supplierLinks, InsertSupplierLink,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -929,4 +930,102 @@ export async function listAllCompanies() {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(companies).orderBy(companies.legalName);
+}
+
+// ==================== SUPPLIER LINKS (VÍNCULOS) ====================
+
+/**
+ * Lista todos os vínculos de um fornecedor específico
+ */
+export async function getSupplierLinks(supplierId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(supplierLinks)
+    .where(eq(supplierLinks.supplierId, supplierId))
+    .orderBy(desc(supplierLinks.createdAt));
+}
+
+/**
+ * Lista todos os vínculos ativos de uma empresa (como destino)
+ */
+export async function getLinksByTargetCompany(targetCompanyId: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    link: supplierLinks,
+    supplier: suppliers,
+  })
+    .from(supplierLinks)
+    .innerJoin(suppliers, eq(supplierLinks.supplierId, suppliers.id))
+    .where(and(
+      eq(supplierLinks.targetCompanyId, targetCompanyId),
+      eq(supplierLinks.status, "active")
+    ))
+    .orderBy(desc(supplierLinks.createdAt));
+}
+
+/**
+ * Verifica se um vínculo já existe entre fornecedor e empresa destino
+ */
+export async function checkSupplierLinkExists(supplierId: number, targetCompanyId: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const rows = await db.select({ id: supplierLinks.id })
+    .from(supplierLinks)
+    .where(and(
+      eq(supplierLinks.supplierId, supplierId),
+      eq(supplierLinks.targetCompanyId, targetCompanyId),
+      eq(supplierLinks.status, "active")
+    ))
+    .limit(1);
+  return rows.length > 0;
+}
+
+/**
+ * Cria um novo vínculo entre fornecedor e empresa destino
+ */
+export async function createSupplierLink(data: InsertSupplierLink) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(supplierLinks).values(data);
+  return result[0].insertId;
+}
+
+/**
+ * Desativa um vínculo (soft delete)
+ */
+export async function deactivateSupplierLink(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(supplierLinks).set({ status: "inactive" }).where(eq(supplierLinks.id, id));
+}
+
+/**
+ * Lista fornecedores de uma empresa (cadastrados diretamente + vinculados)
+ */
+export async function getSuppliersByCompanyWithLinks(companyId: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Fornecedores cadastrados diretamente nessa empresa
+  const direct = await db.select().from(suppliers)
+    .where(eq(suppliers.companyId, companyId))
+    .orderBy(desc(suppliers.createdAt));
+
+  // Fornecedores vinculados a essa empresa (como destino)
+  const linked = await db.select({
+    link: supplierLinks,
+    supplier: suppliers,
+  })
+    .from(supplierLinks)
+    .innerJoin(suppliers, eq(supplierLinks.supplierId, suppliers.id))
+    .where(and(
+      eq(supplierLinks.targetCompanyId, companyId),
+      eq(supplierLinks.status, "active")
+    ));
+
+  return {
+    direct,
+    linked: linked.map(r => ({ ...r.supplier, _linkId: r.link.id, _isLinked: true })),
+  };
 }

@@ -226,3 +226,14 @@
 - [ ] Endpoint tRPC templates.analyzeFileForTemplate
 - [ ] Componente TemplateAIAutoInsert com 8 estados
 - [ ] Integração no topo da modal Editar Template (ContractTemplates.tsx)
+
+## Refatoração Fluxo de Fornecedores (v5.5)
+- [x] Botão "Cadastrar Fornecedor" adicionado nos cards de empresa da tela SelectCompany (área externa)
+- [x] Menu lateral: "Cadastro de Fornecedores" substituído por "Vincular Fornecedores" (/suppliers/link)
+- [x] Schema supplier_links no banco de dados (tabela supplier_links com auditoria)
+- [x] Helpers db.ts para supplier_links (CRUD + validação de duplicatas)
+- [x] Endpoints tRPC supplierLinks (getBySupplier, getByTargetCompany, getSuppliersByCompanyWithLinks, create, deactivate)
+- [x] Validações de negócio: mesmo grupo, sem duplicatas, destino ≠ origem
+- [x] Página SupplierLink.tsx com fluxo em 5 etapas (grupo → origem → fornecedor → destino → confirmar)
+- [x] Rota /suppliers/link registrada no App.tsx
+- [x] Migração do banco executada com sucesso

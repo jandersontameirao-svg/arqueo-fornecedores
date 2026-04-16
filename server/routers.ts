@@ -1886,13 +1886,114 @@ REGRAS CRÍTICAS:
         return db.updateCompany(id, data);
       }),
 
-    delete: adminProcedure
+     delete: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await db.deleteCompany(input.id);
         return { success: true };
       }),
   }),
-});
 
+  // ==================== SUPPLIER LINKS (VÍNCULOS) ====================
+  supplierLinks: router({
+    // Lista vínculos de um fornecedor específico
+    getBySupplier: protectedProcedure
+      .input(z.object({ supplierId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getSupplierLinks(input.supplierId);
+      }),
+
+    // Lista fornecedores vinculados a uma empresa destino
+    getByTargetCompany: protectedProcedure
+      .input(z.object({ targetCompanyId: z.string() }))
+      .query(async ({ input }) => {
+        return db.getLinksByTargetCompany(input.targetCompanyId);
+      }),
+
+    // Lista fornecedores de uma empresa (diretos + vinculados)
+    getSuppliersByCompanyWithLinks: protectedProcedure
+      .input(z.object({ companyId: z.string() }))
+      .query(async ({ input }) => {
+        return db.getSuppliersByCompanyWithLinks(input.companyId);
+      }),
+
+    // Cria um novo vínculo entre fornecedor e empresa destino
+    // Regras: mesmo grupo, não duplicar, empresa destino ≠ empresa origem
+    create: managerProcedure
+      .input(z.object({
+        supplierId: z.number(),
+        targetCompanyId: z.string().min(1),
+        targetCompanyName: z.string().min(1),
+        sourceCompanyId: z.string().min(1),
+        sourceCompanyName: z.string().min(1),
+        groupName: z.string().min(1),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Validação: empresa destino não pode ser igual à empresa origem
+        if (input.targetCompanyId === input.sourceCompanyId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "A empresa de destino não pode ser a mesma que a empresa de origem.",
+          });
+        }
+
+        // Validação: verificar se o vínculo já existe
+        const alreadyLinked = await db.checkSupplierLinkExists(input.supplierId, input.targetCompanyId);
+        if (alreadyLinked) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Este fornecedor já está vinculado à empresa "${input.targetCompanyName}".`,
+          });
+        }
+
+        // Cria o vínculo
+        const id = await db.createSupplierLink({
+          supplierId: input.supplierId,
+          targetCompanyId: input.targetCompanyId,
+          targetCompanyName: input.targetCompanyName,
+          sourceCompanyId: input.sourceCompanyId,
+          sourceCompanyName: input.sourceCompanyName,
+          groupName: input.groupName,
+          notes: input.notes,
+          linkedById: ctx.user.id,
+          linkedByEmail: ctx.user.email || undefined,
+          linkedByName: ctx.user.name || undefined,
+          status: "active",
+        });
+
+        // Registra auditoria
+        await db.createAuditLog({
+          entityType: "supplier_link",
+          entityId: id,
+          action: "create",
+          changes: {
+            supplierId: input.supplierId,
+            sourceCompany: input.sourceCompanyName,
+            targetCompany: input.targetCompanyName,
+            group: input.groupName,
+          },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+
+        return { id, success: true };
+      }),
+
+    // Desativa um vínculo (soft delete)
+    deactivate: managerProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await db.deactivateSupplierLink(input.id);
+        await db.createAuditLog({
+          entityType: "supplier_link",
+          entityId: input.id,
+          action: "delete",
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { success: true };
+      }),
+  }),
+});
 export type AppRouter = typeof appRouter;

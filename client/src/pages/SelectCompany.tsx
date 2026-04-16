@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Building2, ChevronRight } from "lucide-react";
+import { ArrowLeft, Building2, ChevronRight, UserPlus } from "lucide-react";
 import { useBusinessUnitContext } from "@/contexts/BusinessUnitContext";
 import { useSelectedCompany, type SelectedCompany } from "@/contexts/SelectedCompanyContext";
 import { Badge } from "@/components/ui/badge";
@@ -49,16 +48,26 @@ function CompanyCard({
   groupName,
   groupId,
   onSelect,
+  onRegisterSupplier,
 }: {
   company: CompanyDef;
   groupName: string;
   groupId: number;
   onSelect: (c: SelectedCompany) => void;
+  onRegisterSupplier: (c: SelectedCompany) => void;
 }) {
+  const companyData: SelectedCompany = {
+    id: company.id,
+    name: company.name,
+    color: company.color,
+    groupName,
+    groupId,
+  };
+
   return (
     <div
       className="group relative bg-white rounded-2xl shadow-warm hover:shadow-warm-lg border border-white/60 transition-all duration-300 hover:-translate-y-1 overflow-hidden cursor-pointer"
-      onClick={() => onSelect({ id: company.id, name: company.name, color: company.color, groupName, groupId })}
+      onClick={() => onSelect(companyData)}
     >
       {/* Accent bar top */}
       <div className="h-1.5 w-full" style={{ backgroundColor: company.color }} />
@@ -92,17 +101,34 @@ function CompanyCard({
           </Badge>
         </div>
 
-        {/* CTA Button */}
-        <button
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
-          style={{ backgroundColor: company.color }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect({ id: company.id, name: company.name, color: company.color, groupName, groupId });
-          }}
-        >
-          Acessar <ChevronRight size={16} />
-        </button>
+        {/* Action Buttons */}
+        <div className="flex flex-col gap-2">
+          {/* Acessar Dashboard */}
+          <button
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
+            style={{ backgroundColor: company.color }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(companyData);
+            }}
+          >
+            Acessar <ChevronRight size={16} />
+          </button>
+
+          {/* Cadastrar Fornecedor — botão secundário */}
+          <button
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold border-2 transition-all duration-200 hover:opacity-80 active:scale-[0.98] bg-white"
+            style={{ borderColor: company.color, color: company.color }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRegisterSupplier(companyData);
+            }}
+            title={`Cadastrar fornecedor para ${company.name}`}
+          >
+            <UserPlus size={15} />
+            Cadastrar Fornecedor
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -119,6 +145,12 @@ export default function SelectCompany() {
   const handleSelect = (company: SelectedCompany) => {
     setSelectedCompany(company);
     setLocation("/dashboard");
+  };
+
+  const handleRegisterSupplier = (company: SelectedCompany) => {
+    // Define o contexto da empresa e navega direto para o formulário de cadastro
+    setSelectedCompany(company);
+    setLocation("/suppliers/new");
   };
 
   const handleBack = () => {
@@ -164,7 +196,7 @@ export default function SelectCompany() {
           </div>
           <div>
             <h2 className="font-bold font-heading text-foreground text-lg">Empresas</h2>
-            <p className="text-xs text-muted-foreground">Selecione uma empresa para continuar</p>
+            <p className="text-xs text-muted-foreground">Selecione uma empresa para continuar ou cadastre um fornecedor diretamente</p>
           </div>
         </div>
 
@@ -184,6 +216,7 @@ export default function SelectCompany() {
                 groupName={activeUnit?.name || ""}
                 groupId={activeUnit?.id || 0}
                 onSelect={handleSelect}
+                onRegisterSupplier={handleRegisterSupplier}
               />
             ))}
           </div>

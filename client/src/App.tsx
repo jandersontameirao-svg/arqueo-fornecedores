@@ -27,6 +27,7 @@ import Users from "./pages/Users";
 import Onboarding from "./pages/Onboarding";
 import Reports from "./pages/Reports";
 import ContractTemplates from "./pages/ContractTemplates";
+import SupplierLink from "./pages/SupplierLink";
 
 function Router() {
   return (
@@ -59,6 +60,11 @@ function Router() {
       <Route path="/suppliers">
         <DashboardLayout>
           <Suppliers />
+        </DashboardLayout>
+      </Route>
+      <Route path="/suppliers/link">
+        <DashboardLayout>
+          <SupplierLink />
         </DashboardLayout>
       </Route>
       <Route path="/suppliers/new">
