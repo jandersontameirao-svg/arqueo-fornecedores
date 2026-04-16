@@ -270,3 +270,8 @@
 - [x] Migração aplicada com sucesso (drizzle/0010_lazy_storm.sql)
 - [x] Prompt da IA atualizado para lidar com múltiplos contratantes e CNPJs
 - [x] 34 testes passando, 0 erros TypeScript
+
+## Correção Campo Estado (v5.9)
+- [x] Trocar campo state de Input para Select com todas as 27 UFs brasileiras
+- [x] Sanitizar state no handleSubmit: apenas siglas de 2 caracteres são enviadas, "Selecionar" vira undefined
+- [x] 34 testes passando, 0 erros TypeScript

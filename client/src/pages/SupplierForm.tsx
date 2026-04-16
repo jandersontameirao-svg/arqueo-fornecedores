@@ -134,7 +134,7 @@ export default function SupplierForm({ id }: SupplierFormProps) {
       complement: sanitize(formData.complement),
       neighborhood: sanitize(formData.neighborhood),
       city: sanitize(formData.city),
-      state: sanitize(formData.state),
+      state: formData.state && formData.state.length === 2 ? formData.state : undefined,
       zipCode: sanitize(formData.zipCode),
       country: sanitize(formData.country),
       bankName: sanitize(formData.bankName),
@@ -365,11 +365,20 @@ export default function SupplierForm({ id }: SupplierFormProps) {
               </div>
               <div className="space-y-2">
                 <Label>Estado</Label>
-                <Input
-                  value={formData.state}
-                  onChange={(e) => handleChange("state", e.target.value)}
-                  placeholder="UF"
-                />
+                <Select
+                  value={formData.state || "_none"}
+                  onValueChange={(value) => handleChange("state", value === "_none" ? "" : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar UF" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Selecionar</SelectItem>
+                    {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map((uf) => (
+                      <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>CEP</Label>
