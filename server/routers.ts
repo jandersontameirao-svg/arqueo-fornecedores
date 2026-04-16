@@ -9,7 +9,27 @@ import * as db from "./db";
 import * as notifications from "./notifications";
 import * as reports from "./reports";
 import * as exportService from "./export";
-import { invokeLLM, uploadFileToOpenAI } from "./_core/llm";
+import { invokeLLM } from "./_core/llm";
+import { PDFParse } from "pdf-parse";
+
+// Helper: extract text from file buffer based on extension
+async function extractTextFromBuffer(buffer: Buffer, ext: string): Promise<string> {
+  if (ext === "pdf") {
+    try {
+      const parser = new PDFParse({ data: buffer });
+      const result = await parser.getText();
+      return result.text?.substring(0, 12000) || "";
+    } catch (e) {
+      console.error("PDF text extraction failed:", e);
+      return "";
+    }
+  }
+  if (["txt", "md"].includes(ext)) {
+    return buffer.toString("utf-8").substring(0, 12000);
+  }
+  // For docx/doc/other binary formats, return empty (LLM will handle with text prompt only)
+  return "";
+}
 
 // ==================== RBAC MIDDLEWARE ====================
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -1417,14 +1437,11 @@ Retorne APENAS o texto do template, sem comentários.`,
         const fileKey = `contracts/pdf/${Date.now()}-${input.fileName}`;
         const { url: pdfUrl } = await storagePut(fileKey, buffer, "application/pdf");
 
-        // Upload to OpenAI Files API for LLM processing
-        let fileId: string;
-        try {
-          fileId = await uploadFileToOpenAI(input.pdfBase64, input.fileName, "application/pdf");
-        } catch (e) {
-          console.error("Files API upload failed:", e);
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Falha ao processar arquivo com IA" });
-        }
+        // Extract text from PDF for LLM processing
+        const extractedText = await extractTextFromBuffer(buffer, "pdf");
+        const textContent = extractedText
+          ? `\n\nCONTEÚDO DO CONTRATO:\n${extractedText}`
+          : "\n\n(Não foi possível extrair texto do PDF. Analise com base nas informações disponíveis.)";
 
         // Use AI to extract contract data
         const response = await invokeLLM({
@@ -1435,10 +1452,7 @@ Retorne APENAS o texto do template, sem comentários.`,
             },
             {
               role: "user",
-              content: [
-                {
-                  type: "text" as const,
-                  text: `Analise este contrato PDF e extraia as seguintes informações em JSON:\n{
+              content: `Analise este contrato e extraia as seguintes informações em JSON:${textContent}\n\nRetorne JSON com a estrutura:\n{
   "title": "título do contrato",
   "number": "número do contrato se houver",
   "contractType": "service|supply|lease|consulting|maintenance|other",
@@ -1460,12 +1474,6 @@ Retorne APENAS o texto do template, sem comentários.`,
   ],
   "summary": "resumo executivo do contrato em 2-3 frases"
 }`,
-                },
-                {
-                  type: "file" as const,
-                  file: { file_id: fileId },
-                },
-              ],
             },
           ],
           response_format: {
@@ -1545,16 +1553,11 @@ Retorne APENAS o texto do template, sem comentários.`,
         const resolvedMime = mimeMap[ext] || input.mimeType || "application/octet-stream";
         const { url: fileUrl } = await storagePut(fileKey, buffer, resolvedMime);
 
-        // Upload to OpenAI Files API for LLM processing (if not text file)
-        let fileId: string = "";
-        if (ext !== "txt") {
-          try {
-            fileId = await uploadFileToOpenAI(input.fileBase64, input.fileName, resolvedMime);
-          } catch (e) {
-            console.error("Files API upload failed:", e);
-            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Falha ao processar arquivo com IA" });
-          }
-        }
+        // Extract text from file for LLM processing
+        const extractedText = await extractTextFromBuffer(buffer, ext);
+        const fileTextContent = extractedText
+          ? `\n\nCONTEÚDO DO ARQUIVO:\n${extractedText}`
+          : "\n\n(Não foi possível extrair texto do arquivo. Analise com base nas informações disponíveis.)";
 
         // Build AI prompt based on template context
         const templateContext = input.templateContent
@@ -1592,21 +1595,11 @@ REGRAS CRÍTICAS:
   "summary": "resumo executivo em 2-3 frases do que foi encontrado"
 }`;
 
-        const isTextFile = ["txt"].includes(ext);
-        // Validate mime_type for OpenAI - only allow supported types
-        const supportedMimes = ["audio/mpeg", "audio/wav", "application/pdf", "audio/mp4", "video/mp4", "image/jpeg", "image/png", "image/gif", "image/webp"];
-        const llmMimeType = supportedMimes.includes(resolvedMime) ? (resolvedMime as any) : "application/pdf";
-        
         const messages: any[] = [
           { role: "system", content: systemPrompt },
           {
             role: "user",
-            content: isTextFile
-              ? userPrompt + "\n\nConteúdo do arquivo:\n" + buffer.toString("utf-8").substring(0, 8000)
-              : [
-                  { type: "text", text: userPrompt },
-                   { type: "file", file: { file_id: fileId } },
-                ],
+            content: userPrompt + fileTextContent,
           },
         ];
 
@@ -1683,16 +1676,11 @@ REGRAS CRÍTICAS:
         const resolvedMime = mimeMap[ext] || input.mimeType || "application/octet-stream";
         const { url: fileUrl } = await storagePut(fileKey, buffer, resolvedMime);
 
-        // Upload to OpenAI Files API for LLM processing (if not text file)
-        let fileId: string = "";
-        if (ext !== "txt") {
-          try {
-            fileId = await uploadFileToOpenAI(input.fileBase64, input.fileName, resolvedMime);
-          } catch (e) {
-            console.error("Files API upload failed:", e);
-            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Falha ao processar arquivo com IA" });
-          }
-        }
+        // Extract text from file for LLM processing
+        const templateExtractedText = await extractTextFromBuffer(buffer, ext);
+        const templateTextContent = templateExtractedText
+          ? `\n\nCONTEÚDO DO ARQUIVO:\n${templateExtractedText}`
+          : "\n\n(Não foi possível extrair texto do arquivo. Analise com base nas informações disponíveis.)";
 
         const systemPrompt = `Você é um especialista em análise de documentos contratuais brasileiros. Analise o arquivo fornecido e extraia dados para preencher um TEMPLATE de contrato.
 REGRAS CRÍTICAS:
@@ -1714,25 +1702,11 @@ REGRAS CRÍTICAS:
   "missingFields": ["campos que não puderam ser identificados no documento"]
 }`;
 
-        const isTextFile = ["txt"].includes(ext);
-        // Validate mime_type for OpenAI - only allow supported types
-        const supportedMimes = ["audio/mpeg", "audio/wav", "application/pdf", "audio/mp4", "video/mp4", "image/jpeg", "image/png", "image/gif", "image/webp"];
-        const llmMimeType = supportedMimes.includes(resolvedMime) ? (resolvedMime as any) : "application/pdf";
-        // Validate that fileId is set for non-text files
-        if (!isTextFile && !fileId) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Falha ao processar arquivo: arquivo nao foi enviado para IA" });
-        }
-        
         const messages: any[] = [
           { role: "system", content: systemPrompt },
           {
             role: "user",
-            content: isTextFile
-              ? userPrompt + "\n\nConteúdo do arquivo:\n" + buffer.toString("utf-8").substring(0, 10000)
-              : [
-                  { type: "text", text: userPrompt },
-                  { type: "file", file: { file_id: fileId } },
-                ],
+            content: userPrompt + templateTextContent,
           },
         ];
 
