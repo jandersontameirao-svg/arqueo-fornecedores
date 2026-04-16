@@ -66,7 +66,12 @@ export default function SupplierForm({ id }: SupplierFormProps) {
       setLocation(`/suppliers/${data.id}`);
     },
     onError: (error) => {
-      toast.error(error.message);
+      const msg = error.message;
+      if (msg.includes("CNPJ") || msg.includes("cnpj") || msg.includes("Duplicate") || msg.includes("duplicado") || msg.includes("já existe") || msg.includes("Já existe")) {
+        toast.error("Já existe um fornecedor cadastrado com este CNPJ no sistema.");
+      } else {
+        toast.error(msg || "Erro ao cadastrar fornecedor. Tente novamente.");
+      }
     },
   });
 

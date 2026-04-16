@@ -244,8 +244,16 @@ export async function createSupplier(data: InsertSupplier) {
     criticality: data.criticality || "medium",
     status: data.status || "pending",
   };
-  const result = await db.insert(suppliers).values(supplierData);
-  return result[0].insertId;
+  try {
+    const result = await db.insert(suppliers).values(supplierData);
+    return result[0].insertId;
+  } catch (err: unknown) {
+    const e = err as { code?: string; message?: string };
+    if (e?.code === "ER_DUP_ENTRY" || e?.message?.includes("Duplicate entry")) {
+      throw new Error("Já existe um fornecedor cadastrado com este CNPJ no sistema.");
+    }
+    throw err;
+  }
 }
 
 export async function updateSupplier(id: number, data: Partial<InsertSupplier>) {
