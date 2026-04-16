@@ -1718,6 +1718,10 @@ REGRAS CRÍTICAS:
         // Validate mime_type for OpenAI - only allow supported types
         const supportedMimes = ["audio/mpeg", "audio/wav", "application/pdf", "audio/mp4", "video/mp4", "image/jpeg", "image/png", "image/gif", "image/webp"];
         const llmMimeType = supportedMimes.includes(resolvedMime) ? (resolvedMime as any) : "application/pdf";
+        // Validate that fileId is set for non-text files
+        if (!isTextFile && !fileId) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Falha ao processar arquivo: arquivo nao foi enviado para IA" });
+        }
         
         const messages: any[] = [
           { role: "system", content: systemPrompt },
