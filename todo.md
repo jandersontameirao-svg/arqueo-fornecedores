@@ -262,3 +262,11 @@
 - [x] Frontend: Interactions.tsx filtrar por empresa ativa + tipagem explícita
 - [x] Frontend: Evaluations.tsx filtrar por empresa ativa + tipagem explícita
 - [x] 34 testes passando, 0 erros TypeScript
+
+## Correção INSERT Contracts (v5.8)
+- [x] Ampliar campo contractorCnpj de varchar(18) para varchar(500) no schema
+- [x] Ampliar campo contractorName de varchar(255) para varchar(1000) no schema
+- [x] Ampliar campo contractorRepresentative de varchar(255) para varchar(500) no schema
+- [x] Migração aplicada com sucesso (drizzle/0010_lazy_storm.sql)
+- [x] Prompt da IA atualizado para lidar com múltiplos contratantes e CNPJs
+- [x] 34 testes passando, 0 erros TypeScript

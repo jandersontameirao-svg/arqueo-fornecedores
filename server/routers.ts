@@ -1472,8 +1472,8 @@ Retorne APENAS o texto do template, sem comentários.`,
   "startDate": "data início no formato YYYY-MM-DD ou null",
   "endDate": "data fim no formato YYYY-MM-DD ou null",
   "paymentTerms": "condições de pagamento",
-  "contractorName": "nome do contratante",
-  "contractorCnpj": "CNPJ do contratante",
+  "contractorName": "nome(s) do(s) contratante(s) - se houver múltiplos, liste todos separados por vírgula",
+  "contractorCnpj": "CNPJ(s) do(s) contratante(s) - se houver múltiplos, liste todos separados por vírgula no formato XX.XXX.XXX/XXXX-XX",
   "risks": ["risco 1", "risco 2"],
   "milestones": [
     {

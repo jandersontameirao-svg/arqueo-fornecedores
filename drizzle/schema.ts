@@ -260,9 +260,9 @@ export const contracts = mysqlTable("contracts", {
   endDate: timestamp("endDate"),
   signedAt: timestamp("signedAt"),
   // Parties
-  contractorName: varchar("contractorName", { length: 255 }),
-  contractorCnpj: varchar("contractorCnpj", { length: 18 }),
-  contractorRepresentative: varchar("contractorRepresentative", { length: 255 }),
+  contractorName: varchar("contractorName", { length: 1000 }),
+  contractorCnpj: varchar("contractorCnpj", { length: 500 }),
+  contractorRepresentative: varchar("contractorRepresentative", { length: 500 }),
   // Content
   content: text("content"),
   notes: text("notes"),
