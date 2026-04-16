@@ -579,9 +579,11 @@ export const appRouter = router({
         return workflows.length > 0 ? workflows[0] : null;
       }),
 
-    getPending: managerProcedure.query(async () => {
-      return db.getPendingWorkflows();
-    }),
+    getPending: managerProcedure
+      .input(z.object({ companyId: z.string().optional() }).optional())
+      .query(async ({ input }) => {
+        return db.getPendingWorkflows(input?.companyId);
+      }),
 
     getSteps: protectedProcedure
       .input(z.object({ workflowId: z.number() }))
@@ -650,9 +652,9 @@ export const appRouter = router({
       }),
 
     listRecent: protectedProcedure
-      .input(z.object({ limit: z.number().optional() }))
+      .input(z.object({ limit: z.number().optional(), companyId: z.string().optional() }))
       .query(async ({ input }) => {
-        return db.getRecentInteractions(input.limit || 50);
+        return db.getRecentInteractions(input.limit || 50, input.companyId);
       }),
 
     create: managerProcedure
@@ -745,17 +747,19 @@ export const appRouter = router({
       }),
 
     getLatest: protectedProcedure
-      .input(z.object({ limit: z.number().optional() }))
+      .input(z.object({ limit: z.number().optional(), companyId: z.string().optional() }))
       .query(async ({ input }) => {
-        return db.getLatestEvaluations(input.limit || 10);
+        return db.getLatestEvaluations(input.limit || 10, input.companyId);
       }),
   }),
 
   // ==================== COMPLIANCE ====================
   compliance: router({
-    getAlerts: protectedProcedure.query(async () => {
-      return db.getActiveAlerts();
-    }),
+    getAlerts: protectedProcedure
+      .input(z.object({ companyId: z.string().optional() }).optional())
+      .query(async ({ input }) => {
+        return db.getActiveAlerts(input?.companyId);
+      }),
 
     resolveAlert: managerProcedure
       .input(z.object({ id: z.number() }))
@@ -812,17 +816,23 @@ export const appRouter = router({
 
   // ==================== DASHBOARD ====================
   dashboard: router({
-    stats: protectedProcedure.query(async () => {
-      return db.getDashboardStats();
-    }),
+    stats: protectedProcedure
+      .input(z.object({ companyId: z.string().optional() }).optional())
+      .query(async ({ input }) => {
+        return db.getDashboardStats(input?.companyId);
+      }),
 
-    suppliersByCategory: protectedProcedure.query(async () => {
-      return db.getSuppliersByCategory();
-    }),
+    suppliersByCategory: protectedProcedure
+      .input(z.object({ companyId: z.string().optional() }).optional())
+      .query(async ({ input }) => {
+        return db.getSuppliersByCategory(input?.companyId);
+      }),
 
-    suppliersByCriticality: protectedProcedure.query(async () => {
-      return db.getSuppliersByCriticality();
-    }),
+    suppliersByCriticality: protectedProcedure
+      .input(z.object({ companyId: z.string().optional() }).optional())
+      .query(async ({ input }) => {
+        return db.getSuppliersByCriticality(input?.companyId);
+      }),
   }),
 
   // ==================== ONBOARDING (Public) ====================

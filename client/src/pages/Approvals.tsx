@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +38,8 @@ const statusColors: Record<string, string> = {
 
 export default function Approvals() {
   const [, setLocation] = useLocation();
-  const { data: pendingWorkflows, isLoading } = trpc.workflows.getPending.useQuery();
+  const { selectedCompany } = useSelectedCompany();
+  const { data: pendingWorkflows, isLoading } = trpc.workflows.getPending.useQuery({ companyId: selectedCompany?.id });
 
   return (
     <div className="space-y-6">

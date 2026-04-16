@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,9 +22,12 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+type EvalItem = { evaluation: { id: number; overallScore: string | null; evaluationPeriod: string; qualityScore: string | null; deliveryScore: string | null; priceScore: string | null; communicationScore: string | null }; supplier: { id: number; companyName: string } | null };
+
 export default function Evaluations() {
   const [, setLocation] = useLocation();
-  const { data: evaluations, isLoading } = trpc.evaluations.getLatest.useQuery({ limit: 20 });
+  const { selectedCompany } = useSelectedCompany();
+  const { data: evaluations, isLoading } = trpc.evaluations.getLatest.useQuery({ limit: 20, companyId: selectedCompany?.id });
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-green-600";
@@ -66,7 +70,7 @@ export default function Evaluations() {
             <div className="text-2xl font-bold">
               {evaluations && evaluations.length > 0
                 ? (
-                    evaluations.reduce((acc, e) => acc + (parseFloat(e.evaluation.overallScore || "0")), 0) /
+                    (evaluations as EvalItem[]).reduce((acc: number, e: EvalItem) => acc + (parseFloat(e.evaluation.overallScore || "0")), 0) /
                     evaluations.length
                   ).toFixed(1)
                 : "—"}
@@ -80,7 +84,7 @@ export default function Evaluations() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {evaluations?.filter((e) => parseFloat(e.evaluation.overallScore || "0") >= 80).length || 0}
+              {(evaluations as EvalItem[] | undefined)?.filter((e: EvalItem) => parseFloat(e.evaluation.overallScore || "0") >= 80).length || 0}
             </div>
           </CardContent>
         </Card>
@@ -91,7 +95,7 @@ export default function Evaluations() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {evaluations?.filter((e) => parseFloat(e.evaluation.overallScore || "0") < 60).length || 0}
+              {(evaluations as EvalItem[] | undefined)?.filter((e: EvalItem) => parseFloat(e.evaluation.overallScore || "0") < 60).length || 0}
             </div>
           </CardContent>
         </Card>
@@ -124,7 +128,7 @@ export default function Evaluations() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {evaluations.map((item) => {
+                {(evaluations as EvalItem[]).map((item: EvalItem) => {
                   const overallScore = parseFloat(item.evaluation.overallScore || "0");
                   return (
                     <TableRow key={item.evaluation.id}>

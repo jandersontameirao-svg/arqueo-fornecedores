@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,9 +44,12 @@ const typeIcons: Record<string, React.ReactNode> = {
   other: <MessageSquare className="h-4 w-4" />,
 };
 
+type InteractionItem = { interaction: { id: number; type: string; subject: string; description?: string | null; contactName?: string | null; interactionDate: Date; followUpDate?: Date | null }; supplier: { id: number; companyName: string } | null; createdBy: { name: string } | null };
+
 export default function Interactions() {
   const [, setLocation] = useLocation();
-  const { data: interactions, isLoading } = trpc.interactions.listRecent.useQuery({ limit: 50 });
+  const { selectedCompany } = useSelectedCompany();
+  const { data: interactions, isLoading } = trpc.interactions.listRecent.useQuery({ limit: 50, companyId: selectedCompany?.id });
 
   return (
     <div className="space-y-6">
@@ -74,7 +78,7 @@ export default function Interactions() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {interactions?.filter((i) => i.interaction.type === "email").length || 0}
+              {(interactions as InteractionItem[] | undefined)?.filter((i: InteractionItem) => i.interaction.type === "email").length || 0}
             </div>
           </CardContent>
         </Card>
@@ -85,7 +89,7 @@ export default function Interactions() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {interactions?.filter((i) => i.interaction.type === "meeting").length || 0}
+              {(interactions as InteractionItem[] | undefined)?.filter((i: InteractionItem) => i.interaction.type === "meeting").length || 0}
             </div>
           </CardContent>
         </Card>
@@ -96,7 +100,7 @@ export default function Interactions() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {interactions?.filter((i) => i.interaction.type === "visit").length || 0}
+              {(interactions as InteractionItem[] | undefined)?.filter((i: InteractionItem) => i.interaction.type === "visit").length || 0}
             </div>
           </CardContent>
         </Card>
@@ -116,7 +120,7 @@ export default function Interactions() {
             </div>
           ) : interactions && interactions.length > 0 ? (
             <div className="space-y-4">
-              {interactions.map((item) => (
+              {(interactions as InteractionItem[]).map((item: InteractionItem) => (
                 <div
                   key={item.interaction.id}
                   className="flex items-start gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"

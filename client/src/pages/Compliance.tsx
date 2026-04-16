@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +47,8 @@ const alertTypeLabels: Record<string, string> = {
 
 export default function Compliance() {
   const [, setLocation] = useLocation();
-  const { data: alerts, isLoading } = trpc.compliance.getAlerts.useQuery();
+  const { selectedCompany } = useSelectedCompany();
+  const { data: alerts, isLoading } = trpc.compliance.getAlerts.useQuery({ companyId: selectedCompany?.id });
   const utils = trpc.useUtils();
 
   const resolveMutation = trpc.compliance.resolveAlert.useMutation({

@@ -186,17 +186,30 @@ export async function getAllSuppliers(filters?: {
   if (filters?.criticality) {
     conditions.push(eq(suppliers.criticality, filters.criticality as any));
   }
-  if (filters?.search) {
-    conditions.push(
-      or(
-        like(suppliers.companyName, `%${filters.search}%`),
-        like(suppliers.cnpj, `%${filters.search}%`),
-        like(suppliers.email, `%${filters.search}%`)
-      )
-    );
-  }
+  // SEGREGAÇÃO OBRIGATÓRIA: filtro por empresa sempre aplicado primeiro
   if (filters?.companyId) {
     conditions.push(eq(suppliers.companyId, filters.companyId));
+  }
+  if (filters?.search) {
+    // Normaliza busca: remove pontuação do CNPJ para comparação limpa
+    const raw = filters.search.trim();
+    const cleanCnpj = raw.replace(/[.\-\/]/g, '');
+    const term = `%${raw}%`;
+    const termClean = `%${cleanCnpj}%`;
+    conditions.push(
+      or(
+        like(suppliers.companyName, term),
+        like(suppliers.tradeName, term),
+        like(suppliers.cnpj, term),
+        like(suppliers.cnpj, termClean),
+        like(suppliers.email, term),
+        like(suppliers.phone, term),
+        like(suppliers.city, term),
+        like(suppliers.state, term),
+        like(suppliers.neighborhood, term),
+        like(suppliers.notes, term)
+      )
+    );
   }
 
   if (conditions.length > 0) {
@@ -454,21 +467,23 @@ export async function updateWorkflowStep(id: number, data: Partial<InsertApprova
   await db.update(approvalSteps).set(data).where(eq(approvalSteps.id, id));
 }
 
-export async function getPendingWorkflows() {
+export async function getPendingWorkflows(companyId?: string) {
   const db = await getDb();
   if (!db) return [];
+  const statusCond = or(
+    eq(approvalWorkflows.status, "pending"),
+    eq(approvalWorkflows.status, "in_progress")
+  );
+  const whereCond = companyId
+    ? and(statusCond, eq(suppliers.companyId, companyId))
+    : statusCond;
   return db.select({
     workflow: approvalWorkflows,
     supplier: suppliers,
   })
     .from(approvalWorkflows)
     .innerJoin(suppliers, eq(approvalWorkflows.supplierId, suppliers.id))
-    .where(
-      or(
-        eq(approvalWorkflows.status, "pending"),
-        eq(approvalWorkflows.status, "in_progress")
-      )
-    )
+    .where(whereCond)
     .orderBy(approvalWorkflows.startedAt);
 }
 
@@ -547,19 +562,21 @@ export async function deleteInteraction(id: number) {
   await db.delete(interactions).where(eq(interactions.id, id));
 }
 
-export async function getRecentInteractions(limit: number = 50) {
+export async function getRecentInteractions(limit: number = 50, companyId?: string) {
   const db = await getDb();
   if (!db) return [];
-  return db.select({
+  let q = db.select({
     interaction: interactions,
     supplier: suppliers,
     createdBy: users,
   })
     .from(interactions)
     .leftJoin(suppliers, eq(interactions.supplierId, suppliers.id))
-    .leftJoin(users, eq(interactions.createdById, users.id))
-    .orderBy(desc(interactions.interactionDate))
-    .limit(limit);
+    .leftJoin(users, eq(interactions.createdById, users.id));
+  if (companyId) {
+    q = q.where(eq(suppliers.companyId, companyId)) as any;
+  }
+  return (q as any).orderBy(desc(interactions.interactionDate)).limit(limit);
 }
 
 // ==================== PERFORMANCE EVALUATION FUNCTIONS ====================
@@ -589,23 +606,29 @@ export async function updateEvaluation(id: number, data: Partial<InsertPerforman
   await db.update(performanceEvaluations).set(data).where(eq(performanceEvaluations.id, id));
 }
 
-export async function getLatestEvaluations(limit: number = 10) {
+export async function getLatestEvaluations(limit: number = 10, companyId?: string) {
   const db = await getDb();
   if (!db) return [];
-  return db.select({
+  let q = db.select({
     evaluation: performanceEvaluations,
     supplier: suppliers,
   })
     .from(performanceEvaluations)
-    .innerJoin(suppliers, eq(performanceEvaluations.supplierId, suppliers.id))
-    .orderBy(desc(performanceEvaluations.createdAt))
-    .limit(limit);
+    .innerJoin(suppliers, eq(performanceEvaluations.supplierId, suppliers.id));
+  if (companyId) {
+    q = q.where(eq(suppliers.companyId, companyId)) as any;
+  }
+  return (q as any).orderBy(desc(performanceEvaluations.createdAt)).limit(limit);
 }
 
 // ==================== COMPLIANCE ALERT FUNCTIONS ====================
-export async function getActiveAlerts() {
+export async function getActiveAlerts(companyId?: string) {
   const db = await getDb();
   if (!db) return [];
+  const resolvedCond = eq(complianceAlerts.isResolved, false);
+  const whereCond = companyId
+    ? and(resolvedCond, eq(suppliers.companyId, companyId))
+    : resolvedCond;
   return db.select({
     alert: complianceAlerts,
     supplier: suppliers,
@@ -614,7 +637,7 @@ export async function getActiveAlerts() {
     .from(complianceAlerts)
     .leftJoin(suppliers, eq(complianceAlerts.supplierId, suppliers.id))
     .leftJoin(documents, eq(complianceAlerts.documentId, documents.id))
-    .where(eq(complianceAlerts.isResolved, false))
+    .where(whereCond)
     .orderBy(desc(complianceAlerts.severity), complianceAlerts.dueDate);
 }
 
@@ -636,10 +659,11 @@ export async function resolveAlert(id: number, userId: number) {
 }
 
 // ==================== DASHBOARD STATS ====================
-export async function getDashboardStats() {
+export async function getDashboardStats(companyId?: string) {
   const db = await getDb();
   if (!db) return null;
-
+  // SEGREGAÇÃO: filtrar por empresa quando fornecida
+  const companyFilter = companyId ? eq(suppliers.companyId, companyId) : undefined;
   const [
     totalSuppliers,
     pendingSuppliers,
@@ -648,14 +672,19 @@ export async function getDashboardStats() {
     expiringDocs,
     activeAlerts,
   ] = await Promise.all([
-    db.select({ count: sql<number>`count(*)` }).from(suppliers),
-    db.select({ count: sql<number>`count(*)` }).from(suppliers).where(eq(suppliers.status, "pending")),
-    db.select({ count: sql<number>`count(*)` }).from(suppliers).where(eq(suppliers.status, "approved")),
+    companyFilter
+      ? db.select({ count: sql<number>`count(*)` }).from(suppliers).where(companyFilter)
+      : db.select({ count: sql<number>`count(*)` }).from(suppliers),
+    companyFilter
+      ? db.select({ count: sql<number>`count(*)` }).from(suppliers).where(and(companyFilter, eq(suppliers.status, "pending")))
+      : db.select({ count: sql<number>`count(*)` }).from(suppliers).where(eq(suppliers.status, "pending")),
+    companyFilter
+      ? db.select({ count: sql<number>`count(*)` }).from(suppliers).where(and(companyFilter, eq(suppliers.status, "approved")))
+      : db.select({ count: sql<number>`count(*)` }).from(suppliers).where(eq(suppliers.status, "approved")),
     db.select({ count: sql<number>`count(*)` }).from(documents),
     getExpiringDocuments(30),
     db.select({ count: sql<number>`count(*)` }).from(complianceAlerts).where(eq(complianceAlerts.isResolved, false)),
   ]);
-
   return {
     totalSuppliers: totalSuppliers[0]?.count || 0,
     pendingSuppliers: pendingSuppliers[0]?.count || 0,
@@ -666,31 +695,34 @@ export async function getDashboardStats() {
   };
 }
 
-export async function getSuppliersByCategory() {
+export async function getSuppliersByCategory(companyId?: string) {
   const db = await getDb();
   if (!db) return [];
-
-  return db.select({
+  let q = db.select({
     categoryId: suppliers.categoryId,
     categoryName: supplierCategories.name,
     categoryColor: supplierCategories.color,
     count: sql<number>`count(*)`,
   })
     .from(suppliers)
-    .leftJoin(supplierCategories, eq(suppliers.categoryId, supplierCategories.id))
-    .groupBy(suppliers.categoryId, supplierCategories.name, supplierCategories.color);
+    .leftJoin(supplierCategories, eq(suppliers.categoryId, supplierCategories.id));
+  if (companyId) {
+    q = q.where(eq(suppliers.companyId, companyId)) as any;
+  }
+  return (q as any).groupBy(suppliers.categoryId, supplierCategories.name, supplierCategories.color);
 }
-
-export async function getSuppliersByCriticality() {
+export async function getSuppliersByCriticality(companyId?: string) {
   const db = await getDb();
   if (!db) return [];
-
-  return db.select({
+  let q = db.select({
     criticality: suppliers.criticality,
     count: sql<number>`count(*)`,
   })
-    .from(suppliers)
-    .groupBy(suppliers.criticality);
+    .from(suppliers);
+  if (companyId) {
+    q = q.where(eq(suppliers.companyId, companyId)) as any;
+  }
+  return (q as any).groupBy(suppliers.criticality);
 }
 
 // ==================== CONTRACT FUNCTIONS ====================

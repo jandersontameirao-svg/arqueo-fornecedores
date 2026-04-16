@@ -85,24 +85,25 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const { activeUnit, setActiveUnitId } = useBusinessUnitContext();
   const { selectedCompany } = useSelectedCompany();
-  const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery();
-  const { data: byCategory, isLoading: categoryLoading } = trpc.dashboard.suppliersByCategory.useQuery();
-  const { data: byCriticality, isLoading: criticalityLoading } = trpc.dashboard.suppliersByCriticality.useQuery();
-  const { data: alerts } = trpc.compliance.getAlerts.useQuery();
-  const { data: pendingWorkflows } = trpc.workflows.getPending.useQuery();
+  const companyId = selectedCompany?.id;
+  const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery({ companyId });
+  const { data: byCategory, isLoading: categoryLoading } = trpc.dashboard.suppliersByCategory.useQuery({ companyId });
+  const { data: byCriticality, isLoading: criticalityLoading } = trpc.dashboard.suppliersByCriticality.useQuery({ companyId });
+  const { data: alerts } = trpc.compliance.getAlerts.useQuery({ companyId });
+  const { data: pendingWorkflows } = trpc.workflows.getPending.useQuery({ companyId });
 
   // Preparar dados para o gráfico de pizza (categorias)
-  const categoryChartData = byCategory?.map((cat, idx) => ({
+  const categoryChartData = (byCategory as Array<{ categoryName: string | null; count: number; categoryColor: string | null }> | undefined)?.map((cat, idx) => ({
     name: cat.categoryName || "Sem categoria",
     value: cat.count,
     color: cat.categoryColor || CATEGORY_COLORS[idx % CATEGORY_COLORS.length],
   })) || [];
 
   // Preparar dados para o gráfico de barras (criticidade)
-  const criticalityChartData = byCriticality?.map((crit) => ({
-    name: criticalityLabels[crit.criticality || "medium"] || crit.criticality,
+  const criticalityChartData = (byCriticality as Array<{ criticality: string | null; count: number }> | undefined)?.map((crit) => ({
+    name: criticalityLabels[(crit.criticality || "medium") as keyof typeof criticalityLabels] || crit.criticality,
     value: crit.count,
-    color: CRITICALITY_COLORS[crit.criticality || "medium"] || "#6B7280",
+    color: CRITICALITY_COLORS[(crit.criticality || "medium") as keyof typeof CRITICALITY_COLORS] || "#6B7280",
     key: crit.criticality,
   })) || [];
 

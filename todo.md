@@ -244,3 +244,21 @@
 - [x] Sanitizar strings vazias para undefined no SupplierForm antes do submit
 - [x] Exibir empresa ativa no cabeçalho do SupplierForm
 - [x] Varredura completa: todos os 34 endpoints backend verificados e mapeados corretamente
+
+## Segregação por Empresa (v5.7)
+- [x] Backend: getDashboardStats aceitar e filtrar por companyId
+- [x] Backend: getSuppliersByCategory aceitar e filtrar por companyId
+- [x] Backend: getSuppliersByCriticality aceitar e filtrar por companyId
+- [x] Backend: getPendingWorkflows aceitar e filtrar por companyId
+- [x] Backend: getActiveAlerts aceitar e filtrar por companyId
+- [x] Backend: getRecentInteractions aceitar e filtrar por companyId
+- [x] Backend: getLatestEvaluations aceitar e filtrar por companyId
+- [x] Backend: procedures dashboard/compliance/workflows/evaluations aceitar companyId
+- [x] Backend: busca de fornecedores com normalização e escopo obrigatório por empresa
+- [x] Frontend: Home.tsx (dashboard) passar companyId em todas as queries
+- [x] Frontend: Suppliers.tsx debounce 400ms + companyId na listagem e busca
+- [x] Frontend: Approvals.tsx filtrar por empresa ativa
+- [x] Frontend: Compliance.tsx filtrar por empresa ativa
+- [x] Frontend: Interactions.tsx filtrar por empresa ativa + tipagem explícita
+- [x] Frontend: Evaluations.tsx filtrar por empresa ativa + tipagem explícita
+- [x] 34 testes passando, 0 erros TypeScript

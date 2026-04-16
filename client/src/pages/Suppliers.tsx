@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
@@ -99,14 +99,21 @@ export default function Suppliers() {
   const { user } = useAuth();
   const { selectedCompany } = useSelectedCompany();
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [criticalityFilter, setCriticalityFilter] = useState<string>("all");
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
+  // Debounce da busca: só dispara query após 400ms sem digitar
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const { data: categories } = trpc.categories.list.useQuery();
   const { data: suppliers, isLoading } = trpc.suppliers.list.useQuery({
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
     categoryId: categoryFilter !== "all" ? parseInt(categoryFilter) : undefined,
     criticality: criticalityFilter !== "all" ? criticalityFilter : undefined,
