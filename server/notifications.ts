@@ -384,3 +384,58 @@ ${docList}
 
   return { suppliersNotified, documentsIncluded };
 }
+
+/**
+ * Notifica o gestor sobre contratos cuja vigência efetiva vence em 7 dias.
+ * A vigência efetiva considera aditivos ativos com nova data de término.
+ * Usa tabela de rastreamento para evitar duplicidade de notificações.
+ * Deve ser chamada diariamente via job agendado.
+ */
+export async function checkAndNotifyExpiringContracts7Days(): Promise<{
+  checked: number;
+  notified: number;
+}> {
+  const expiringContracts = await db.getContractsExpiringInDaysWithoutNotification(7);
+  let notified = 0;
+
+  for (const row of expiringContracts) {
+    const { contract, effectiveEndDate, source, amendmentTitle } = row;
+    if (!effectiveEndDate) continue;
+
+    const sourceLabel = source === "amendment" && amendmentTitle
+      ? ` (prorrogado pelo aditivo: ${amendmentTitle})`
+      : source === "amendment"
+      ? " (prorrogado por aditivo)"
+      : " (vigência original)";
+
+    const title = `⚠️ Contrato Vencendo em 7 dias — ${contract.title}`;
+    const content = `
+O contrato **${contract.title}**${contract.number ? ` (#${contract.number})` : ""} vencerá em **7 dias** (${new Date(effectiveEndDate).toLocaleDateString("pt-BR")})${sourceLabel}.
+
+**Fornecedor:** ID ${contract.supplierId}
+**Status atual:** ${contract.status}
+${contract.totalValue ? `**Valor:** R$ ${parseFloat(contract.totalValue).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : ""}
+
+**Ação necessária:** Verifique a necessidade de renovação, aditivo ou encerramento do contrato.
+
+---
+*Notificação automática do Sistema de Gestão de Fornecedores - Grupo Arqueo*
+    `.trim();
+
+    const success = await notifyOwner({ title, content });
+
+    if (success) {
+      await db.recordContractExpirationNotification({
+        contractId: contract.id,
+        supplierId: contract.supplierId,
+        daysBeforeExpiration: 7,
+        effectiveDateSource: source,
+        amendmentId: row.amendmentId,
+        notificationTitle: title,
+      });
+      notified++;
+    }
+  }
+
+  return { checked: expiringContracts.length, notified };
+}

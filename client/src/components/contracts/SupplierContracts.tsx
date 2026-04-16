@@ -3,7 +3,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +20,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
   Plus,
@@ -30,6 +36,8 @@ import {
   Calendar,
   DollarSign,
   Tag,
+  GitBranch,
+  AlertTriangle,
 } from "lucide-react";
 import { ContractCreationModal, type ContractCreationMode } from "./ContractCreationModal";
 import { ContractEditor } from "./ContractEditor";
@@ -71,7 +79,7 @@ export default function SupplierContracts({ supplierId, supplierName, supplierCn
   const [viewerId, setViewerId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
-  const { data: contracts, isLoading } = trpc.contracts.listBySupplier.useQuery({ supplierId });
+  const { data: contractRows, isLoading } = trpc.contracts.listBySupplier.useQuery({ supplierId });
 
   const deleteMutation = trpc.contracts.delete.useMutation({
     onSuccess: () => {
@@ -105,6 +113,15 @@ export default function SupplierContracts({ supplierId, supplierName, supplierCn
     return new Date(date).toLocaleDateString("pt-BR");
   };
 
+  /** Retorna true se a vigência efetiva vence nos próximos 7 dias */
+  const isExpiringSoon = (effectiveEndDate: Date | null | undefined) => {
+    if (!effectiveEndDate) return false;
+    const now = Date.now();
+    const end = new Date(effectiveEndDate).getTime();
+    const diff = end - now;
+    return diff > 0 && diff <= 7 * 24 * 60 * 60 * 1000;
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -112,7 +129,7 @@ export default function SupplierContracts({ supplierId, supplierName, supplierCn
         <div>
           <h3 className="text-base font-semibold">Contratos</h3>
           <p className="text-sm text-muted-foreground">
-            {contracts?.length || 0} contrato{(contracts?.length || 0) !== 1 ? "s" : ""} cadastrado{(contracts?.length || 0) !== 1 ? "s" : ""}
+            {contractRows?.length || 0} contrato{(contractRows?.length || 0) !== 1 ? "s" : ""} cadastrado{(contractRows?.length || 0) !== 1 ? "s" : ""}
           </p>
         </div>
         {canManage && (
@@ -138,85 +155,119 @@ export default function SupplierContracts({ supplierId, supplierName, supplierCn
             </Card>
           ))}
         </div>
-      ) : contracts && contracts.length > 0 ? (
-        <div className="space-y-3">
-          {contracts.map((contract) => {
-            const sc = statusConfig[contract.status] || statusConfig.draft;
-            return (
-              <Card
-                key={contract.id}
-                className="hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => setViewerId(contract.id)}
-              >
-                <CardContent className="py-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                        <FileText className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-semibold text-sm truncate">{contract.title}</p>
-                          {contract.number && (
-                            <span className="text-xs text-muted-foreground">#{contract.number}</span>
+      ) : contractRows && contractRows.length > 0 ? (
+        <TooltipProvider>
+          <div className="space-y-3">
+            {contractRows.map((row) => {
+              const { contract, effectiveEndDate, source, amendmentTitle } = row;
+              const sc = statusConfig[contract.status] || statusConfig.draft;
+              const expiringSoon = isExpiringSoon(effectiveEndDate);
+              return (
+                <Card
+                  key={contract.id}
+                  className={`hover:shadow-md transition-shadow cursor-pointer ${expiringSoon ? "border-amber-400 ring-1 ring-amber-300" : ""}`}
+                  onClick={() => setViewerId(contract.id)}
+                >
+                  <CardContent className="py-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                          <FileText className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-sm truncate">{contract.title}</p>
+                            {contract.number && (
+                              <span className="text-xs text-muted-foreground">#{contract.number}</span>
+                            )}
+                            {expiringSoon && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 cursor-help">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    Vence em breve
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Vigência efetiva encerra em {formatDate(effectiveEndDate)}
+                                  {source === "amendment" && amendmentTitle
+                                    ? ` (via aditivo: ${amendmentTitle})`
+                                    : ""}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                            <Badge className={`text-xs border-0 ${sc.className}`}>
+                              {sc.label}
+                            </Badge>
+                            {contract.contractType && (
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Tag className="h-3 w-3" />
+                                {typeLabels[contract.contractType] || contract.contractType}
+                              </span>
+                            )}
+                            {contract.totalValue && (
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <DollarSign className="h-3 w-3" />
+                                {formatCurrency(contract.totalValue)}
+                              </span>
+                            )}
+                            {/* Vigência efetiva: usa effectiveEndDate em vez de endDate */}
+                            {(contract.startDate || effectiveEndDate) && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className={`flex items-center gap-1 text-xs cursor-help ${source === "amendment" ? "text-blue-600 font-medium" : "text-muted-foreground"}`}>
+                                    {source === "amendment" ? (
+                                      <GitBranch className="h-3 w-3" />
+                                    ) : (
+                                      <Calendar className="h-3 w-3" />
+                                    )}
+                                    {formatDate(contract.startDate)} — {formatDate(effectiveEndDate) || "Indeterminado"}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {source === "amendment"
+                                    ? `Vigência prorrogada pelo aditivo: ${amendmentTitle || "aditivo ativo"}`
+                                    : "Vigência original do contrato"}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                          {contract.object && (
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{contract.object}</p>
                           )}
                         </div>
-                        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                          <Badge className={`text-xs border-0 ${sc.className}`}>
-                            {sc.label}
-                          </Badge>
-                          {contract.contractType && (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Tag className="h-3 w-3" />
-                              {typeLabels[contract.contractType] || contract.contractType}
-                            </span>
-                          )}
-                          {contract.totalValue && (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <DollarSign className="h-3 w-3" />
-                              {formatCurrency(contract.totalValue)}
-                            </span>
-                          )}
-                          {(contract.startDate || contract.endDate) && (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Calendar className="h-3 w-3" />
-                              {formatDate(contract.startDate)} — {formatDate(contract.endDate) || "Indeterminado"}
-                            </span>
-                          )}
-                        </div>
-                        {contract.object && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{contract.object}</p>
-                        )}
                       </div>
+                      {canManage && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewerId(contract.id); }}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Visualizar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={(e) => { e.stopPropagation(); setDeleteId(contract.id); }}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
-                    {canManage && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setViewerId(contract.id); }}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Visualizar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={(e) => { e.stopPropagation(); setDeleteId(contract.id); }}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </TooltipProvider>
       ) : (
         <Card>
           <CardContent className="py-12">
@@ -259,7 +310,7 @@ export default function SupplierContracts({ supplierId, supplierName, supplierCn
           open={editorOpen}
           onOpenChange={setEditorOpen}
           onSuccess={() => utils.contracts.listBySupplier.invalidate({ supplierId })}
-          existingContracts={contracts?.map((c) => ({ id: c.id, title: c.title })) || []}
+          existingContracts={contractRows?.map((r) => ({ id: r.contract.id, title: r.contract.title })) || []}
         />
       )}
 

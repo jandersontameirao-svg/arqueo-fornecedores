@@ -309,3 +309,22 @@
 - [x] Frontend: botão de clipe por interação (upload individual com estado de loading)
 - [x] Frontend: exibir conteúdo extraído pela IA na interação (toggle "Ver análise IA")
 - [x] Frontend: exibir link do anexo com ícone na lista de interações
+
+## Melhorias v5.14 (spec pasted_content_11.txt)
+
+### 1. Vigência efetiva do contrato derivada do aditivo mais recente
+- [x] Backend: função getContractEffectiveEndDate(contractId) — retorna vigência efetiva + source + amendmentId/Title
+- [x] Backend: função getLatestValidAmendmentWithEndDate(contractId) — aditivo ativo mais recente com newEndDate
+- [x] Backend: função getContractsBySupplierWithEffectiveEndDate(supplierId) — listagem com vigência efetiva
+- [x] Backend: procedures contracts.listBySupplier e contracts.getById atualizadas
+- [x] Backend: procedure contracts.getEffectiveEndDate (nova, para consulta pontual)
+- [x] Frontend: SupplierContracts.tsx usa { contract, effectiveEndDate, source, amendmentTitle }
+- [x] Frontend: ícone GitBranch + cor azul quando vigência vem de aditivo (tooltip explicativo)
+- [x] Frontend: indicador âmbar "Vence em breve" para contratos a vencer em ≤7 dias
+
+### 2. Notificação de vencimento de contrato 7 dias antes
+- [x] Schema: tabela contract_expiration_notifications para rastrear envios e evitar duplicidade
+- [x] DB: função getContractsExpiringInDaysWithoutNotification(daysAhead)
+- [x] DB: função recordContractExpirationNotification
+- [x] Backend: função checkAndNotifyExpiringContracts7Days no notifications.ts
+- [x] Backend: procedure notifications.checkExpiringContracts7Days no router

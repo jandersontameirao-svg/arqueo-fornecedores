@@ -92,6 +92,20 @@
       "when": 1776369115762,
       "tag": "0012_zippy_ricochet",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1776369888368,
+      "tag": "0013_brown_inhumans",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1776369928679,
+      "tag": "0014_groovy_fat_cobra",
+      "breakpoints": true
     }
   ]
 }

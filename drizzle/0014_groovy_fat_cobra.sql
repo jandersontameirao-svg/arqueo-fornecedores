@@ -1,0 +1,1 @@
+ALTER TABLE `contract_expiration_notifications` DROP FOREIGN KEY `contract_expiration_notifications_amendmentId_contract_amendments_id_fk`;

@@ -437,3 +437,21 @@ export const documentExpirationNotifications = mysqlTable("document_expiration_n
 
 export type DocumentExpirationNotification = typeof documentExpirationNotifications.$inferSelect;
 export type InsertDocumentExpirationNotification = typeof documentExpirationNotifications.$inferInsert;
+
+// ==================== CONTRACT EXPIRATION NOTIFICATIONS ====================
+// Rastreia notificações de vencimento de contratos para evitar duplicidade
+export const contractExpirationNotifications = mysqlTable("contract_expiration_notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  contractId: int("contractId").notNull().references(() => contracts.id, { onDelete: "cascade" }),
+  supplierId: int("supplierId").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
+  daysBeforeExpiration: int("daysBeforeExpiration").notNull(), // 7, 3, 1, etc.
+  // Rastreabilidade: qual foi a fonte da vigência usada para a notificação
+  effectiveDateSource: mysqlEnum("effectiveDateSource", ["original", "amendment"]).notNull().default("original"),
+  amendmentId: int("amendmentId"), // sem FK explícita para evitar nome de constraint longo no MySQL
+  sentAt: timestamp("sentAt").defaultNow().notNull(),
+  notificationTitle: varchar("notificationTitle", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ContractExpirationNotification = typeof contractExpirationNotifications.$inferSelect;
+export type InsertContractExpirationNotification = typeof contractExpirationNotifications.$inferInsert;

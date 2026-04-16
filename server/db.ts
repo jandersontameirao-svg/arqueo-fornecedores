@@ -21,6 +21,7 @@ import {
   companies, InsertCompany,
   supplierLinks, InsertSupplierLink,
   documentExpirationNotifications, InsertDocumentExpirationNotification,
+  contractExpirationNotifications,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1137,4 +1138,151 @@ export async function deleteEvaluation(id: number) {
   const db = await getDb();
   if (!db) return;
   await db.delete(performanceEvaluations).where(eq(performanceEvaluations.id, id));
+}
+
+// ==================== CONTRACT EFFECTIVE END DATE ====================
+
+/**
+ * Retorna o aditivo mais recente válido (status=active, newEndDate!=null) de um contrato.
+ * "Mais recente" = maior newEndDate entre os aditivos ativos com nova vigência.
+ * Se houver empate, usa createdAt mais recente como desempate.
+ */
+export async function getLatestValidAmendmentWithEndDate(contractId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select()
+    .from(contractAmendments)
+    .where(
+      and(
+        eq(contractAmendments.contractId, contractId),
+        eq(contractAmendments.status, "active"),
+        sql`${contractAmendments.newEndDate} IS NOT NULL`
+      )
+    )
+    .orderBy(desc(contractAmendments.newEndDate), desc(contractAmendments.createdAt))
+    .limit(1);
+  return rows[0] || null;
+}
+
+/**
+ * Calcula a vigência efetiva de um contrato:
+ * - Se houver aditivo ativo com newEndDate, retorna { effectiveEndDate, source: 'amendment', amendmentId, amendmentTitle }
+ * - Caso contrário, retorna { effectiveEndDate: contract.endDate, source: 'original', amendmentId: null }
+ */
+export async function getContractEffectiveEndDate(contractId: number): Promise<{
+  effectiveEndDate: Date | null;
+  source: "original" | "amendment";
+  amendmentId: number | null;
+  amendmentTitle: string | null;
+}> {
+  const contract = await getContractById(contractId);
+  const latestAmendment = await getLatestValidAmendmentWithEndDate(contractId);
+
+  if (latestAmendment && latestAmendment.newEndDate) {
+    return {
+      effectiveEndDate: latestAmendment.newEndDate,
+      source: "amendment",
+      amendmentId: latestAmendment.id,
+      amendmentTitle: latestAmendment.title,
+    };
+  }
+
+  return {
+    effectiveEndDate: contract?.endDate ?? null,
+    source: "original",
+    amendmentId: null,
+    amendmentTitle: null,
+  };
+}
+
+/**
+ * Retorna contratos com vigência efetiva calculada.
+ * Usado em listagens, dashboard e alertas para garantir consistência.
+ */
+export async function getContractsBySupplierWithEffectiveEndDate(supplierId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const contractList = await db.select().from(contracts)
+    .where(eq(contracts.supplierId, supplierId))
+    .orderBy(desc(contracts.createdAt));
+
+  // Para cada contrato, calcular vigência efetiva
+  return Promise.all(contractList.map(async (contract) => {
+    const effective = await getContractEffectiveEndDate(contract.id);
+    return { contract, ...effective };
+  }));
+}
+
+// ==================== CONTRACT EXPIRATION NOTIFICATIONS ====================
+
+/**
+ * Busca contratos cuja vigência efetiva vence em exatamente N dias
+ * e ainda não receberam notificação para esse número de dias.
+ */
+export async function getContractsExpiringInDaysWithoutNotification(daysAhead: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  startOfDay.setDate(startOfDay.getDate() + daysAhead);
+
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  // Busca todos os contratos ativos
+  const allContracts = await db.select().from(contracts)
+    .where(eq(contracts.status, "active"));
+
+  if (allContracts.length === 0) return [];
+
+  // Para cada contrato, calcula vigência efetiva e filtra os que vencem no intervalo
+  const expiringContracts = [];
+  for (const contract of allContracts) {
+    const effective = await getContractEffectiveEndDate(contract.id);
+    if (!effective.effectiveEndDate) continue;
+    const expDate = new Date(effective.effectiveEndDate);
+    if (expDate >= startOfDay && expDate <= endOfDay) {
+      expiringContracts.push({ contract, ...effective });
+    }
+  }
+
+  if (expiringContracts.length === 0) return [];
+
+  // Filtra os que já receberam notificação
+  const contractIds = expiringContracts.map(c => c.contract.id);
+  const alreadySent = await db.select({ contractId: contractExpirationNotifications.contractId })
+    .from(contractExpirationNotifications)
+    .where(
+      and(
+        eq(contractExpirationNotifications.daysBeforeExpiration, daysAhead),
+        sql`${contractExpirationNotifications.contractId} IN (${contractIds.join(",")})`
+      )
+    );
+
+  const sentIds = new Set(alreadySent.map(n => n.contractId));
+  return expiringContracts.filter(c => !sentIds.has(c.contract.id));
+}
+
+/**
+ * Registra que uma notificação de vencimento de contrato foi enviada
+ */
+export async function recordContractExpirationNotification(data: {
+  contractId: number;
+  supplierId: number;
+  daysBeforeExpiration: number;
+  effectiveDateSource: "original" | "amendment";
+  amendmentId: number | null;
+  notificationTitle: string;
+}) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(contractExpirationNotifications).values({
+    contractId: data.contractId,
+    supplierId: data.supplierId,
+    daysBeforeExpiration: data.daysBeforeExpiration,
+    effectiveDateSource: data.effectiveDateSource,
+    amendmentId: data.amendmentId ?? undefined,
+    notificationTitle: data.notificationTitle,
+  });
 }

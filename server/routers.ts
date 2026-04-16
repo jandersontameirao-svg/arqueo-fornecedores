@@ -1005,6 +1005,11 @@ export const appRouter = router({
       return notifications.checkAndNotifyExpiring7Days();
     }),
 
+    // Notificação específica para contratos cuja vigência efetiva vence em 7 dias
+    checkExpiringContracts7Days: adminProcedure.mutation(async () => {
+      return notifications.checkAndNotifyExpiringContracts7Days();
+    }),
+
     sendTestNotification: adminProcedure.mutation(async () => {
       const { notifyOwner } = await import("./_core/notification");
       const success = await notifyOwner({
@@ -1085,7 +1090,8 @@ export const appRouter = router({
     listBySupplier: protectedProcedure
       .input(z.object({ supplierId: z.number() }))
       .query(async ({ input }) => {
-        return db.getContractsBySupplier(input.supplierId);
+        // Retorna contratos com vigência efetiva calculada (aditivo mais recente ou original)
+        return db.getContractsBySupplierWithEffectiveEndDate(input.supplierId);
       }),
 
     getById: protectedProcedure
@@ -1094,7 +1100,15 @@ export const appRouter = router({
         const contract = await db.getContractById(input.id);
         if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
         const items = await db.getContractItems(input.id);
-        return { contract, items };
+        // Inclui vigência efetiva calculada
+        const effective = await db.getContractEffectiveEndDate(input.id);
+        return { contract, items, ...effective };
+      }),
+
+    getEffectiveEndDate: protectedProcedure
+      .input(z.object({ contractId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getContractEffectiveEndDate(input.contractId);
       }),
 
     getTemplates: protectedProcedure.query(async () => {
