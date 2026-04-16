@@ -1255,6 +1255,88 @@ Estruture o contrato com:
         });
         return { success: true };
       }),
+
+    extractFromPDF: managerProcedure
+      .input(z.object({
+        contractId: z.number(),
+        pdfBase64: z.string(),
+        fileName: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        // Upload PDF to S3
+        const buffer = Buffer.from(input.pdfBase64, "base64");
+        const fileKey = `amendments/pdf/${Date.now()}-${input.fileName}`;
+        const { url: pdfUrl } = await storagePut(fileKey, buffer, "application/pdf");
+
+        // Extract text from PDF
+        const extractedText = await extractTextFromBuffer(buffer, "pdf");
+        const textContent = extractedText
+          ? `\n\nCONTEÚDO DO ADITIVO:\n${extractedText}`
+          : "\n\n(Não foi possível extrair texto do PDF. Analise com base nas informações disponíveis.)";
+
+        // Use AI to extract amendment data
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: `Você é um especialista em análise de aditivos contratuais brasileiros. Analise o aditivo contratual fornecido e extraia as informações estruturadas. Retorne APENAS JSON válido sem markdown.`,
+            },
+            {
+              role: "user",
+              content: `Analise este aditivo contratual e extraia as seguintes informações em JSON:${textContent}\n\nRetorne JSON com a estrutura:\n{\n  "title": "título do aditivo (ex: Primeiro Aditivo ao Contrato CPST Nº 102/10-2025)",\n  "number": "número do aditivo se houver (ex: ADT-001)",\n  "amendmentType": "financial|scope|term|mixed - classifique: financial se altera valores, scope se altera escopo/objeto, term se altera prazo/vigência, mixed se altera mais de um aspecto",\n  "description": "descrição resumida do objeto do aditivo",\n  "valueChange": "variação de valor em número (positivo para acréscimo, negativo para redução, somente dígitos e ponto decimal, ou string vazia se não aplicável)",\n  "newTotalValue": "novo valor total do contrato após o aditivo em número (somente dígitos e ponto decimal, ou string vazia se não informado)",\n  "newEndDate": "nova data de término no formato YYYY-MM-DD ou string vazia se não altera prazo",\n  "content": "texto completo ou resumo detalhado das cláusulas do aditivo",\n  "signedAt": "data de assinatura do aditivo no formato YYYY-MM-DD ou string vazia",\n  "milestones": [\n    {\n      "title": "título do marco financeiro",\n      "plannedValue": "valor previsto em número",\n      "dueDate": "data YYYY-MM-DD",\n      "description": "descrição do marco"\n    }\n  ],\n  "summary": "resumo executivo do aditivo em 2-3 frases"\n}`,
+            },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "amendment_extraction",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  number: { type: "string" },
+                  amendmentType: { type: "string" },
+                  description: { type: "string" },
+                  valueChange: { type: "string" },
+                  newTotalValue: { type: "string" },
+                  newEndDate: { type: "string" },
+                  content: { type: "string" },
+                  signedAt: { type: "string" },
+                  milestones: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        title: { type: "string" },
+                        plannedValue: { type: "string" },
+                        dueDate: { type: "string" },
+                        description: { type: "string" },
+                      },
+                      required: ["title", "plannedValue", "dueDate", "description"],
+                      additionalProperties: false,
+                    },
+                  },
+                  summary: { type: "string" },
+                },
+                required: ["title", "number", "amendmentType", "description", "valueChange", "newTotalValue", "newEndDate", "content", "signedAt", "milestones", "summary"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const rawContent = response.choices[0]?.message?.content || "{}";
+        const contentStr = typeof rawContent === "string" ? rawContent : "{}";
+        let extracted: any = {};
+        try {
+          extracted = JSON.parse(contentStr);
+        } catch {
+          extracted = { title: input.fileName.replace(".pdf", ""), summary: "Não foi possível extrair os dados automaticamente." };
+        }
+
+        return { extracted, pdfUrl };
+      }),
   }),
 
   // ==================== FINANCIAL MILESTONES ====================

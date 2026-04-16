@@ -275,3 +275,12 @@
 - [x] Trocar campo state de Input para Select com todas as 27 UFs brasileiras
 - [x] Sanitizar state no handleSubmit: apenas siglas de 2 caracteres são enviadas, "Selecionar" vira undefined
 - [x] 34 testes passando, 0 erros TypeScript
+
+## Leitura por IA de Aditivos Contratuais (v5.12)
+
+- [x] Backend: procedure de extração de PDF para aditivos via IA (extractAmendmentFromPDF)
+- [x] Backend: upload de PDF de aditivo para S3
+- [x] Frontend: componente de upload PDF com drag-and-drop para aditivos
+- [x] Frontend: tela de revisão dos dados extraídos pela IA (tipo, valor, prazo, marcos financeiros)
+- [x] Frontend: confirmação obrigatória antes de salvar aditivo
+- [x] Integração com fluxo existente de aditivos (criar aditivo a partir de PDF)

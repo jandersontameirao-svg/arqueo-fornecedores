@@ -43,7 +43,9 @@ import {
   X,
   Save,
   FilePlus,
+  FileUp,
 } from "lucide-react";
+import { AmendmentPDFImport } from "./AmendmentPDFImport";
 
 interface ContractAmendmentsProps {
   contractId: number;
@@ -530,6 +532,7 @@ function AmendmentFormDialog({ contractId, open, onClose, initial, amendmentId }
 export function ContractAmendments({ contractId, canManage }: ContractAmendmentsProps) {
   const utils = trpc.useUtils();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showPDFImport, setShowPDFImport] = useState(false);
   const [editAmendment, setEditAmendment] = useState<Record<string, unknown> | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -553,10 +556,16 @@ export function ContractAmendments({ contractId, canManage }: ContractAmendments
           <p className="text-xs text-muted-foreground">Gerenciar aditivos financeiros, de escopo e prazo</p>
         </div>
         {canManage && (
-          <Button size="sm" onClick={() => setShowCreateDialog(true)}>
-            <FilePlus className="h-4 w-4 mr-1.5" />
-            Novo Aditivo
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowPDFImport(true)}>
+              <FileUp className="h-4 w-4 mr-1.5" />
+              Importar PDF
+            </Button>
+            <Button size="sm" onClick={() => setShowCreateDialog(true)}>
+              <FilePlus className="h-4 w-4 mr-1.5" />
+              Novo Aditivo
+            </Button>
+          </div>
         )}
       </div>
 
@@ -655,6 +664,13 @@ export function ContractAmendments({ contractId, canManage }: ContractAmendments
       </div>
 
       {/* Dialogs */}
+      <AmendmentPDFImport
+        contractId={contractId}
+        open={showPDFImport}
+        onClose={() => setShowPDFImport(false)}
+        onSuccess={() => utils.amendments.listByContract.invalidate({ contractId })}
+      />
+
       <AmendmentFormDialog
         contractId={contractId}
         open={showCreateDialog}
