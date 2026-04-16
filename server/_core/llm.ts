@@ -18,8 +18,7 @@ export type ImageContent = {
 export type FileContent = {
   type: "file";
   file: {
-    data: string; // base64 encoded file data
-    mime_type: "audio/mpeg" | "audio/wav" | "application/pdf" | "audio/mp4" | "video/mp4" | "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+    file_id: string; // OpenAI Files API file_id
   };
 };
 
@@ -355,4 +354,59 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   }
 
   return (await response.json()) as InvokeResult;
+}
+
+/**
+ * Upload a file to OpenAI Files API and return the file_id
+ * @param fileBuffer - The file buffer to upload
+ * @param fileName - The name of the file
+ * @param mimeType - The MIME type of the file
+ * @returns The file_id from OpenAI
+ */
+export async function uploadFileToOpenAI(
+  fileBuffer: Buffer | Uint8Array | string,
+  fileName: string,
+  mimeType: string
+): Promise<string> {
+  assertApiKey();
+
+  // Only OpenAI direct API supports Files API
+  if (!useDirectOpenAI()) {
+    throw new Error("File upload is only supported when using OpenAI directly");
+  }
+
+  const formData = new FormData();
+  
+  // Convert buffer to Blob
+  let blob: Blob;
+  if (typeof fileBuffer === "string") {
+    // Assume it's base64
+    const binaryString = Buffer.from(fileBuffer, "base64").toString("binary");
+    blob = new Blob([binaryString], { type: mimeType });
+  } else if (Buffer.isBuffer(fileBuffer)) {
+    blob = new Blob([(fileBuffer.buffer as ArrayBuffer).slice(fileBuffer.byteOffset, fileBuffer.byteOffset + fileBuffer.length)], { type: mimeType });
+  } else {
+    blob = new Blob([fileBuffer as unknown as ArrayBuffer], { type: mimeType });
+  }
+
+  formData.append("file", blob, fileName);
+  formData.append("purpose", "assistants");
+
+  const response = await fetch("https://api.openai.com/v1/files", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${resolveApiKey()}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `File upload failed: ${response.status} ${response.statusText} – ${errorText}`
+    );
+  }
+
+  const result = (await response.json()) as { id: string };
+  return result.id;
 }
