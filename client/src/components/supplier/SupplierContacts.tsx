@@ -262,7 +262,7 @@ export default function SupplierContacts({ supplierId, canEdit }: SupplierContac
                 `}
               >
                 {contact.isPrimary && (
-                  <div className="absolute top-3 right-3">
+                  <div className="absolute bottom-3 right-3">
                     <Badge className="bg-[oklch(0.90_0.08_85)] text-[oklch(0.45_0.15_85)] border-0">
                       <Star className="h-3 w-3 mr-1 fill-current" />
                       Principal

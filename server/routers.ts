@@ -78,7 +78,7 @@ const supplierSchema = z.object({
 const documentSchema = z.object({
   supplierId: z.number(),
   name: z.string().min(1, "Nome do documento é obrigatório"),
-  type: z.enum(["contract", "certificate", "invoice", "license", "other"]),
+  type: z.enum(["contract", "certificate", "invoice", "license", "insurance", "registration", "other"]),
   description: z.string().optional(),
   fileKey: z.string(),
   fileUrl: z.string(),
@@ -526,7 +526,7 @@ export const appRouter = router({
         const id = await db.createDocument({
           supplierId: input.supplierId,
           name: input.name,
-          type: input.type as "contract" | "certificate" | "invoice" | "license" | "other",
+          type: input.type as "contract" | "certificate" | "invoice" | "license" | "insurance" | "registration" | "other",
           fileUrl: url,
           fileKey: fileKey,
           fileName: input.fileName,

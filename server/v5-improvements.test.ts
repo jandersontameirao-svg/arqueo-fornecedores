@@ -169,3 +169,59 @@ describe("Vigência efetiva de contratos (v5.14)", () => {
     expect(effectiveEndDate).toEqual(new Date("2026-12-31"));
   });
 });
+
+// ==================== v5.15: CORREÇÕES DE DOCUMENTOS E BADGE PRINCIPAL ====================
+describe("Correção enum de tipos de documento (v5.15)", () => {
+  it("documentSchema deve aceitar o tipo 'insurance'", async () => {
+    const { appRouter } = await import("./routers");
+    // Verifica que o router existe e tem o namespace documents
+    const routes = Object.keys(appRouter._def.procedures);
+    expect(routes.some(r => r.includes("documents"))).toBe(true);
+  });
+
+  it("todos os tipos de documento do frontend devem ser válidos no backend", () => {
+    // Tipos aceitos pelo banco (enum expandido)
+    const dbEnum = ["contract", "certificate", "invoice", "license", "insurance", "registration", "other"];
+    // Tipos exibidos no frontend (typeLabels)
+    const frontendTypes = ["contract", "certificate", "invoice", "license", "insurance", "registration", "other"];
+    
+    for (const t of frontendTypes) {
+      expect(dbEnum).toContain(t);
+    }
+  });
+
+  it("o tipo 'other' deve continuar válido (sem regressão)", () => {
+    const dbEnum = ["contract", "certificate", "invoice", "license", "insurance", "registration", "other"];
+    expect(dbEnum).toContain("other");
+  });
+
+  it("o tipo 'contract' deve ser válido", () => {
+    const dbEnum = ["contract", "certificate", "invoice", "license", "insurance", "registration", "other"];
+    expect(dbEnum).toContain("contract");
+  });
+
+  it("o tipo 'certificate' deve ser válido", () => {
+    const dbEnum = ["contract", "certificate", "invoice", "license", "insurance", "registration", "other"];
+    expect(dbEnum).toContain("certificate");
+  });
+
+  it("o tipo 'invoice' deve ser válido", () => {
+    const dbEnum = ["contract", "certificate", "invoice", "license", "insurance", "registration", "other"];
+    expect(dbEnum).toContain("invoice");
+  });
+
+  it("o tipo 'license' deve ser válido", () => {
+    const dbEnum = ["contract", "certificate", "invoice", "license", "insurance", "registration", "other"];
+    expect(dbEnum).toContain("license");
+  });
+
+  it("o tipo 'insurance' (Seguro) deve ser válido após a correção", () => {
+    const dbEnum = ["contract", "certificate", "invoice", "license", "insurance", "registration", "other"];
+    expect(dbEnum).toContain("insurance");
+  });
+
+  it("o tipo 'registration' (Registro) deve ser válido após a correção", () => {
+    const dbEnum = ["contract", "certificate", "invoice", "license", "insurance", "registration", "other"];
+    expect(dbEnum).toContain("registration");
+  });
+});

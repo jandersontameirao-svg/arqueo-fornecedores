@@ -1,0 +1,1 @@
+ALTER TABLE `documents` MODIFY COLUMN `type` enum('contract','certificate','invoice','license','insurance','registration','other') NOT NULL;

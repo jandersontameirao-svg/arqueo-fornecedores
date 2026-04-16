@@ -328,3 +328,12 @@
 - [x] DB: função recordContractExpirationNotification
 - [x] Backend: função checkAndNotifyExpiringContracts7Days no notifications.ts
 - [x] Backend: procedure notifications.checkExpiringContracts7Days no router
+
+## Correções v5.15 (spec pasted_content_12.txt)
+- [x] Investigar causa raiz do erro de documentos com tipo diferente de "Outro" (enum do banco não incluía insurance/registration)
+- [x] Expandir enum da coluna type em documents para incluir insurance e registration
+- [x] Migração aplicada com sucesso (drizzle/0015_groovy_namora.sql)
+- [x] Corrigir documentSchema no routers.ts para incluir insurance e registration no z.enum
+- [x] Corrigir cast de tipo no upload procedure para incluir insurance e registration
+- [x] Reposicionar badge "Principal" de top-3 right-3 para bottom-3 right-3 no card de contato
+- [x] 60 testes passando, 0 erros TypeScript

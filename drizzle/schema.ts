@@ -99,7 +99,7 @@ export const documents = mysqlTable("documents", {
   id: int("id").autoincrement().primaryKey(),
   supplierId: int("supplierId").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(),
-  type: mysqlEnum("type", ["contract", "certificate", "invoice", "license", "other"]).notNull(),
+  type: mysqlEnum("type", ["contract", "certificate", "invoice", "license", "insurance", "registration", "other"]).notNull(),
   description: text("description"),
   // S3 Storage
   fileKey: varchar("fileKey", { length: 500 }).notNull(),
