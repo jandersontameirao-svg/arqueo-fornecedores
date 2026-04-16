@@ -37,7 +37,7 @@ export const suppliers = mysqlTable("suppliers", {
   companyName: varchar("companyName", { length: 255 }).notNull(),
   tradeName: varchar("tradeName", { length: 255 }),
   // Fiscal Data
-  cnpj: varchar("cnpj", { length: 18 }).notNull().unique(),
+  cnpj: varchar("cnpj", { length: 18 }).notNull(),
   stateRegistration: varchar("stateRegistration", { length: 20 }),
   municipalRegistration: varchar("municipalRegistration", { length: 20 }),
   // Contact Info

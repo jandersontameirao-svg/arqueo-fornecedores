@@ -238,22 +238,26 @@ export async function getSupplierById(id: number) {
 export async function createSupplier(data: InsertSupplier) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  // Provide default values for required fields
+
+  // Verificar duplicidade de CNPJ dentro da mesma empresa
+  if (data.cnpj && data.companyId) {
+    const existing = await db
+      .select({ id: suppliers.id })
+      .from(suppliers)
+      .where(and(eq(suppliers.cnpj, data.cnpj), eq(suppliers.companyId, data.companyId)))
+      .limit(1);
+    if (existing.length > 0) {
+      throw new Error("Já existe um fornecedor cadastrado com este CNPJ nesta empresa.");
+    }
+  }
+
   const supplierData: InsertSupplier = {
     ...data,
     criticality: data.criticality || "medium",
     status: data.status || "pending",
   };
-  try {
-    const result = await db.insert(suppliers).values(supplierData);
-    return result[0].insertId;
-  } catch (err: unknown) {
-    const e = err as { code?: string; message?: string };
-    if (e?.code === "ER_DUP_ENTRY" || e?.message?.includes("Duplicate entry")) {
-      throw new Error("Já existe um fornecedor cadastrado com este CNPJ no sistema.");
-    }
-    throw err;
-  }
+  const result = await db.insert(suppliers).values(supplierData);
+  return result[0].insertId;
 }
 
 export async function updateSupplier(id: number, data: Partial<InsertSupplier>) {
