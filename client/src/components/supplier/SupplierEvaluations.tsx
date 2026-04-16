@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -16,8 +15,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { BarChart3, Plus, Calendar, Star, TrendingUp, TrendingDown } from "lucide-react";
+import { BarChart3, Plus, Calendar, Star, TrendingUp, TrendingDown, MoreVertical, Edit, Trash2 } from "lucide-react";
 
 interface SupplierEvaluationsProps {
   supplierId: number;
@@ -46,19 +61,23 @@ const getProgressColor = (score: number) => {
   return "bg-red-500";
 };
 
+const defaultFormData = {
+  evaluationPeriod: "",
+  qualityScore: 70,
+  deliveryScore: 70,
+  priceScore: 70,
+  communicationScore: 70,
+  complianceScore: 70,
+  strengths: "",
+  improvements: "",
+  comments: "",
+};
+
 export default function SupplierEvaluations({ supplierId, canEdit }: SupplierEvaluationsProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    evaluationPeriod: "",
-    qualityScore: 70,
-    deliveryScore: 70,
-    priceScore: 70,
-    communicationScore: 70,
-    complianceScore: 70,
-    strengths: "",
-    improvements: "",
-    comments: "",
-  });
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [formData, setFormData] = useState(defaultFormData);
 
   const utils = trpc.useUtils();
   const { data: evaluations, isLoading } = trpc.evaluations.list.useQuery({ supplierId });
@@ -75,18 +94,48 @@ export default function SupplierEvaluations({ supplierId, canEdit }: SupplierEva
     },
   });
 
+  const updateMutation = trpc.evaluations.update.useMutation({
+    onSuccess: () => {
+      toast.success("Avaliação atualizada!");
+      utils.evaluations.list.invalidate({ supplierId });
+      setIsOpen(false);
+      resetForm();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const deleteMutation = trpc.evaluations.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Avaliação excluída");
+      utils.evaluations.list.invalidate({ supplierId });
+      setDeleteConfirmId(null);
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
   const resetForm = () => {
+    setFormData(defaultFormData);
+    setEditingId(null);
+  };
+
+  const handleEdit = (evaluation: any) => {
     setFormData({
-      evaluationPeriod: "",
-      qualityScore: 70,
-      deliveryScore: 70,
-      priceScore: 70,
-      communicationScore: 70,
-      complianceScore: 70,
-      strengths: "",
-      improvements: "",
-      comments: "",
+      evaluationPeriod: evaluation.evaluationPeriod,
+      qualityScore: parseFloat(evaluation.qualityScore || "70"),
+      deliveryScore: parseFloat(evaluation.deliveryScore || "70"),
+      priceScore: parseFloat(evaluation.priceScore || "70"),
+      communicationScore: parseFloat(evaluation.communicationScore || "70"),
+      complianceScore: parseFloat(evaluation.complianceScore || "70"),
+      strengths: evaluation.strengths || "",
+      improvements: evaluation.improvements || "",
+      comments: evaluation.comments || "",
     });
+    setEditingId(evaluation.id);
+    setIsOpen(true);
   };
 
   const handleSubmit = () => {
@@ -95,10 +144,11 @@ export default function SupplierEvaluations({ supplierId, canEdit }: SupplierEva
       return;
     }
 
-    createMutation.mutate({
-      supplierId,
-      ...formData,
-    });
+    if (editingId) {
+      updateMutation.mutate({ id: editingId, ...formData });
+    } else {
+      createMutation.mutate({ supplierId, ...formData });
+    }
   };
 
   const calculateOverall = () => {
@@ -112,12 +162,14 @@ export default function SupplierEvaluations({ supplierId, canEdit }: SupplierEva
     return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
   };
 
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base">Avaliações de Desempenho</CardTitle>
         {canEdit && (
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <Button size="sm">
                 <Plus className="h-4 w-4 mr-2" />
@@ -126,9 +178,9 @@ export default function SupplierEvaluations({ supplierId, canEdit }: SupplierEva
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Nova Avaliação de Desempenho</DialogTitle>
+                <DialogTitle>{editingId ? "Editar Avaliação" : "Nova Avaliação de Desempenho"}</DialogTitle>
                 <DialogDescription>
-                  Avalie o desempenho do fornecedor em diferentes critérios
+                  {editingId ? "Atualize as notas e comentários da avaliação" : "Avalie o desempenho do fornecedor em diferentes critérios"}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-6 py-4 max-h-[60vh] overflow-y-auto">
@@ -201,11 +253,11 @@ export default function SupplierEvaluations({ supplierId, canEdit }: SupplierEva
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsOpen(false)}>
+                <Button variant="outline" onClick={() => { setIsOpen(false); resetForm(); }}>
                   Cancelar
                 </Button>
-                <Button onClick={handleSubmit} disabled={createMutation.isPending}>
-                  Salvar Avaliação
+                <Button onClick={handleSubmit} disabled={isPending}>
+                  {editingId ? "Atualizar Avaliação" : "Salvar Avaliação"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -240,10 +292,34 @@ export default function SupplierEvaluations({ supplierId, canEdit }: SupplierEva
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                      <span className={`text-2xl font-bold ${getScoreColor(overallScore)}`}>
-                        {overallScore.toFixed(0)}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+                        <span className={`text-2xl font-bold ${getScoreColor(overallScore)}`}>
+                          {overallScore.toFixed(0)}
+                        </span>
+                      </div>
+                      {canEdit && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEdit(item.evaluation)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeleteConfirmId(item.evaluation.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </div>
 
@@ -306,6 +382,28 @@ export default function SupplierEvaluations({ supplierId, canEdit }: SupplierEva
           </div>
         )}
       </CardContent>
+
+      {/* Modal de confirmação de exclusão */}
+      <AlertDialog open={deleteConfirmId !== null} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Avaliação</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta avaliação? Esta ação não pode ser desfeita e será registrada no log de auditoria.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteConfirmId !== null && deleteMutation.mutate({ id: deleteConfirmId })}
+              disabled={deleteMutation.isPending}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

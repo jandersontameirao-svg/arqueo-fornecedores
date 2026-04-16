@@ -24,6 +24,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { Users, Plus, Mail, Phone, Trash2, Star, Edit, MoreVertical, Copy, ExternalLink } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface SupplierContactsProps {
   supplierId: number;
@@ -33,6 +43,7 @@ interface SupplierContactsProps {
 export default function SupplierContacts({ supplierId, canEdit }: SupplierContactsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     role: "",
@@ -312,7 +323,7 @@ export default function SupplierContacts({ supplierId, canEdit }: SupplierContac
                         )}
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
-                          onClick={() => deleteMutation.mutate({ id: contact.id })}
+                          onClick={() => setDeleteConfirmId(contact.id)}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Excluir
@@ -345,6 +356,28 @@ export default function SupplierContacts({ supplierId, canEdit }: SupplierContac
           </div>
         )}
       </CardContent>
+
+      {/* Modal de confirmação de exclusão de contato */}
+      <AlertDialog open={deleteConfirmId !== null} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Contato</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este contato? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteConfirmId !== null && deleteMutation.mutate({ id: deleteConfirmId })}
+              disabled={deleteMutation.isPending}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

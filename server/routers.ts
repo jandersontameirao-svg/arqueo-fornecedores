@@ -699,6 +699,68 @@ export const appRouter = router({
         await db.deleteInteraction(input.id);
         return { success: true };
       }),
+
+    // Upload de anexo com extração de conteúdo por IA
+    uploadAttachment: managerProcedure
+      .input(z.object({
+        interactionId: z.number(),
+        fileBase64: z.string(),
+        fileName: z.string(),
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const buffer = Buffer.from(input.fileBase64, "base64");
+        const ext = input.fileName.split(".").pop()?.toLowerCase() || "bin";
+        const fileKey = `interactions/attachments/${Date.now()}-${input.fileName}`;
+        const mimeMap: Record<string, string> = {
+          pdf: "application/pdf",
+          docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          doc: "application/msword",
+          txt: "text/plain",
+          jpg: "image/jpeg",
+          jpeg: "image/jpeg",
+          png: "image/png",
+        };
+        const resolvedMime = mimeMap[ext] || input.mimeType || "application/octet-stream";
+        const { url: attachmentUrl } = await storagePut(fileKey, buffer, resolvedMime);
+
+        // Extrai texto do arquivo para leitura por IA (somente para formatos suportados)
+        let aiExtractedContent: string | undefined;
+        const extractableExts = ["pdf", "txt", "md"];
+        if (extractableExts.includes(ext)) {
+          const rawText = await extractTextFromBuffer(buffer, ext);
+          if (rawText && rawText.trim().length > 0) {
+            try {
+              const response = await invokeLLM({
+                messages: [
+                  {
+                    role: "system",
+                    content: "Você é um assistente especializado em análise de documentos. Extraia e resuma o conteúdo principal do documento de forma concisa e estruturada em português.",
+                  },
+                  {
+                    role: "user",
+                    content: `Analise este documento e forneça: 1) Um resumo executivo em 2-3 frases, 2) Os pontos principais em tópicos, 3) Datas ou valores relevantes mencionados.\n\nCONTEÚDO:\n${rawText}`,
+                  },
+                ],
+              });
+              const rawContent = response.choices[0]?.message?.content;
+              aiExtractedContent = typeof rawContent === "string" ? rawContent : undefined;
+            } catch (e) {
+              console.error("AI extraction failed for interaction attachment:", e);
+            }
+          }
+        }
+
+        // Atualiza a interação com o anexo
+        await db.updateInteraction(input.interactionId, {
+          attachmentUrl,
+          attachmentKey: fileKey,
+          attachmentName: input.fileName,
+          aiExtractedContent,
+        });
+
+        return { attachmentUrl, attachmentName: input.fileName, aiExtractedContent };
+      }),
   }),
 
   // ==================== EVALUATIONS ====================
@@ -744,6 +806,66 @@ export const appRouter = router({
           userEmail: ctx.user.email,
         });
         return { id };
+      }),
+
+    update: managerProcedure
+      .input(z.object({
+        id: z.number(),
+        evaluationPeriod: z.string().optional(),
+        qualityScore: z.number().min(0).max(100).optional(),
+        deliveryScore: z.number().min(0).max(100).optional(),
+        priceScore: z.number().min(0).max(100).optional(),
+        communicationScore: z.number().min(0).max(100).optional(),
+        complianceScore: z.number().min(0).max(100).optional(),
+        strengths: z.string().optional(),
+        improvements: z.string().optional(),
+        comments: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { id, ...rest } = input;
+        const scores = [
+          rest.qualityScore,
+          rest.deliveryScore,
+          rest.priceScore,
+          rest.communicationScore,
+          rest.complianceScore,
+        ].filter(s => s !== undefined) as number[];
+        const overallScore = scores.length > 0
+          ? scores.reduce((a, b) => a + b, 0) / scores.length
+          : undefined;
+        await db.updateEvaluation(id, {
+          ...rest,
+          qualityScore: rest.qualityScore?.toString(),
+          deliveryScore: rest.deliveryScore?.toString(),
+          priceScore: rest.priceScore?.toString(),
+          communicationScore: rest.communicationScore?.toString(),
+          complianceScore: rest.complianceScore?.toString(),
+          overallScore: overallScore?.toFixed(2),
+        });
+        await db.createAuditLog({
+          entityType: "evaluation",
+          entityId: id,
+          action: "update",
+          changes: { overallScore },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { success: true };
+      }),
+
+    delete: managerProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await db.deleteEvaluation(input.id);
+        await db.createAuditLog({
+          entityType: "evaluation",
+          entityId: input.id,
+          action: "delete",
+          changes: {},
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { success: true };
       }),
 
     getLatest: protectedProcedure
@@ -876,6 +998,11 @@ export const appRouter = router({
     checkExpiringDocuments: adminProcedure.mutation(async () => {
       const result = await notifications.checkAndNotifyExpiringDocuments();
       return result;
+    }),
+
+    // Notificação específica para documentos que vencem em 7 dias
+    checkExpiring7Days: adminProcedure.mutation(async () => {
+      return notifications.checkAndNotifyExpiring7Days();
     }),
 
     sendTestNotification: adminProcedure.mutation(async () => {

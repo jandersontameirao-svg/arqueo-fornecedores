@@ -218,6 +218,46 @@ export async function notifySupplierDocumentRenewal(
 }
 
 /**
+ * Verifica e envia notificações para documentos que vencem em 7 dias
+ * Usa tabela de rastreamento para evitar duplicidade
+ * Deve ser chamada diariamente via job agendado
+ */
+export async function checkAndNotifyExpiring7Days(): Promise<{
+  checked: number;
+  notified: number;
+}> {
+  const docsExpiring7Days = await db.getDocumentsExpiringInDaysWithoutNotification(7);
+  let notified = 0;
+
+  for (const doc of docsExpiring7Days) {
+    if (!doc.document.expiresAt || !doc.supplier) continue;
+
+    const supplierEmail = doc.supplier.email || undefined;
+
+    const success = await notifyDocumentExpiring(
+      doc.supplier.companyName,
+      doc.document.name,
+      doc.document.expiresAt,
+      7,
+      supplierEmail
+    );
+
+    if (success) {
+      // Registra que a notificação foi enviada para evitar duplicidade
+      await db.recordDocumentExpirationNotification({
+        documentId: doc.document.id,
+        supplierId: doc.supplier.id,
+        daysBeforeExpiration: 7,
+        notificationTitle: `⚠️ Documento Expirando em 7 dias - ${doc.supplier.companyName}`,
+      });
+      notified++;
+    }
+  }
+
+  return { checked: docsExpiring7Days.length, notified };
+}
+
+/**
  * Check and send notifications for expiring documents
  * This function should be called periodically (e.g., daily via cron job)
  */

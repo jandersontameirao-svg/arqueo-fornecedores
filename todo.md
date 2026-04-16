@@ -284,3 +284,28 @@
 - [x] Frontend: tela de revisão dos dados extraídos pela IA (tipo, valor, prazo, marcos financeiros)
 - [x] Frontend: confirmação obrigatória antes de salvar aditivo
 - [x] Integração com fluxo existente de aditivos (criar aditivo a partir de PDF)
+
+## Melhorias v5.13 (spec pasted_content_10.txt)
+
+### 1. Notificação de vencimento de documentos (7 dias antes)
+- [x] Schema: tabela document_expiration_notifications para rastrear notificações enviadas
+- [x] DB: helper para buscar documentos a vencer em 7 dias sem notificação enviada
+- [x] DB: helper para marcar notificação como enviada
+- [x] Backend: procedure notifications.checkExpiring7Days (job manual + agendado)
+- [x] Frontend: indicador visual de documentos a vencer em 7 dias na aba Documentos (via checkExpiring7Days)
+
+### 2. Edição e exclusão de avaliações e contatos
+- [x] Backend: procedure evaluations.update (editar avaliação existente com auditoria)
+- [x] Backend: procedure evaluations.delete (excluir avaliação com auditoria)
+- [x] Frontend: botões Editar e Excluir em SupplierEvaluations com modal de confirmação
+- [x] Frontend: modal de edição de avaliação reutilizando formulário existente
+- [x] Frontend: modal de confirmação de exclusão de avaliação
+- [x] Frontend: modal de confirmação de exclusão de contato
+
+### 3. Anexamento de documentos com leitura por IA na aba de interações
+- [x] Schema: adicionar campos attachmentKey, attachmentName e aiExtractedContent em interactions
+- [x] DB: updateInteraction já suporta novos campos via Partial<InsertInteraction>
+- [x] Backend: procedure interactions.uploadAttachment (upload S3 + extração IA reaproveitando extractTextFromBuffer)
+- [x] Frontend: botão de clipe por interação (upload individual com estado de loading)
+- [x] Frontend: exibir conteúdo extraído pela IA na interação (toggle "Ver análise IA")
+- [x] Frontend: exibir link do anexo com ícone na lista de interações

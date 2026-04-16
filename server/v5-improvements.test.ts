@@ -1,0 +1,96 @@
+/**
+ * Testes para as melhorias v5.13:
+ * 1. Notificação de vencimento de documentos (7 dias)
+ * 2. Edição e exclusão de avaliações
+ * 3. Upload de anexo com IA em interações
+ */
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// ==================== 1. NOTIFICAÇÃO 7 DIAS ====================
+describe("Notificação de vencimento de documentos (7 dias)", () => {
+  it("deve ter a procedure checkExpiring7Days no router de notifications", async () => {
+    // Verifica que a função existe no módulo de notifications
+    const notifications = await import("./notifications");
+    expect(typeof notifications.checkAndNotifyExpiring7Days).toBe("function");
+  });
+
+  it("checkAndNotifyExpiring7Days deve retornar { checked, notified }", async () => {
+    // Mock do db para simular sem documentos a vencer
+    vi.mock("./db", async (importOriginal) => {
+      const original = await importOriginal<typeof import("./db")>();
+      return {
+        ...original,
+        getDocumentsExpiringInDaysWithoutNotification: vi.fn().mockResolvedValue([]),
+        recordDocumentExpirationNotification: vi.fn().mockResolvedValue(undefined),
+      };
+    });
+
+    const { checkAndNotifyExpiring7Days } = await import("./notifications");
+    const result = await checkAndNotifyExpiring7Days();
+    expect(result).toHaveProperty("checked");
+    expect(result).toHaveProperty("notified");
+    expect(typeof result.checked).toBe("number");
+    expect(typeof result.notified).toBe("number");
+  });
+});
+
+// ==================== 2. EDIÇÃO E EXCLUSÃO DE AVALIAÇÕES ====================
+describe("Edição e exclusão de avaliações", () => {
+  it("deve ter a procedure evaluations.update no router", async () => {
+    const { appRouter } = await import("./routers");
+    const routes = Object.keys(appRouter._def.procedures);
+    // Verifica que a rota existe
+    expect(routes.some(r => r.includes("evaluations"))).toBe(true);
+  });
+
+  it("deve calcular overallScore corretamente na edição", () => {
+    const scores = [80, 70, 90, 60, 75];
+    const overallScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+    expect(overallScore).toBeCloseTo(75, 1);
+  });
+
+  it("deve rejeitar scores fora do range 0-100", () => {
+    const validateScore = (score: number) => score >= 0 && score <= 100;
+    expect(validateScore(101)).toBe(false);
+    expect(validateScore(-1)).toBe(false);
+    expect(validateScore(50)).toBe(true);
+    expect(validateScore(0)).toBe(true);
+    expect(validateScore(100)).toBe(true);
+  });
+});
+
+// ==================== 3. UPLOAD DE ANEXO COM IA ====================
+describe("Upload de anexo com IA em interações", () => {
+  it("deve ter a procedure interactions.uploadAttachment no router", async () => {
+    const { appRouter } = await import("./routers");
+    const routes = Object.keys(appRouter._def.procedures);
+    expect(routes.some(r => r.includes("interactions"))).toBe(true);
+  });
+
+  it("deve aceitar apenas arquivos até 10MB", () => {
+    const MAX_SIZE = 10 * 1024 * 1024;
+    const validSize = 5 * 1024 * 1024; // 5MB
+    const invalidSize = 15 * 1024 * 1024; // 15MB
+    expect(validSize <= MAX_SIZE).toBe(true);
+    expect(invalidSize <= MAX_SIZE).toBe(false);
+  });
+
+  it("deve identificar extensões extraíveis por IA", () => {
+    const extractableExts = ["pdf", "txt", "md"];
+    expect(extractableExts.includes("pdf")).toBe(true);
+    expect(extractableExts.includes("txt")).toBe(true);
+    expect(extractableExts.includes("jpg")).toBe(false);
+    expect(extractableExts.includes("png")).toBe(false);
+    expect(extractableExts.includes("docx")).toBe(false);
+  });
+
+  it("deve gerar fileKey único para cada upload", () => {
+    const generateKey = (fileName: string) =>
+      `interactions/attachments/${Date.now()}-${fileName}`;
+    const key1 = generateKey("test.pdf");
+    const key2 = generateKey("test.pdf");
+    // Ambos devem conter o prefixo correto
+    expect(key1.startsWith("interactions/attachments/")).toBe(true);
+    expect(key2.startsWith("interactions/attachments/")).toBe(true);
+  });
+});

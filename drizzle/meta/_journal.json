@@ -85,6 +85,13 @@
       "when": 1776361573448,
       "tag": "0011_concerned_tinkerer",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1776369115762,
+      "tag": "0012_zippy_ricochet",
+      "breakpoints": true
     }
   ]
 }

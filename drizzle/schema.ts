@@ -185,6 +185,9 @@ export const interactions = mysqlTable("interactions", {
   interactionDate: timestamp("interactionDate").notNull(),
   followUpDate: timestamp("followUpDate"),
   attachmentUrl: varchar("attachmentUrl", { length: 1000 }),
+  attachmentKey: varchar("attachmentKey", { length: 500 }),
+  attachmentName: varchar("attachmentName", { length: 255 }),
+  aiExtractedContent: longtext("aiExtractedContent"),
   createdById: int("createdById").references(() => users.id),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -419,3 +422,18 @@ export const supplierLinks = mysqlTable("supplier_links", {
 
 export type SupplierLink = typeof supplierLinks.$inferSelect;
 export type InsertSupplierLink = typeof supplierLinks.$inferInsert;
+
+// ==================== DOCUMENT EXPIRATION NOTIFICATIONS ====================
+// Rastreia quais notificações de vencimento foram enviadas para evitar duplicidade
+export const documentExpirationNotifications = mysqlTable("document_expiration_notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  documentId: int("documentId").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  supplierId: int("supplierId").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
+  daysBeforeExpiration: int("daysBeforeExpiration").notNull(), // 7, 3, 1, etc.
+  sentAt: timestamp("sentAt").defaultNow().notNull(),
+  notificationTitle: varchar("notificationTitle", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type DocumentExpirationNotification = typeof documentExpirationNotifications.$inferSelect;
+export type InsertDocumentExpirationNotification = typeof documentExpirationNotifications.$inferInsert;

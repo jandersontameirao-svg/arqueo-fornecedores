@@ -20,6 +20,7 @@ import {
   businessUnits, InsertBusinessUnit,
   companies, InsertCompany,
   supplierLinks, InsertSupplierLink,
+  documentExpirationNotifications, InsertDocumentExpirationNotification,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1072,4 +1073,68 @@ export async function getSuppliersByCompanyWithLinks(companyId: string) {
     direct,
     linked: linked.map(r => ({ ...r.supplier, _linkId: r.link.id, _isLinked: true })),
   };
+}
+
+// ==================== DOCUMENT EXPIRATION NOTIFICATIONS ====================
+
+/**
+ * Busca documentos que vencem em exatamente N dias e ainda não receberam notificação
+ */
+export async function getDocumentsExpiringInDaysWithoutNotification(daysAhead: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  startOfDay.setDate(startOfDay.getDate() + daysAhead);
+
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  // Busca documentos que vencem no intervalo do dia alvo
+  const docs = await db.select({
+    document: documents,
+    supplier: suppliers,
+  })
+    .from(documents)
+    .innerJoin(suppliers, eq(documents.supplierId, suppliers.id))
+    .where(
+      and(
+        gte(documents.expiresAt, startOfDay),
+        lte(documents.expiresAt, endOfDay)
+      )
+    );
+
+  if (docs.length === 0) return [];
+
+  // Filtra os que já receberam notificação para esse número de dias
+  const docIds = docs.map(d => d.document.id);
+  const alreadySent = await db.select({ documentId: documentExpirationNotifications.documentId })
+    .from(documentExpirationNotifications)
+    .where(
+      and(
+        eq(documentExpirationNotifications.daysBeforeExpiration, daysAhead),
+        sql`${documentExpirationNotifications.documentId} IN (${docIds.join(",")})`
+      )
+    );
+
+  const sentIds = new Set(alreadySent.map(n => n.documentId));
+  return docs.filter(d => !sentIds.has(d.document.id));
+}
+
+/**
+ * Registra que uma notificação foi enviada para um documento
+ */
+export async function recordDocumentExpirationNotification(data: InsertDocumentExpirationNotification) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(documentExpirationNotifications).values(data);
+}
+
+// ==================== EVALUATION DELETE ====================
+
+export async function deleteEvaluation(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(performanceEvaluations).where(eq(performanceEvaluations.id, id));
 }
