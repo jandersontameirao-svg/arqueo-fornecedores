@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
+import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,7 @@ interface SupplierFormProps {
 export default function SupplierForm({ id }: SupplierFormProps) {
   const [, setLocation] = useLocation();
   const isEditing = !!id;
+  const { selectedCompany } = useSelectedCompany();
 
   const [formData, setFormData] = useState({
     companyName: "",
@@ -118,9 +120,30 @@ export default function SupplierForm({ id }: SupplierFormProps) {
       return;
     }
 
+    // Convert empty strings to undefined for optional fields
+    const sanitize = (v: string | undefined) => (v === "" ? undefined : v);
     const data = {
       ...formData,
+      tradeName: sanitize(formData.tradeName),
+      stateRegistration: sanitize(formData.stateRegistration),
+      municipalRegistration: sanitize(formData.municipalRegistration),
+      phone: sanitize(formData.phone),
+      website: sanitize(formData.website),
+      street: sanitize(formData.street),
+      number: sanitize(formData.number),
+      complement: sanitize(formData.complement),
+      neighborhood: sanitize(formData.neighborhood),
+      city: sanitize(formData.city),
+      state: sanitize(formData.state),
+      zipCode: sanitize(formData.zipCode),
+      country: sanitize(formData.country),
+      bankName: sanitize(formData.bankName),
+      bankAgency: sanitize(formData.bankAgency),
+      bankAccount: sanitize(formData.bankAccount),
+      pixKey: sanitize(formData.pixKey),
+      notes: sanitize(formData.notes),
       categoryId: formData.categoryId || undefined,
+      companyId: selectedCompany?.id || undefined,
     };
 
     if (isEditing) {
@@ -153,7 +176,11 @@ export default function SupplierForm({ id }: SupplierFormProps) {
             {isEditing ? "Editar Fornecedor" : "Novo Fornecedor"}
           </h1>
           <p className="text-muted-foreground">
-            {isEditing ? "Atualize as informações do fornecedor" : "Cadastre um novo fornecedor no sistema"}
+            {isEditing
+              ? "Atualize as informações do fornecedor"
+              : selectedCompany
+              ? `Cadastrando fornecedor para: ${selectedCompany.name}`
+              : "Cadastre um novo fornecedor no sistema"}
           </p>
         </div>
       </div>

@@ -237,3 +237,10 @@
 - [x] Página SupplierLink.tsx com fluxo em 5 etapas (grupo → origem → fornecedor → destino → confirmar)
 - [x] Rota /suppliers/link registrada no App.tsx
 - [x] Migração do banco executada com sucesso
+
+## Correções de Bugs (v5.6)
+- [x] Corrigir erro de INSERT no cadastro de fornecedor (companyId não passado ao backend)
+- [x] Adicionar companyId ao supplierSchema no backend (z.string().optional())
+- [x] Sanitizar strings vazias para undefined no SupplierForm antes do submit
+- [x] Exibir empresa ativa no cabeçalho do SupplierForm
+- [x] Varredura completa: todos os 34 endpoints backend verificados e mapeados corretamente

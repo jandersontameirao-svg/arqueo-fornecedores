@@ -72,6 +72,7 @@ const supplierSchema = z.object({
   categoryId: z.number().optional(),
   criticality: z.enum(["low", "medium", "high", "critical"]).optional(),
   notes: z.string().optional(),
+  companyId: z.string().optional(),
 });
 
 const documentSchema = z.object({
