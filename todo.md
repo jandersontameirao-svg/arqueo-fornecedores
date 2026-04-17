@@ -426,3 +426,11 @@
 - [x] Remover validação de conteúdo obrigatório no sendToClicksign (contrato pode não ter conteúdo ainda)
 - [x] Adicionar DialogTitle no estado de loading do ContractViewer (acessibilidade Radix)
 - [x] 93 testes passando, 0 erros TypeScript
+
+## Correção v5.19 — URL Clicksign produção
+- [x] Diagnosticado: chave de API é de produção (app.clicksign.com), não sandbox
+- [x] Testado com 5 formatos de autenticação no sandbox (todos 401)
+- [x] Testado com URL de produção — 200 OK com sucesso
+- [x] Alterado default de clicksignApiUrl em env.ts de sandbox para app.clicksign.com/api/v3
+- [x] Novas credenciais configuradas (CLICKSIGN_API_KEY + CLICKSIGN_WEBHOOK_SECRET)
+- [x] Servidor reiniciado, 93 testes passando

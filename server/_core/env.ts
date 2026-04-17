@@ -9,6 +9,6 @@ export const ENV = {
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   openaiApiKey: process.env.OPENAI_API_KEY ?? "",
   clicksignApiKey: process.env.CLICKSIGN_API_KEY ?? "",
-  clicksignApiUrl: process.env.CLICKSIGN_API_URL ?? "https://sandbox.clicksign.com/api/v3",
+  clicksignApiUrl: process.env.CLICKSIGN_API_URL ?? "https://app.clicksign.com/api/v3",
   clicksignWebhookSecret: process.env.CLICKSIGN_WEBHOOK_SECRET ?? "",
 };
