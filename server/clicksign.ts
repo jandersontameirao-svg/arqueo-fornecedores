@@ -208,7 +208,7 @@ export async function addSignerToEnvelope(
       attributes: {
         name: signer.name,
         email: signer.email,
-        documentation: signer.documentation || undefined,
+        ...(signer.documentation ? { documentation: signer.documentation } : {}),
         communicate_events: signer.communicateEvents !== false, // default true
         refusable: signer.refusable !== false, // default true
       },
@@ -378,7 +378,12 @@ export async function sendContractToClicksign(
     const signerResult = await addSignerToEnvelope(envelopeId, {
       name: signer.name,
       email: signer.email,
-      documentation: signer.cpfCnpj || undefined,
+      // Strip non-digits and only send if 11 (CPF) or 14 (CNPJ) digits
+      documentation: (() => {
+        if (!signer.cpfCnpj) return undefined;
+        const digits = signer.cpfCnpj.replace(/\D/g, "");
+        return (digits.length === 11 || digits.length === 14) ? digits : undefined;
+      })(),
       communicateEvents: true,
       refusable: true,
     });
