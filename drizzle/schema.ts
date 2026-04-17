@@ -455,3 +455,61 @@ export const contractExpirationNotifications = mysqlTable("contract_expiration_n
 
 export type ContractExpirationNotification = typeof contractExpirationNotifications.$inferSelect;
 export type InsertContractExpirationNotification = typeof contractExpirationNotifications.$inferInsert;
+
+// ==================== CONTRACT VERSIONS (VERSIONAMENTO) ====================
+export const contractVersions = mysqlTable("contract_versions", {
+  id: int("id").autoincrement().primaryKey(),
+  contractId: int("contractId").notNull().references(() => contracts.id, { onDelete: "cascade" }),
+  versionNumber: int("versionNumber").notNull().default(1),
+  content: longtext("content"),
+  changeDescription: varchar("changeDescription", { length: 500 }),
+  // Snapshot of key fields at this version
+  title: varchar("title", { length: 255 }),
+  totalValue: decimal("totalValue", { precision: 15, scale: 2 }),
+  startDate: timestamp("startDate"),
+  endDate: timestamp("endDate"),
+  // Metadata
+  createdById: int("createdById").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ContractVersion = typeof contractVersions.$inferSelect;
+export type InsertContractVersion = typeof contractVersions.$inferInsert;
+
+// ==================== CONTRACT SIGNERS (SIGNATÁRIOS) ====================
+export const contractSigners = mysqlTable("contract_signers", {
+  id: int("id").autoincrement().primaryKey(),
+  contractId: int("contractId").notNull().references(() => contracts.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  cpfCnpj: varchar("cpfCnpj", { length: 20 }),
+  role: mysqlEnum("role", ["contractor", "contracted", "witness", "guarantor"]).notNull().default("contractor"),
+  signOrder: int("signOrder").default(1),
+  // Clicksign tracking
+  clicksignSignerId: varchar("clicksignSignerId", { length: 255 }),
+  signedAt: timestamp("signedAt"),
+  status: mysqlEnum("status", ["pending", "signed", "refused", "expired"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ContractSigner = typeof contractSigners.$inferSelect;
+export type InsertContractSigner = typeof contractSigners.$inferInsert;
+
+// ==================== CONTRACT CLICKSIGN EVENTS ====================
+export const contractClicksignEvents = mysqlTable("contract_clicksign_events", {
+  id: int("id").autoincrement().primaryKey(),
+  contractId: int("contractId").notNull().references(() => contracts.id, { onDelete: "cascade" }),
+  // Clicksign document tracking
+  clicksignDocumentId: varchar("clicksignDocumentId", { length: 255 }),
+  eventType: mysqlEnum("eventType", [
+    "document_created", "document_sent", "signer_signed", "signer_refused",
+    "document_completed", "document_cancelled", "document_expired", "resend"
+  ]).notNull(),
+  eventData: json("eventData"),
+  signerId: int("signerId"), // references contractSigners.id (sem FK explícita)
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ContractClicksignEvent = typeof contractClicksignEvents.$inferSelect;
+export type InsertContractClicksignEvent = typeof contractClicksignEvents.$inferInsert;

@@ -337,3 +337,42 @@
 - [x] Corrigir cast de tipo no upload procedure para incluir insurance e registration
 - [x] Reposicionar badge "Principal" de top-3 right-3 para bottom-3 right-3 no card de contato
 - [x] 60 testes passando, 0 erros TypeScript
+
+## Evolução v5.16 — Contratos como aba própria + Montagem por template + Clicksign
+
+### 1. Mover contratos de Financeiro para aba própria
+- [x] Remover contratos da aba Financeiro (manter financeiro sem contratos)
+- [x] Criar nova aba "Contratos" no SupplierDetail com ícone FileSignature
+- [x] Preservar todas funcionalidades existentes de contratos
+
+### 2. Montagem de contrato por template com preenchimento automático
+- [x] Schema: tabela contract_versions para versionamento
+- [x] Schema: tabela contract_signers para signatários
+- [x] Schema: tabela contract_clicksign_events para rastrear envios e status
+- [x] Backend: extractPlaceholders, fillPlaceholders, mapSystemDataToPlaceholders no db.ts
+- [x] Backend: procedure contracts.fillFromTemplate (preencher com dados do sistema + customizados)
+- [x] Backend: procedure contracts.createVersion, listVersions
+- [x] Frontend: componente TemplatePlaceholderFiller (detectar, preencher, preview, aplicar)
+- [x] Frontend: integrado no ContractEditor modo template (após seleção de template)
+- [x] Frontend: sinalização visual de placeholders automáticos (verde) vs manuais (âmbar)
+- [x] Frontend: preview do conteúdo preenchido com botão "Aplicar ao Contrato"
+
+### 3. Integração Clicksign
+- [x] Backend: procedure contracts.sendToClicksign (envio de documento)
+- [x] Backend: procedure contracts.addSigner, listSigners, removeSigner
+- [x] Backend: procedure contracts.clicksignWebhook (receber status de assinatura)
+- [x] Backend: registro de eventos na tabela contract_clicksign_events
+- [x] Frontend: ContractViewer com botão "Enviar para Assinatura" + validação
+- [x] Frontend: seção de signatários (adicionar, listar, remover)
+- [x] Frontend: seção de histórico de versões
+
+### 4. Listagem e filtros na nova aba
+- [x] Frontend: listagem de contratos com status, vigência efetiva, indicador de aditivo
+- [x] Frontend: indicador visual de vigência derivada de aditivo (azul + GitBranch)
+- [x] Frontend: badge "Âmbar" para contratos a vencer em ≤7 dias
+
+### 5. Auditoria e permissões
+- [x] Backend: procedures protegidas por managerProcedure (gestor/admin)
+- [x] Backend: auditoria via createAuditLog em criação de versão e envio Clicksign
+- [x] 78 testes vitest passando, 0 erros TypeScript
+- [x] Checkup final completo

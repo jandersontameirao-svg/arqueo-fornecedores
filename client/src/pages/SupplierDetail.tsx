@@ -45,6 +45,7 @@ import {
   Shield,
   Star,
   FilePlus,
+  ScrollText,
 } from "lucide-react";
 
 // Sub-components
@@ -405,6 +406,10 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
           <TabsTrigger value="evaluations" className="flex items-center gap-2 py-2.5">
             <BarChart3 className="h-4 w-4" />
             <span className="hidden lg:inline">Avaliações</span>
+          </TabsTrigger>
+          <TabsTrigger value="contratos" className="flex items-center gap-2 py-2.5">
+            <ScrollText className="h-4 w-4" />
+            <span className="hidden lg:inline">Contratos</span>
           </TabsTrigger>
           <TabsTrigger value="financeiro" className="flex items-center gap-2 py-2.5">
             <CreditCard className="h-4 w-4" />
@@ -858,6 +863,15 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
           <SupplierEvaluations supplierId={id} canEdit={canEdit} />
         </TabsContent>
 
+        {/* Contratos Tab (aba própria) */}
+        <TabsContent value="contratos">
+          <SupplierContracts
+            supplierId={id}
+            supplierName={supplier.companyName}
+            supplierCnpj={supplier.cnpj}
+          />
+        </TabsContent>
+
         {/* Financeiro Tab */}
         <TabsContent value="financeiro" className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-2">
@@ -921,15 +935,6 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Contratos */}
-            <div className="lg:col-span-2">
-              <SupplierContracts
-                supplierId={id}
-                supplierName={supplier.companyName}
-                supplierCnpj={supplier.cnpj}
-              />
-            </div>
           </div>
         </TabsContent>
 

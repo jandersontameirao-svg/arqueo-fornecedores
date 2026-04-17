@@ -22,6 +22,9 @@ import {
   supplierLinks, InsertSupplierLink,
   documentExpirationNotifications, InsertDocumentExpirationNotification,
   contractExpirationNotifications,
+  contractVersions, InsertContractVersion,
+  contractSigners, InsertContractSigner,
+  contractClicksignEvents, InsertContractClicksignEvent,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1285,4 +1288,178 @@ export async function recordContractExpirationNotification(data: {
     amendmentId: data.amendmentId ?? undefined,
     notificationTitle: data.notificationTitle,
   });
+}
+
+// ==================== CONTRACT VERSIONS ====================
+
+export async function getContractVersions(contractId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contractVersions)
+    .where(eq(contractVersions.contractId, contractId))
+    .orderBy(desc(contractVersions.versionNumber));
+}
+
+export async function createContractVersion(data: InsertContractVersion): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(contractVersions).values(data);
+  return (result[0] as any).insertId;
+}
+
+export async function getLatestVersionNumber(contractId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db.select({ maxVersion: sql<number>`COALESCE(MAX(${contractVersions.versionNumber}), 0)` })
+    .from(contractVersions)
+    .where(eq(contractVersions.contractId, contractId));
+  return rows[0]?.maxVersion || 0;
+}
+
+// ==================== CONTRACT SIGNERS ====================
+
+export async function getContractSigners(contractId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contractSigners)
+    .where(eq(contractSigners.contractId, contractId))
+    .orderBy(contractSigners.signOrder);
+}
+
+export async function createContractSigner(data: InsertContractSigner): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(contractSigners).values(data);
+  return (result[0] as any).insertId;
+}
+
+export async function updateContractSigner(id: number, data: Partial<InsertContractSigner>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(contractSigners).set(data).where(eq(contractSigners.id, id));
+}
+
+export async function deleteContractSigner(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(contractSigners).where(eq(contractSigners.id, id));
+}
+
+// ==================== CONTRACT CLICKSIGN EVENTS ====================
+
+export async function getContractClicksignEvents(contractId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contractClicksignEvents)
+    .where(eq(contractClicksignEvents.contractId, contractId))
+    .orderBy(desc(contractClicksignEvents.createdAt));
+}
+
+export async function createContractClicksignEvent(data: InsertContractClicksignEvent): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(contractClicksignEvents).values(data);
+  return (result[0] as any).insertId;
+}
+
+// ==================== TEMPLATE PLACEHOLDER PARSER ====================
+
+/**
+ * Extrai placeholders de um template de contrato.
+ * Placeholders são marcados como {{nome_do_campo}} no conteúdo.
+ * Retorna array de nomes de placeholders únicos.
+ */
+export function extractPlaceholders(templateContent: string): string[] {
+  const regex = /\{\{([^}]+)\}\}/g;
+  const placeholders = new Set<string>();
+  let match;
+  while ((match = regex.exec(templateContent)) !== null) {
+    placeholders.add(match[1].trim());
+  }
+  return Array.from(placeholders);
+}
+
+/**
+ * Preenche placeholders em um template com dados fornecidos.
+ * Retorna o conteúdo com placeholders substituídos e lista de não preenchidos.
+ */
+export function fillPlaceholders(
+  templateContent: string,
+  data: Record<string, string>
+): { filledContent: string; unfilledPlaceholders: string[] } {
+  const unfilled: string[] = [];
+  const filledContent = templateContent.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+    const trimmedKey = key.trim();
+    if (data[trimmedKey] !== undefined && data[trimmedKey] !== "") {
+      return data[trimmedKey];
+    }
+    unfilled.push(trimmedKey);
+    return match; // Mantém o placeholder original se não preenchido
+  });
+  return { filledContent, unfilledPlaceholders: unfilled };
+}
+
+/**
+ * Mapeia dados do sistema (fornecedor, contrato, empresa) para placeholders conhecidos.
+ * Retorna um dicionário de placeholder -> valor.
+ */
+export function mapSystemDataToPlaceholders(data: {
+  supplier?: any;
+  contract?: any;
+  company?: any;
+  contacts?: any[];
+}): Record<string, string> {
+  const map: Record<string, string> = {};
+  
+  if (data.supplier) {
+    const s = data.supplier;
+    map["razao_social_contratado"] = s.companyName || "";
+    map["nome_fantasia_contratado"] = s.tradeName || s.companyName || "";
+    map["cnpj_contratado"] = s.cnpj || "";
+    map["endereco_contratado"] = [s.street, s.number, s.complement, s.neighborhood, s.city, s.state, s.zipCode].filter(Boolean).join(", ");
+    map["email_contratado"] = s.email || "";
+    map["telefone_contratado"] = s.phone || "";
+    map["inscricao_estadual_contratado"] = s.stateRegistration || "Isento";
+    map["inscricao_municipal_contratado"] = s.municipalRegistration || "";
+    map["banco_contratado"] = s.bankName || "";
+    map["agencia_contratado"] = s.bankAgency || "";
+    map["conta_contratado"] = s.bankAccount || "";
+    map["pix_contratado"] = s.pixKey || "";
+  }
+  
+  if (data.contract) {
+    const c = data.contract;
+    map["numero_contrato"] = c.number || "";
+    map["titulo_contrato"] = c.title || "";
+    map["objeto_contrato"] = c.object || "";
+    map["valor_total"] = c.totalValue || "";
+    map["condicoes_pagamento"] = c.paymentTerms || "";
+    map["data_inicio"] = c.startDate ? new Date(c.startDate).toLocaleDateString("pt-BR") : "";
+    map["data_fim"] = c.endDate ? new Date(c.endDate).toLocaleDateString("pt-BR") : "";
+    map["nome_contratante"] = c.contractorName || "";
+    map["cnpj_contratante"] = c.contractorCnpj || "";
+    map["representante_contratante"] = c.contractorRepresentative || "";
+  }
+  
+  if (data.company) {
+    const co = data.company;
+    map["empresa_nome"] = co.legalName || co.tradeName || "";
+    map["empresa_cnpj"] = co.cnpj || "";
+    map["empresa_endereco"] = co.address || "";
+  }
+  
+  if (data.contacts && data.contacts.length > 0) {
+    const primary = data.contacts.find((c: any) => c.isPrimary) || data.contacts[0];
+    map["contato_principal_nome"] = primary.name || "";
+    map["contato_principal_email"] = primary.email || "";
+    map["contato_principal_telefone"] = primary.phone || "";
+    map["contato_principal_cargo"] = primary.position || "";
+  }
+  
+  // Data atual
+  const now = new Date();
+  map["data_atual"] = now.toLocaleDateString("pt-BR");
+  map["data_extenso"] = now.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
+  
+  return map;
 }

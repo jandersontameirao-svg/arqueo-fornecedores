@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import type { ContractCreationMode } from "./ContractCreationModal";
 import AIAutoFillSection, { type AIAutofillResult } from "./AIAutoFillSection";
+import { TemplatePlaceholderFiller } from "./TemplatePlaceholderFiller";
 
 interface ContractItem {
   description: string;
@@ -349,12 +350,22 @@ export function ContractEditor({
                 const tpl = templates.find((t) => t.id === parseInt(selectedTemplateId));
                 if (!tpl) return null;
                 return (
-                  <AIAutoFillSection
-                    templateId={tpl.id}
-                    templateName={tpl.name}
-                    templateContent={tpl.content || undefined}
-                    onApplySuggestions={handleApplyAutofill}
-                  />
+                  <>
+                    <AIAutoFillSection
+                      templateId={tpl.id}
+                      templateName={tpl.name}
+                      templateContent={tpl.content || undefined}
+                      onApplySuggestions={handleApplyAutofill}
+                    />
+                    {tpl.content && (
+                      <TemplatePlaceholderFiller
+                        templateId={tpl.id}
+                        templateContent={tpl.content}
+                        supplierId={supplierId}
+                        onContentGenerated={(filledContent) => setContent(filledContent)}
+                      />
+                    )}
+                  </>
                 );
               })()}
             </div>

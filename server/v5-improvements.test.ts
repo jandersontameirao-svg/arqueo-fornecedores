@@ -225,3 +225,157 @@ describe("Correção enum de tipos de documento (v5.15)", () => {
     expect(dbEnum).toContain("registration");
   });
 });
+
+
+// ==================== v5.16 — EVOLUÇÃO DE CONTRATOS ====================
+
+describe("Evolução de Contratos v5.16", () => {
+  // ---- Placeholder functions ----
+  describe("Funções de Placeholder", () => {
+    it("extractPlaceholders deve detectar placeholders no template", async () => {
+      const db = await import("./db");
+      const result = db.extractPlaceholders("Contrato entre {{nome_contratante}} e {{nome_contratado}}, valor {{valor_total}}.");
+      expect(result).toEqual(["nome_contratante", "nome_contratado", "valor_total"]);
+    });
+
+    it("extractPlaceholders deve retornar array vazio se não houver placeholders", async () => {
+      const db = await import("./db");
+      const result = db.extractPlaceholders("Contrato sem placeholders.");
+      expect(result).toEqual([]);
+    });
+
+    it("extractPlaceholders deve ignorar placeholders duplicados", async () => {
+      const db = await import("./db");
+      const result = db.extractPlaceholders("{{nome}} e {{nome}} e {{outro}}");
+      expect(result).toEqual(["nome", "outro"]);
+    });
+
+    it("fillPlaceholders deve substituir placeholders com dados fornecidos", async () => {
+      const db = await import("./db");
+      const { filledContent, unfilledPlaceholders } = db.fillPlaceholders(
+        "Contrato entre {{nome_contratante}} e {{nome_contratado}}.",
+        { nome_contratante: "Grupo Arqueo", nome_contratado: "Fornecedor X" }
+      );
+      expect(filledContent).toBe("Contrato entre Grupo Arqueo e Fornecedor X.");
+      expect(unfilledPlaceholders).toEqual([]);
+    });
+
+    it("fillPlaceholders deve manter placeholders não preenchidos", async () => {
+      const db = await import("./db");
+      const { filledContent, unfilledPlaceholders } = db.fillPlaceholders(
+        "Contrato entre {{nome_contratante}} e {{nome_contratado}}.",
+        { nome_contratante: "Grupo Arqueo" }
+      );
+      expect(filledContent).toBe("Contrato entre Grupo Arqueo e {{nome_contratado}}.");
+      expect(unfilledPlaceholders).toEqual(["nome_contratado"]);
+    });
+
+    it("mapSystemDataToPlaceholders deve mapear dados do fornecedor", async () => {
+      const db = await import("./db");
+      const result = db.mapSystemDataToPlaceholders({
+        supplier: {
+          companyName: "Fornecedor ABC Ltda",
+          cnpj: "12.345.678/0001-90",
+          email: "contato@abc.com",
+          phone: "(11) 99999-0000",
+        },
+      });
+      expect(result.razao_social_contratado).toBe("Fornecedor ABC Ltda");
+      expect(result.cnpj_contratado).toBe("12.345.678/0001-90");
+      expect(result.email_contratado).toBe("contato@abc.com");
+      expect(result.data_atual).toBeTruthy();
+      expect(result.data_extenso).toBeTruthy();
+    });
+
+    it("mapSystemDataToPlaceholders deve mapear dados da empresa", async () => {
+      const db = await import("./db");
+      const result = db.mapSystemDataToPlaceholders({
+        company: {
+          legalName: "Grupo Arqueo Participações",
+          cnpj: "00.111.222/0001-33",
+          address: "Rua Exemplo, 123",
+        },
+      });
+      expect(result.empresa_nome).toBe("Grupo Arqueo Participações");
+      expect(result.empresa_cnpj).toBe("00.111.222/0001-33");
+    });
+
+    it("mapSystemDataToPlaceholders deve mapear contato principal", async () => {
+      const db = await import("./db");
+      const result = db.mapSystemDataToPlaceholders({
+        contacts: [
+          { name: "João", email: "joao@test.com", phone: "11999", position: "Gerente", isPrimary: true },
+          { name: "Maria", email: "maria@test.com", phone: "11888", position: "Diretora", isPrimary: false },
+        ],
+      });
+      expect(result.contato_principal_nome).toBe("João");
+      expect(result.contato_principal_email).toBe("joao@test.com");
+    });
+  });
+
+  // ---- Contract Versions ----
+  describe("Versionamento de Contratos", () => {
+    it("deve ter as tabelas contract_versions, contract_signers e contract_clicksign_events no schema", async () => {
+      const schema = await import("../drizzle/schema");
+      expect(schema.contractVersions).toBeDefined();
+      expect(schema.contractSigners).toBeDefined();
+      expect(schema.contractClicksignEvents).toBeDefined();
+    });
+
+    it("deve ter helpers de CRUD para versions no db", async () => {
+      const db = await import("./db");
+      expect(typeof db.createContractVersion).toBe("function");
+      expect(typeof db.getContractVersions).toBe("function");
+    });
+
+    it("deve ter helpers de CRUD para signers no db", async () => {
+      const db = await import("./db");
+      expect(typeof db.createContractSigner).toBe("function");
+      expect(typeof db.getContractSigners).toBe("function");
+      expect(typeof db.deleteContractSigner).toBe("function");
+    });
+
+    it("deve ter helpers de CRUD para clicksign events no db", async () => {
+      const db = await import("./db");
+      expect(typeof db.createContractClicksignEvent).toBe("function");
+      expect(typeof db.getContractClicksignEvents).toBe("function");
+    });
+  });
+
+  // ---- Vigência efetiva ----
+  describe("Vigência Efetiva de Contratos", () => {
+    it("deve ter a função getContractEffectiveEndDate no db", async () => {
+      const db = await import("./db");
+      expect(typeof db.getContractEffectiveEndDate).toBe("function");
+    });
+
+    it("deve ter a função getLatestValidAmendmentWithEndDate no db", async () => {
+      const db = await import("./db");
+      expect(typeof db.getLatestValidAmendmentWithEndDate).toBe("function");
+    });
+
+    it("deve ter a função getContractsBySupplierWithEffectiveEndDate no db", async () => {
+      const db = await import("./db");
+      expect(typeof db.getContractsBySupplierWithEffectiveEndDate).toBe("function");
+    });
+  });
+
+  // ---- Notificação de contratos ----
+  describe("Notificação de Vencimento de Contratos", () => {
+    it("deve ter a tabela contract_expiration_notifications no schema", async () => {
+      const schema = await import("../drizzle/schema");
+      expect(schema.contractExpirationNotifications).toBeDefined();
+    });
+
+    it("deve ter a função checkAndNotifyExpiringContracts7Days no notifications", async () => {
+      const notifications = await import("./notifications");
+      expect(typeof notifications.checkAndNotifyExpiringContracts7Days).toBe("function");
+    });
+
+    it("deve ter helpers de notificação de contratos no db", async () => {
+      const db = await import("./db");
+      expect(typeof db.getContractsExpiringInDaysWithoutNotification).toBe("function");
+      expect(typeof db.recordContractExpirationNotification).toBe("function");
+    });
+  });
+});

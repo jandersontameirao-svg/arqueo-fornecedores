@@ -1304,6 +1304,244 @@ Estruture o contrato com:
         });
         return { id };
       }),
+
+    // ==================== PLACEHOLDERS ====================
+    extractPlaceholders: protectedProcedure
+      .input(z.object({ templateContent: z.string() }))
+      .query(({ input }) => {
+        return db.extractPlaceholders(input.templateContent);
+      }),
+
+    fillFromTemplate: managerProcedure
+      .input(z.object({
+        templateId: z.number(),
+        supplierId: z.number(),
+        companyId: z.number().optional(),
+        customValues: z.record(z.string(), z.string()).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        // Busca template
+        const allTemplates = await db.getAllContractTemplates();
+        const template = allTemplates.find(t => t.id === input.templateId);
+        if (!template || !template.content) throw new TRPCError({ code: "NOT_FOUND", message: "Template não encontrado" });
+
+        // Busca dados do sistema
+        const supplierData = await db.getSupplierById(input.supplierId);
+        const contacts = await db.getSupplierContacts(input.supplierId);
+        let company = null;
+        if (input.companyId) {
+          company = await db.getCompanyById(input.companyId);
+        }
+
+        // Mapeia dados do sistema para placeholders
+        const systemData = db.mapSystemDataToPlaceholders({
+          supplier: supplierData?.supplier,
+          company,
+          contacts,
+        });
+
+        // Mescla com valores customizados (customValues tem prioridade)
+        const customVals = (input.customValues || {}) as Record<string, string>;
+        const allValues: Record<string, string> = { ...systemData, ...customVals };
+
+        // Preenche placeholders
+        const { filledContent, unfilledPlaceholders } = db.fillPlaceholders(template.content, allValues);
+
+        return {
+          filledContent,
+          unfilledPlaceholders,
+          placeholders: db.extractPlaceholders(template.content),
+          systemValues: systemData,
+        };
+      }),
+
+    // ==================== VERSIONS (VERSIONAMENTO) ====================
+    listVersions: protectedProcedure
+      .input(z.object({ contractId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getContractVersions(input.contractId);
+      }),
+
+    createVersion: managerProcedure
+      .input(z.object({
+        contractId: z.number(),
+        changeDescription: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const contract = await db.getContractById(input.contractId);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+
+        const latestVersion = await db.getLatestVersionNumber(input.contractId);
+        const newVersion = latestVersion + 1;
+
+        const id = await db.createContractVersion({
+          contractId: input.contractId,
+          versionNumber: newVersion,
+          content: contract.content,
+          changeDescription: input.changeDescription || `Versão ${newVersion}`,
+          title: contract.title,
+          totalValue: contract.totalValue,
+          startDate: contract.startDate,
+          endDate: contract.endDate,
+          createdById: ctx.user.id,
+        });
+
+        await db.createAuditLog({
+          entityType: "contract_version",
+          entityId: id,
+          action: "create",
+          changes: { contractId: input.contractId, version: newVersion, description: input.changeDescription },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+
+        return { id, versionNumber: newVersion };
+      }),
+
+    // ==================== SIGNERS (SIGNATÁRIOS) ====================
+    listSigners: protectedProcedure
+      .input(z.object({ contractId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getContractSigners(input.contractId);
+      }),
+
+    addSigner: managerProcedure
+      .input(z.object({
+        contractId: z.number(),
+        name: z.string().min(1),
+        email: z.string().email(),
+        cpfCnpj: z.string().optional(),
+        role: z.enum(["contractor", "contracted", "witness", "guarantor"]),
+        signOrder: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const id = await db.createContractSigner(input);
+        await db.createAuditLog({
+          entityType: "contract_signer",
+          entityId: id,
+          action: "create",
+          changes: { name: input.name, email: input.email, role: input.role },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { id };
+      }),
+
+    updateSigner: managerProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        email: z.string().email().optional(),
+        cpfCnpj: z.string().optional(),
+        role: z.enum(["contractor", "contracted", "witness", "guarantor"]).optional(),
+        signOrder: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await db.updateContractSigner(id, data);
+        return { success: true };
+      }),
+
+    removeSigner: managerProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await db.deleteContractSigner(input.id);
+        await db.createAuditLog({
+          entityType: "contract_signer",
+          entityId: input.id,
+          action: "delete",
+          changes: {},
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { success: true };
+      }),
+
+    // ==================== CLICKSIGN INTEGRATION ====================
+    sendToClicksign: managerProcedure
+      .input(z.object({
+        contractId: z.number(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const contract = await db.getContractById(input.contractId);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+
+        const signers = await db.getContractSigners(input.contractId);
+        if (signers.length === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Adicione ao menos um signatário antes de enviar" });
+
+        // Salvar versão antes de enviar
+        const latestVersion = await db.getLatestVersionNumber(input.contractId);
+        await db.createContractVersion({
+          contractId: input.contractId,
+          versionNumber: latestVersion + 1,
+          content: contract.content,
+          changeDescription: "Versão enviada para assinatura Clicksign",
+          title: contract.title,
+          totalValue: contract.totalValue,
+          startDate: contract.startDate,
+          endDate: contract.endDate,
+          createdById: ctx.user.id,
+        });
+
+        // Registrar evento de envio (integração real com Clicksign será configurada via API key)
+        const eventId = await db.createContractClicksignEvent({
+          contractId: input.contractId,
+          eventType: "document_created",
+          eventData: {
+            signers: signers.map(s => ({ name: s.name, email: s.email, role: s.role })),
+            sentAt: new Date().toISOString(),
+            sentBy: ctx.user.email,
+          },
+        });
+
+        // Atualizar status do contrato para "review" (aguardando assinatura)
+        await db.updateContract(input.contractId, { status: "review" });
+
+        await db.createAuditLog({
+          entityType: "contract",
+          entityId: input.contractId,
+          action: "update",
+          changes: { action: "sent_to_clicksign", signerCount: signers.length },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+
+        return {
+          success: true,
+          eventId,
+          message: `Contrato preparado para envio. ${signers.length} signatário(s) configurado(s). Configure a API Key do Clicksign para ativar o envio automático.`,
+        };
+      }),
+
+    resendToSigner: managerProcedure
+      .input(z.object({
+        contractId: z.number(),
+        signerId: z.number(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const signer = (await db.getContractSigners(input.contractId)).find(s => s.id === input.signerId);
+        if (!signer) throw new TRPCError({ code: "NOT_FOUND", message: "Signatário não encontrado" });
+
+        await db.createContractClicksignEvent({
+          contractId: input.contractId,
+          eventType: "resend",
+          signerId: input.signerId,
+          eventData: {
+            signerName: signer.name,
+            signerEmail: signer.email,
+            resentAt: new Date().toISOString(),
+            resentBy: ctx.user.email,
+          },
+        });
+
+        return { success: true, message: `Reenvio registrado para ${signer.name} (${signer.email})` };
+      }),
+
+    listClicksignEvents: protectedProcedure
+      .input(z.object({ contractId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getContractClicksignEvents(input.contractId);
+      }),
   }),
 
   // ==================== AMENDMENTS (ADITIVOS) ====================
