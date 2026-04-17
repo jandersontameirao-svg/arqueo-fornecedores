@@ -475,3 +475,11 @@
 - [x] Caso 9: avaliações recentes filtradas por groupId
 - [x] Caso 10: alertas de compliance filtrados por groupId
 - [x] 103 testes passando, 0 erros TypeScript
+
+## Correção v5.22 — Clicksign: documentation e communicate_events
+- [x] Corrigido: documentation (CPF/CNPJ) deve ser enviado COM máscara (###.###.###-## / ##.###.###/####-##) — a API Clicksign rejeita dígitos sem pontuação
+- [x] Corrigido: communicate_events deve ser um hash com valores string ('email', 'none', etc.) — não booleano
+- [x] Adicionada função formatDocumentation() em clicksign.ts que converte dígitos brutos para formato mascarado
+- [x] sendContractToClicksign atualizado para passar cpfCnpj bruto (formatDocumentation cuida da máscara internamente)
+- [x] Validado com API real Clicksign (201 OK com CPF 083.019.941-18)
+- [x] 103 testes passando, 0 erros TypeScript

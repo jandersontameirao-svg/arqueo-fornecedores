@@ -190,8 +190,23 @@ export async function addDocument(
 }
 
 /**
- * Step 3: Add a signer to the envelope
+ * Format a raw CPF/CNPJ digits string into the masked format expected by Clicksign API:
+ * CPF (11 digits): ###.###.###-##
+ * CNPJ (14 digits): ##.###.###/####-##
  */
+function formatDocumentation(raw: string): string | undefined {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 11) {
+    // CPF: ###.###.###-##
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9, 11)}`;
+  }
+  if (digits.length === 14) {
+    // CNPJ: ##.###.###/####-##
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12, 14)}`;
+  }
+  return undefined; // invalid length — omit field
+}
+
 export async function addSignerToEnvelope(
   envelopeId: string,
   signer: {
@@ -202,14 +217,24 @@ export async function addSignerToEnvelope(
     refusable?: boolean;
   },
 ): Promise<ClicksignApiResponse<ClicksignSigner>> {
+  // Format documentation with mask (Clicksign API requires masked CPF/CNPJ)
+  const formattedDoc = signer.documentation
+    ? formatDocumentation(signer.documentation)
+    : undefined;
+
   return clicksignRequest<ClicksignSigner>("POST", `/envelopes/${envelopeId}/signers`, {
     data: {
       type: "signers",
       attributes: {
         name: signer.name,
         email: signer.email,
-        ...(signer.documentation ? { documentation: signer.documentation } : {}),
-        communicate_events: signer.communicateEvents !== false, // default true
+        ...(formattedDoc ? { documentation: formattedDoc } : {}),
+        // communicate_events must be a hash with string values (not boolean)
+        // Valid values: 'none', 'email', 'whatsapp', 'sms'
+        communicate_events: {
+          signature_request: "email",
+          signature_reminder: "email",
+        },
         refusable: signer.refusable !== false, // default true
       },
     },
@@ -378,13 +403,8 @@ export async function sendContractToClicksign(
     const signerResult = await addSignerToEnvelope(envelopeId, {
       name: signer.name,
       email: signer.email,
-      // Strip non-digits and only send if 11 (CPF) or 14 (CNPJ) digits
-      documentation: (() => {
-        if (!signer.cpfCnpj) return undefined;
-        const digits = signer.cpfCnpj.replace(/\D/g, "");
-        return (digits.length === 11 || digits.length === 14) ? digits : undefined;
-      })(),
-      communicateEvents: true,
+      // Pass raw value — formatDocumentation() inside addSignerToEnvelope handles masking
+      documentation: signer.cpfCnpj || undefined,
       refusable: true,
     });
 
