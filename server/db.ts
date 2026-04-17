@@ -664,6 +664,29 @@ export async function deleteInteraction(id: number) {
 export async function getRecentInteractions(limit: number = 50, companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return [];
+
+  if (companyId) {
+    const direct = await db.select({ id: suppliers.id }).from(suppliers).where(eq(suppliers.companyId, companyId));
+    const linked = await db.select({ supplierId: supplierLinks.supplierId }).from(supplierLinks)
+      .where(and(eq(supplierLinks.targetCompanyId, companyId), eq(supplierLinks.status, "active")));
+    const ids = new Set<number>();
+    direct.forEach(r => ids.add(r.id));
+    linked.forEach(r => ids.add(r.supplierId));
+    const visibleIds = Array.from(ids);
+    if (visibleIds.length === 0) return [];
+    return db.select({
+      interaction: interactions,
+      supplier: suppliers,
+      createdBy: users,
+    })
+      .from(interactions)
+      .leftJoin(suppliers, eq(interactions.supplierId, suppliers.id))
+      .leftJoin(users, eq(interactions.createdById, users.id))
+      .where(sql`${interactions.supplierId} IN (${sql.join(visibleIds.map(id => sql`${id}`), sql`, `)})`)
+      .orderBy(desc(interactions.interactionDate))
+      .limit(limit);
+  }
+
   let q = db.select({
     interaction: interactions,
     supplier: suppliers,
@@ -672,10 +695,7 @@ export async function getRecentInteractions(limit: number = 50, companyId?: stri
     .from(interactions)
     .leftJoin(suppliers, eq(interactions.supplierId, suppliers.id))
     .leftJoin(users, eq(interactions.createdById, users.id));
-  const conds: any[] = [];
-  if (companyId) conds.push(eq(suppliers.companyId, companyId));
-  else if (groupId) conds.push(eq(suppliers.groupId, groupId));
-  if (conds.length > 0) q = q.where(and(...conds)) as any;
+  if (groupId) q = q.where(eq(suppliers.groupId, groupId)) as any;
   return (q as any).orderBy(desc(interactions.interactionDate)).limit(limit);
 }
 
@@ -709,16 +729,34 @@ export async function updateEvaluation(id: number, data: Partial<InsertPerforman
 export async function getLatestEvaluations(limit: number = 10, companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return [];
+
+  if (companyId) {
+    const direct = await db.select({ id: suppliers.id }).from(suppliers).where(eq(suppliers.companyId, companyId));
+    const linked = await db.select({ supplierId: supplierLinks.supplierId }).from(supplierLinks)
+      .where(and(eq(supplierLinks.targetCompanyId, companyId), eq(supplierLinks.status, "active")));
+    const ids = new Set<number>();
+    direct.forEach(r => ids.add(r.id));
+    linked.forEach(r => ids.add(r.supplierId));
+    const visibleIds = Array.from(ids);
+    if (visibleIds.length === 0) return [];
+    return db.select({
+      evaluation: performanceEvaluations,
+      supplier: suppliers,
+    })
+      .from(performanceEvaluations)
+      .innerJoin(suppliers, eq(performanceEvaluations.supplierId, suppliers.id))
+      .where(sql`${performanceEvaluations.supplierId} IN (${sql.join(visibleIds.map(id => sql`${id}`), sql`, `)})`)
+      .orderBy(desc(performanceEvaluations.createdAt))
+      .limit(limit);
+  }
+
   let q = db.select({
     evaluation: performanceEvaluations,
     supplier: suppliers,
   })
     .from(performanceEvaluations)
     .innerJoin(suppliers, eq(performanceEvaluations.supplierId, suppliers.id));
-  const conds: any[] = [];
-  if (companyId) conds.push(eq(suppliers.companyId, companyId));
-  else if (groupId) conds.push(eq(suppliers.groupId, groupId));
-  if (conds.length > 0) q = q.where(and(...conds)) as any;
+  if (groupId) q = q.where(eq(suppliers.groupId, groupId)) as any;
   return (q as any).orderBy(desc(performanceEvaluations.createdAt)).limit(limit);
 }
 
@@ -726,10 +764,34 @@ export async function getLatestEvaluations(limit: number = 10, companyId?: strin
 export async function getActiveAlerts(companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return [];
+
+  if (companyId) {
+    const direct = await db.select({ id: suppliers.id }).from(suppliers).where(eq(suppliers.companyId, companyId));
+    const linked = await db.select({ supplierId: supplierLinks.supplierId }).from(supplierLinks)
+      .where(and(eq(supplierLinks.targetCompanyId, companyId), eq(supplierLinks.status, "active")));
+    const ids = new Set<number>();
+    direct.forEach(r => ids.add(r.id));
+    linked.forEach(r => ids.add(r.supplierId));
+    const visibleIds = Array.from(ids);
+    const resolvedCond = eq(complianceAlerts.isResolved, false);
+    const whereCond = visibleIds.length > 0
+      ? and(resolvedCond, sql`${complianceAlerts.supplierId} IN (${sql.join(visibleIds.map(id => sql`${id}`), sql`, `)})`)
+      : and(resolvedCond, sql`1=0`);
+    return db.select({
+      alert: complianceAlerts,
+      supplier: suppliers,
+      document: documents,
+    })
+      .from(complianceAlerts)
+      .leftJoin(suppliers, eq(complianceAlerts.supplierId, suppliers.id))
+      .leftJoin(documents, eq(complianceAlerts.documentId, documents.id))
+      .where(whereCond)
+      .orderBy(desc(complianceAlerts.severity), complianceAlerts.dueDate);
+  }
+
   const resolvedCond = eq(complianceAlerts.isResolved, false);
   let whereCond: any = resolvedCond;
-  if (companyId) whereCond = and(resolvedCond, eq(suppliers.companyId, companyId));
-  else if (groupId) whereCond = and(resolvedCond, eq(suppliers.groupId, groupId));
+  if (groupId) whereCond = and(resolvedCond, eq(suppliers.groupId, groupId));
   return db.select({
     alert: complianceAlerts,
     supplier: suppliers,
@@ -763,12 +825,31 @@ export async function resolveAlert(id: number, userId: number) {
 export async function getDashboardStats(companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return null;
-  // SEGREGAÇÃO: filtrar por empresa (prioridade) ou por grupo
-  const scopeFilter = companyId
-    ? eq(suppliers.companyId, companyId)
+
+  // Helper: retorna IDs de todos os fornecedores visíveis para a empresa (diretos + vinculados)
+  async function getVisibleSupplierIds(): Promise<number[] | null> {
+    if (!companyId) return null; // null = sem filtro de empresa (usa groupId ou sem filtro)
+    const direct = await db!.select({ id: suppliers.id })
+      .from(suppliers)
+      .where(eq(suppliers.companyId, companyId));
+    const linked = await db!.select({ supplierId: supplierLinks.supplierId })
+      .from(supplierLinks)
+      .where(and(eq(supplierLinks.targetCompanyId, companyId), eq(supplierLinks.status, "active")));
+    const ids = new Set<number>();
+    direct.forEach(r => ids.add(r.id));
+    linked.forEach(r => ids.add(r.supplierId));
+    return Array.from(ids);
+  }
+
+  const visibleIds = await getVisibleSupplierIds();
+
+  // Condição de escopo: por IDs visíveis (empresa), por grupo, ou sem filtro
+  const scopeFilter = visibleIds !== null
+    ? (visibleIds.length > 0 ? sql`${suppliers.id} IN (${sql.join(visibleIds.map(id => sql`${id}`), sql`, `)})` : sql`1=0`)
     : groupId
     ? eq(suppliers.groupId, groupId)
     : undefined;
+
   const [
     totalSuppliers,
     pendingSuppliers,
@@ -803,6 +884,29 @@ export async function getDashboardStats(companyId?: string, groupId?: number) {
 export async function getSuppliersByCategory(companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return [];
+
+  if (companyId) {
+    // Coleta IDs visíveis (diretos + vinculados)
+    const direct = await db.select({ id: suppliers.id }).from(suppliers).where(eq(suppliers.companyId, companyId));
+    const linked = await db.select({ supplierId: supplierLinks.supplierId }).from(supplierLinks)
+      .where(and(eq(supplierLinks.targetCompanyId, companyId), eq(supplierLinks.status, "active")));
+    const ids = new Set<number>();
+    direct.forEach(r => ids.add(r.id));
+    linked.forEach(r => ids.add(r.supplierId));
+    const visibleIds = Array.from(ids);
+    if (visibleIds.length === 0) return [];
+    return db.select({
+      categoryId: suppliers.categoryId,
+      categoryName: supplierCategories.name,
+      categoryColor: supplierCategories.color,
+      count: sql<number>`count(*)`,
+    })
+      .from(suppliers)
+      .leftJoin(supplierCategories, eq(suppliers.categoryId, supplierCategories.id))
+      .where(sql`${suppliers.id} IN (${sql.join(visibleIds.map(id => sql`${id}`), sql`, `)})`)
+      .groupBy(suppliers.categoryId, supplierCategories.name, supplierCategories.color);
+  }
+
   let q = db.select({
     categoryId: suppliers.categoryId,
     categoryName: supplierCategories.name,
@@ -811,20 +915,37 @@ export async function getSuppliersByCategory(companyId?: string, groupId?: numbe
   })
     .from(suppliers)
     .leftJoin(supplierCategories, eq(suppliers.categoryId, supplierCategories.id));
-  if (companyId) q = q.where(eq(suppliers.companyId, companyId)) as any;
-  else if (groupId) q = q.where(eq(suppliers.groupId, groupId)) as any;
+  if (groupId) q = q.where(eq(suppliers.groupId, groupId)) as any;
   return (q as any).groupBy(suppliers.categoryId, supplierCategories.name, supplierCategories.color);
 }
 export async function getSuppliersByCriticality(companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return [];
+
+  if (companyId) {
+    const direct = await db.select({ id: suppliers.id }).from(suppliers).where(eq(suppliers.companyId, companyId));
+    const linked = await db.select({ supplierId: supplierLinks.supplierId }).from(supplierLinks)
+      .where(and(eq(supplierLinks.targetCompanyId, companyId), eq(supplierLinks.status, "active")));
+    const ids = new Set<number>();
+    direct.forEach(r => ids.add(r.id));
+    linked.forEach(r => ids.add(r.supplierId));
+    const visibleIds = Array.from(ids);
+    if (visibleIds.length === 0) return [];
+    return db.select({
+      criticality: suppliers.criticality,
+      count: sql<number>`count(*)`,
+    })
+      .from(suppliers)
+      .where(sql`${suppliers.id} IN (${sql.join(visibleIds.map(id => sql`${id}`), sql`, `)})`)
+      .groupBy(suppliers.criticality);
+  }
+
   let q = db.select({
     criticality: suppliers.criticality,
     count: sql<number>`count(*)`,
   })
     .from(suppliers);
-  if (companyId) q = q.where(eq(suppliers.companyId, companyId)) as any;
-  else if (groupId) q = q.where(eq(suppliers.groupId, groupId)) as any;
+  if (groupId) q = q.where(eq(suppliers.groupId, groupId)) as any;
   return (q as any).groupBy(suppliers.criticality);
 }
 

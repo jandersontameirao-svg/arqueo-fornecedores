@@ -504,3 +504,35 @@
 - [x] sendContractToClicksign() atualizado com ambos os requisitos
 - [x] Removido waitForDocumentReady (desnecessário)
 - [x] 103 testes passando, 0 erros TypeScript
+
+## Correção Estrutural v5.25 — Visibilidade de Fornecedores por Vínculo (supplier_company_links)
+
+### Problema
+- [x] Fornecedor cadastrado na empresa A e vinculado à empresa B não aparecia na empresa B
+- [x] A visualização dependia apenas de companyId (origem), ignorando supplier_company_links
+
+### Backend
+- [x] getAllSuppliers: já estava correto (diretos + vinculados sem duplicatas)
+- [x] getDashboardStats: corrigido para contar fornecedores vinculados + diretos
+- [x] getSuppliersByCategory: corrigido para incluir vinculados
+- [x] getSuppliersByCriticality: corrigido para incluir vinculados
+- [x] getRecentInteractions: corrigido para incluir interações de vinculados
+- [x] getLatestEvaluations: corrigido para incluir avaliações de vinculados
+- [x] getActiveAlerts: corrigido para incluir alertas de vinculados
+- [x] Padrão: getVisibleSupplierIds() coleta IDs diretos + vinculados ativos, usa IN clause
+
+### Frontend
+- [x] Todas as páginas já passam companyId corretamente (Suppliers, Home, Compliance, Evaluations, Interactions)
+
+### Testes (server/supplier-link-visibility.test.ts)
+- [x] Caso 1: getAllSuppliers retorna diretos + vinculados para empresa de destino
+- [x] Caso 2: getDashboardStats conta diretos + vinculados
+- [x] Caso 3: getSuppliersByCategory agrupa diretos + vinculados
+- [x] Caso 4: getSuppliersByCriticality agrupa diretos + vinculados
+- [x] Caso 5: getRecentInteractions inclui interações de vinculados
+- [x] Caso 6: getLatestEvaluations inclui avaliações de vinculados
+- [x] Caso 7: getActiveAlerts inclui alertas de vinculados
+- [x] Caso 8: sem duplicatas quando fornecedor é direto e vinculado
+- [x] Caso 9: fornecedor sem vínculo não aparece em empresa alheia
+- [x] Caso 10: fornecedor de outro grupo não aparece mesmo com companyId
+- [x] 113 testes passando, 0 erros TypeScript
