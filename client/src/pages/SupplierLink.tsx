@@ -60,9 +60,6 @@ const GROUPS: Record<string, CompanyDef[]> = {
   "Foods and Drinks": [
     { id: "vinho24hbsb", name: "Vinho24hBSB", color: "#6E0F2B" },
   ],
-  "Grupo Arqueo Africa": [
-    { id: "arqueo-africa", name: "Grupo Arqueo Africa", color: "#7C3AED" },
-  ],
 };
 
 // ─── Tipos de etapas do fluxo ─────────────────────────────────────────────────

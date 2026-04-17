@@ -536,3 +536,13 @@
 - [x] Caso 9: fornecedor sem vínculo não aparece em empresa alheia
 - [x] Caso 10: fornecedor de outro grupo não aparece mesmo com companyId
 - [x] 113 testes passando, 0 erros TypeScript
+
+## Auditoria Geral v5.26 — Investigação e Correção de Funcionalidades
+
+- [x] TypeScript: 0 erros em todo o projeto
+- [x] Testes: 113 passando, 0 falhas
+- [x] Todas as procedures do routers.ts verificadas e conectadas ao db.ts
+- [x] Todos os imports do frontend verificados
+- [x] Fluxo de contratos, signatários, Clicksign, templates, avaliações, interações, compliance, auditoria, relatórios, export, onboarding, aprovações, categorias, documentos — todos OK
+- [x] Bug corrigido: GROUPS no SupplierLink.tsx estava desatualizado (tinha "Grupo Arqueo Africa" que não existe no SelectCompany.tsx) — removido para manter consistência
+- [x] Observação: getCompanyById no fillFromTemplate retorna null porque tabela companies está vazia (não é bug, é dado)
