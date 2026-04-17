@@ -9,6 +9,7 @@ import * as db from "./db";
 import * as notifications from "./notifications";
 import * as reports from "./reports";
 import * as exportService from "./export";
+import * as clicksign from "./clicksign";
 import { invokeLLM } from "./_core/llm";
 import { PDFParse } from "pdf-parse";
 
@@ -1458,6 +1459,39 @@ Estruture o contrato com:
       }),
 
     // ==================== CLICKSIGN INTEGRATION ====================
+    isClicksignConfigured: protectedProcedure
+      .query(async () => {
+        return { configured: clicksign.isClicksignConfigured() };
+      }),
+
+    getSignatureStatus: protectedProcedure
+      .input(z.object({ contractId: z.number() }))
+      .query(async ({ input }) => {
+        const contract = await db.getContractById(input.contractId);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND" });
+        const signers = await db.getContractSigners(input.contractId);
+        const events = await db.getContractClicksignEvents(input.contractId);
+        return {
+          signatureStatus: contract.signatureStatus || "not_sent",
+          clicksignEnvelopeId: contract.clicksignEnvelopeId,
+          clicksignDocumentId: contract.clicksignDocumentId,
+          sendAttemptCount: contract.sendAttemptCount || 0,
+          lastSendAttemptAt: contract.lastSendAttemptAt,
+          lastSendError: contract.lastSendError,
+          signers: signers.map(s => ({
+            id: s.id,
+            name: s.name,
+            email: s.email,
+            role: s.role,
+            status: s.status,
+            signedAt: s.signedAt,
+            clicksignSignerId: s.clicksignSignerId,
+            lastNotifiedAt: s.lastNotifiedAt,
+          })),
+          events,
+        };
+      }),
+
     sendToClicksign: managerProcedure
       .input(z.object({
         contractId: z.number(),
@@ -1466,8 +1500,39 @@ Estruture o contrato com:
         const contract = await db.getContractById(input.contractId);
         if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
 
+        // Validações de pré-envio
+        if (!contract.content || contract.content.trim().length === 0) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "O contrato não possui conteúdo. Preencha o conteúdo antes de enviar para assinatura." });
+        }
+
         const signers = await db.getContractSigners(input.contractId);
-        if (signers.length === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Adicione ao menos um signatário antes de enviar" });
+        if (signers.length === 0) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Adicione ao menos um signatário antes de enviar para assinatura." });
+        }
+
+        // Verificar se todos os signatários têm email
+        const signersWithoutEmail = signers.filter(s => !s.email || s.email.trim().length === 0);
+        if (signersWithoutEmail.length > 0) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: `Signatário(s) sem e-mail: ${signersWithoutEmail.map(s => s.name).join(", ")}` });
+        }
+
+        // Verificar se Clicksign está configurado
+        if (!clicksign.isClicksignConfigured()) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Clicksign não configurado. Configure a variável CLICKSIGN_API_KEY nas configurações do sistema." });
+        }
+
+        // Verificar se já não foi enviado e está pendente
+        if (contract.signatureStatus === "sent" || contract.signatureStatus === "partially_signed") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Este contrato já foi enviado para assinatura. Use 'Reenviar' para notificar novamente os signatários." });
+        }
+
+        // Marcar como "sending" antes de iniciar
+        await db.updateContract(input.contractId, {
+          signatureStatus: "sending" as any,
+          lastSendAttemptAt: new Date(),
+          sendAttemptCount: (contract.sendAttemptCount || 0) + 1,
+          lastSendError: null,
+        });
 
         // Salvar versão antes de enviar
         const latestVersion = await db.getLatestVersionNumber(input.contractId);
@@ -1475,7 +1540,7 @@ Estruture o contrato com:
           contractId: input.contractId,
           versionNumber: latestVersion + 1,
           content: contract.content,
-          changeDescription: "Versão enviada para assinatura Clicksign",
+          changeDescription: `Versão enviada para assinatura Clicksign (tentativa ${(contract.sendAttemptCount || 0) + 1})`,
           title: contract.title,
           totalValue: contract.totalValue,
           startDate: contract.startDate,
@@ -1483,58 +1548,279 @@ Estruture o contrato com:
           createdById: ctx.user.id,
         });
 
-        // Registrar evento de envio (integração real com Clicksign será configurada via API key)
-        const eventId = await db.createContractClicksignEvent({
+        // Chamar API real do Clicksign
+        const result = await clicksign.sendContractToClicksign({
+          contractTitle: contract.title,
+          contractContent: contract.content || "",
+          signers: signers.map(s => ({
+            id: s.id,
+            name: s.name,
+            email: s.email,
+            cpfCnpj: s.cpfCnpj,
+            role: s.role,
+            signOrder: s.signOrder || 1,
+          })),
+        });
+
+        if (!result.success) {
+          // Registrar falha
+          await db.createContractClicksignEvent({
+            contractId: input.contractId,
+            eventType: "send_failed",
+            clicksignEnvelopeId: result.envelopeId || null,
+            clicksignDocumentId: result.documentId || null,
+            errorMessage: result.error,
+            httpStatus: result.httpStatus,
+            requestId: result.requestId,
+            eventData: {
+              step: result.step,
+              error: result.error,
+              sentBy: ctx.user.email,
+              attemptNumber: (contract.sendAttemptCount || 0) + 1,
+            },
+          });
+
+          await db.updateContract(input.contractId, {
+            signatureStatus: "send_failed" as any,
+            lastSendError: `[${result.step}] ${result.error}`,
+          });
+
+          await db.createAuditLog({
+            entityType: "contract",
+            entityId: input.contractId,
+            action: "update",
+            changes: { action: "clicksign_send_failed", step: result.step, error: result.error },
+            userId: ctx.user.id,
+            userEmail: ctx.user.email,
+          });
+
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `Falha no envio ao Clicksign (etapa: ${result.step}): ${result.error}`,
+          });
+        }
+
+        // Sucesso: atualizar contrato com IDs do Clicksign
+        await db.updateContract(input.contractId, {
+          clicksignEnvelopeId: result.envelopeId,
+          clicksignDocumentId: result.documentId,
+          signatureStatus: "sent" as any,
+          status: "review",
+          lastSendError: null,
+        });
+
+        // Atualizar signatários com IDs do Clicksign
+        if (result.signerMappings) {
+          for (const mapping of result.signerMappings) {
+            await db.updateContractSigner(mapping.localSignerId, {
+              clicksignSignerId: mapping.clicksignSignerId,
+              clicksignRequirementId: mapping.clicksignRequirementId,
+              lastNotifiedAt: new Date(),
+            });
+          }
+        }
+
+        // Registrar eventos de sucesso
+        await db.createContractClicksignEvent({
           contractId: input.contractId,
-          eventType: "document_created",
+          clicksignEnvelopeId: result.envelopeId,
+          clicksignDocumentId: result.documentId,
+          eventType: "envelope_activated",
           eventData: {
-            signers: signers.map(s => ({ name: s.name, email: s.email, role: s.role })),
-            sentAt: new Date().toISOString(),
+            envelopeId: result.envelopeId,
+            documentId: result.documentId,
+            signerMappings: result.signerMappings,
             sentBy: ctx.user.email,
+            attemptNumber: (contract.sendAttemptCount || 0) + 1,
           },
         });
 
-        // Atualizar status do contrato para "review" (aguardando assinatura)
-        await db.updateContract(input.contractId, { status: "review" });
+        await db.createContractClicksignEvent({
+          contractId: input.contractId,
+          clicksignEnvelopeId: result.envelopeId,
+          eventType: "notification_sent",
+          eventData: {
+            signerCount: signers.length,
+            signers: signers.map(s => ({ name: s.name, email: s.email })),
+          },
+        });
 
         await db.createAuditLog({
           entityType: "contract",
           entityId: input.contractId,
           action: "update",
-          changes: { action: "sent_to_clicksign", signerCount: signers.length },
+          changes: {
+            action: "sent_to_clicksign",
+            envelopeId: result.envelopeId,
+            documentId: result.documentId,
+            signerCount: signers.length,
+            attemptNumber: (contract.sendAttemptCount || 0) + 1,
+          },
           userId: ctx.user.id,
           userEmail: ctx.user.email,
         });
 
         return {
           success: true,
-          eventId,
-          message: `Contrato preparado para envio. ${signers.length} signatário(s) configurado(s). Configure a API Key do Clicksign para ativar o envio automático.`,
+          envelopeId: result.envelopeId,
+          documentId: result.documentId,
+          signerMappings: result.signerMappings,
+          message: `Contrato enviado com sucesso para ${signers.length} signatário(s) via Clicksign.`,
         };
       }),
 
-    resendToSigner: managerProcedure
+    resendNotification: managerProcedure
       .input(z.object({
         contractId: z.number(),
-        signerId: z.number(),
+        message: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        const signer = (await db.getContractSigners(input.contractId)).find(s => s.id === input.signerId);
-        if (!signer) throw new TRPCError({ code: "NOT_FOUND", message: "Signatário não encontrado" });
+        const contract = await db.getContractById(input.contractId);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+
+        if (!contract.clicksignEnvelopeId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Este contrato ainda não foi enviado para o Clicksign." });
+        }
+
+        if (!clicksign.isClicksignConfigured()) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Clicksign não configurado." });
+        }
+
+        const result = await clicksign.resendSignerNotification(
+          contract.clicksignEnvelopeId,
+          input.message || `Lembrete: por favor assine o documento "${contract.title}".`,
+        );
+
+        if (!result.success) {
+          await db.createContractClicksignEvent({
+            contractId: input.contractId,
+            clicksignEnvelopeId: contract.clicksignEnvelopeId,
+            eventType: "send_failed",
+            errorMessage: result.error?.message,
+            httpStatus: result.error?.status,
+            requestId: result.requestId,
+            eventData: { step: "resend_notification", error: result.error?.message },
+          });
+
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `Falha ao reenviar notificação: ${result.error?.message}`,
+          });
+        }
+
+        // Atualizar lastNotifiedAt de todos os signatários pendentes
+        const signers = await db.getContractSigners(input.contractId);
+        for (const signer of signers.filter(s => s.status === "pending")) {
+          await db.updateContractSigner(signer.id, { lastNotifiedAt: new Date() });
+        }
 
         await db.createContractClicksignEvent({
           contractId: input.contractId,
+          clicksignEnvelopeId: contract.clicksignEnvelopeId,
           eventType: "resend",
-          signerId: input.signerId,
           eventData: {
-            signerName: signer.name,
-            signerEmail: signer.email,
-            resentAt: new Date().toISOString(),
             resentBy: ctx.user.email,
+            resentAt: new Date().toISOString(),
+            signerCount: signers.filter(s => s.status === "pending").length,
           },
         });
 
-        return { success: true, message: `Reenvio registrado para ${signer.name} (${signer.email})` };
+        await db.createAuditLog({
+          entityType: "contract",
+          entityId: input.contractId,
+          action: "update",
+          changes: { action: "clicksign_resend_notification" },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+
+        return { success: true, message: "Notificação reenviada com sucesso para signatários pendentes." };
+      }),
+
+    cancelClicksign: managerProcedure
+      .input(z.object({ contractId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const contract = await db.getContractById(input.contractId);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND" });
+
+        if (!contract.clicksignEnvelopeId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Contrato não possui envelope Clicksign." });
+        }
+
+        if (!clicksign.isClicksignConfigured()) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Clicksign não configurado." });
+        }
+
+        const result = await clicksign.cancelEnvelope(contract.clicksignEnvelopeId);
+
+        await db.updateContract(input.contractId, {
+          signatureStatus: "cancelled" as any,
+        });
+
+        // Reset all pending signers
+        const signers = await db.getContractSigners(input.contractId);
+        for (const signer of signers.filter(s => s.status === "pending")) {
+          await db.updateContractSigner(signer.id, { status: "expired" });
+        }
+
+        await db.createContractClicksignEvent({
+          contractId: input.contractId,
+          clicksignEnvelopeId: contract.clicksignEnvelopeId,
+          eventType: "envelope_cancelled",
+          eventData: {
+            cancelledBy: ctx.user.email,
+            cancelledAt: new Date().toISOString(),
+            clicksignResponse: result.success ? "ok" : result.error?.message,
+          },
+        });
+
+        await db.createAuditLog({
+          entityType: "contract",
+          entityId: input.contractId,
+          action: "update",
+          changes: { action: "clicksign_cancelled" },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+
+        return { success: true, message: "Envelope cancelado no Clicksign." };
+      }),
+
+    syncClicksignStatus: managerProcedure
+      .input(z.object({ contractId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const contract = await db.getContractById(input.contractId);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND" });
+
+        if (!contract.clicksignEnvelopeId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Contrato não possui envelope Clicksign." });
+        }
+
+        if (!clicksign.isClicksignConfigured()) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Clicksign não configurado." });
+        }
+
+        const result = await clicksign.getEnvelopeDetails(contract.clicksignEnvelopeId);
+        if (!result.success || !result.data) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `Falha ao consultar status: ${result.error?.message}`,
+          });
+        }
+
+        // Record sync event
+        await db.createContractClicksignEvent({
+          contractId: input.contractId,
+          clicksignEnvelopeId: contract.clicksignEnvelopeId,
+          eventType: "webhook_received",
+          eventData: { source: "manual_sync", response: result.data, syncBy: ctx.user.email },
+        });
+
+        return {
+          success: true,
+          envelopeData: result.data,
+          message: "Status sincronizado com Clicksign.",
+        };
       }),
 
     listClicksignEvents: protectedProcedure

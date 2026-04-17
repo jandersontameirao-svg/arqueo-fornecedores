@@ -376,3 +376,48 @@
 - [x] Backend: auditoria via createAuditLog em criação de versão e envio Clicksign
 - [x] 78 testes vitest passando, 0 erros TypeScript
 - [x] Checkup final completo
+
+## Correção v5.17 — Fluxo Clicksign de ponta a ponta
+
+### 1. Diagnóstico
+- [x] Investigar causa raiz: nenhuma chamada real à API Clicksign existia (apenas registros locais)
+- [x] Mapear fluxo: faltava criação de envelope, upload de documento, adição de signatários, ativação e notificação
+- [x] Documentado em CLICKSIGN_DIAGNOSIS.md
+
+### 2. Schema e modelagem
+- [x] contracts: clicksignEnvelopeId, clicksignDocumentId, signatureStatus, sendAttemptCount, lastSendAttemptAt, lastSendError, signedAt
+- [x] contractSigners: clicksignSignerId, clicksignRequirementId, signedAt, lastNotifiedAt
+- [x] contractClicksignEvents: clicksignEnvelopeId, clicksignDocumentId, errorMessage, httpStatus, requestId + novos eventTypes
+- [x] Migração aplicada com sucesso
+
+### 3. Backend — Integração Clicksign real (server/clicksign.ts)
+- [x] Serviço clicksign.ts com chamadas reais à API v3: createEnvelope, addDocument, addSigner, addRequirement, activateEnvelope, sendNotification
+- [x] Função sendContractToClicksign: fluxo completo de ponta a ponta com rollback em caso de falha
+- [x] Validação robusta de e-mail antes do envio (procedure sendToClicksign)
+- [x] Validação de conteúdo não vazio, signatários presentes, API configurada
+- [x] Persistência de IDs externos (envelopeId, documentId, signerId, requirementId)
+- [x] Logs estruturados em todas as etapas ([Clicksign] prefixo)
+- [x] Estados: not_sent, sending, sent, partially_signed, signed, refused, cancelled, expired, send_failed
+- [x] Procedures: sendToClicksign, resendNotification, cancelClicksign, syncClicksignStatus, isClicksignConfigured, getSignatureStatus
+- [x] Webhook handler: server/clicksignWebhook.ts registrado em /api/clicksign/webhook
+- [x] Webhook: verificação de assinatura HMAC, atualização de status de signatários e contrato
+- [x] Auditoria completa em todas as operações
+
+### 4. Frontend — Feedback real (ContractViewer.tsx)
+- [x] Banner de status com 9 estados visuais distintos (cor, ícone, descrição)
+- [x] Exibição de envelope ID, tentativas e última tentativa
+- [x] Exibição de erro detalhado quando signatureStatus === send_failed
+- [x] Botão "Enviar" (not_sent/send_failed) / "Tentar Novamente" (send_failed)
+- [x] Botão "Reenviar Notificação" (sent/partially_signed)
+- [x] Botão "Cancelar Envio" com confirmação (sent/partially_signed)
+- [x] Histórico de eventos com cores por tipo e exibição de erros
+- [x] Mutations: cancelClicksign, syncClicksignStatus
+
+### 5. Testes e validação
+- [x] 93 testes vitest passando (59 v5 + 34 base)
+- [x] Testes: schema com campos de rastreamento
+- [x] Testes: serviço clicksign.ts (isConfigured, send, resend, cancel, getDetails, verifyWebhook)
+- [x] Testes: db helpers (getContractByClicksignEnvelopeId, updateContractSigner)
+- [x] Testes: webhook handler (registerClicksignWebhookRoute)
+- [x] Testes: validação de pré-envio (rejeitar quando não configurado)
+- [x] 0 erros TypeScript, 0 regressões

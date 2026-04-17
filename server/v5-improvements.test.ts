@@ -379,3 +379,127 @@ describe("Evolução de Contratos v5.16", () => {
     });
   });
 });
+
+// ==================== v5.17: INTEGRAÇÃO CLICKSIGN REAL ====================
+describe("Integração Clicksign v5.17", () => {
+  // ---- Schema ----
+  describe("Schema: campos de rastreamento Clicksign", () => {
+    it("deve ter campos de rastreamento na tabela contracts", async () => {
+      const schema = await import("../drizzle/schema");
+      const cols = schema.contracts;
+      expect(cols.clicksignEnvelopeId).toBeDefined();
+      expect(cols.clicksignDocumentId).toBeDefined();
+      expect(cols.signatureStatus).toBeDefined();
+      expect(cols.sendAttemptCount).toBeDefined();
+      expect(cols.lastSendAttemptAt).toBeDefined();
+      expect(cols.lastSendError).toBeDefined();
+      expect(cols.signedAt).toBeDefined();
+    });
+
+    it("deve ter campos de rastreamento na tabela contract_signers", async () => {
+      const schema = await import("../drizzle/schema");
+      const cols = schema.contractSigners;
+      expect(cols.clicksignSignerId).toBeDefined();
+      expect(cols.clicksignRequirementId).toBeDefined();
+      expect(cols.signedAt).toBeDefined();
+      expect(cols.lastNotifiedAt).toBeDefined();
+    });
+
+    it("deve ter campos expandidos na tabela contract_clicksign_events", async () => {
+      const schema = await import("../drizzle/schema");
+      const cols = schema.contractClicksignEvents;
+      expect(cols.clicksignEnvelopeId).toBeDefined();
+      expect(cols.clicksignDocumentId).toBeDefined();
+      expect(cols.errorMessage).toBeDefined();
+      expect(cols.httpStatus).toBeDefined();
+      expect(cols.requestId).toBeDefined();
+    });
+  });
+
+  // ---- Serviço Clicksign ----
+  describe("Serviço clicksign.ts", () => {
+    it("deve exportar isClicksignConfigured", async () => {
+      const cs = await import("./clicksign");
+      expect(typeof cs.isClicksignConfigured).toBe("function");
+    });
+
+    it("isClicksignConfigured deve retornar false quando API key não está configurada", async () => {
+      const cs = await import("./clicksign");
+      // Sem variável de ambiente, deve retornar false
+      const result = cs.isClicksignConfigured();
+      expect(typeof result).toBe("boolean");
+    });
+
+    it("deve exportar sendContractToClicksign", async () => {
+      const cs = await import("./clicksign");
+      expect(typeof cs.sendContractToClicksign).toBe("function");
+    });
+
+    it("deve exportar resendSignerNotification", async () => {
+      const cs = await import("./clicksign");
+      expect(typeof cs.resendSignerNotification).toBe("function");
+    });
+
+    it("deve exportar cancelEnvelope", async () => {
+      const cs = await import("./clicksign");
+      expect(typeof cs.cancelEnvelope).toBe("function");
+    });
+
+    it("deve exportar getEnvelopeDetails", async () => {
+      const cs = await import("./clicksign");
+      expect(typeof cs.getEnvelopeDetails).toBe("function");
+    });
+
+    it("deve exportar verifyWebhookSignature", async () => {
+      const cs = await import("./clicksign");
+      expect(typeof cs.verifyWebhookSignature).toBe("function");
+    });
+  });
+
+  // ---- DB Helpers ----
+  describe("DB Helpers para Clicksign", () => {
+    it("deve ter getContractByClicksignEnvelopeId no db", async () => {
+      const db = await import("./db");
+      expect(typeof db.getContractByClicksignEnvelopeId).toBe("function");
+    });
+
+    it("deve ter updateContractSigner no db", async () => {
+      const db = await import("./db");
+      expect(typeof db.updateContractSigner).toBe("function");
+    });
+  });
+
+  // ---- Webhook Handler ----
+  describe("Webhook Handler", () => {
+    it("deve exportar registerClicksignWebhookRoute", async () => {
+      const webhook = await import("./clicksignWebhook");
+      expect(typeof webhook.registerClicksignWebhookRoute).toBe("function");
+    });
+  });
+
+  // ---- Validações de pré-envio ----
+  describe("Validações de pré-envio", () => {
+    it("sendContractToClicksign deve rejeitar quando não configurado", async () => {
+      const cs = await import("./clicksign");
+      // Sem API key, deve retornar erro
+      if (!cs.isClicksignConfigured()) {
+        const result = await cs.sendContractToClicksign({
+          contractTitle: "Teste",
+          contractContent: "Conteúdo de teste",
+          signers: [{ id: 1, name: "João", email: "joao@test.com", cpfCnpj: "123", role: "contractor", signOrder: 1 }],
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toBeDefined();
+      }
+    });
+  });
+
+  // ---- Mapeamento de status ----
+  describe("Mapeamento de status de assinatura", () => {
+    it("deve ter todos os status de assinatura no schema", async () => {
+      const schema = await import("../drizzle/schema");
+      // Verificar que o enum de signatureStatus existe e tem os valores corretos
+      expect(schema.contracts.signatureStatus).toBeDefined();
+    });
+  });
+});

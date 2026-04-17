@@ -1463,3 +1463,11 @@ export function mapSystemDataToPlaceholders(data: {
   
   return map;
 }
+
+// ==================== CLICKSIGN LOOKUP ====================
+export async function getContractByClicksignEnvelopeId(envelopeId: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(contracts).where(eq(contracts.clicksignEnvelopeId, envelopeId)).limit(1);
+  return rows[0] || null;
+}

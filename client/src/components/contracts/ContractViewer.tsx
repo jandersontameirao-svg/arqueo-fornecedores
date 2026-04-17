@@ -190,12 +190,12 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
     onError: (err) => toast.error("Erro ao enviar", { description: err.message }),
   });
 
-  const resendMutation = trpc.contracts.resendToSigner.useMutation({
-    onSuccess: (result) => {
+  const resendMutation = trpc.contracts.resendNotification.useMutation({
+    onSuccess: (result: any) => {
       toast.success(result.message);
       utils.contracts.listClicksignEvents.invalidate({ contractId });
     },
-    onError: (err) => toast.error("Erro ao reenviar", { description: err.message }),
+    onError: (err: any) => toast.error("Erro ao reenviar", { description: err.message }),
   });
 
   const updateMutation = trpc.contracts.update.useMutation({
@@ -205,6 +205,25 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
       setIsEditing(false);
     },
     onError: (err) => toast.error("Erro ao atualizar", { description: err.message }),
+  });
+
+  const cancelClicksignMutation = trpc.contracts.cancelClicksign.useMutation({
+    onSuccess: (result: any) => {
+      toast.success(result.message);
+      utils.contracts.getById.invalidate({ id: contractId });
+      utils.contracts.listClicksignEvents.invalidate({ contractId });
+      utils.contracts.listSigners.invalidate({ contractId });
+    },
+    onError: (err: any) => toast.error("Erro ao cancelar", { description: err.message }),
+  });
+
+  const syncStatusMutation = trpc.contracts.syncClicksignStatus.useMutation({
+    onSuccess: (result: any) => {
+      toast.success(result.message);
+      utils.contracts.getById.invalidate({ id: contractId });
+      utils.contracts.listClicksignEvents.invalidate({ contractId });
+    },
+    onError: (err: any) => toast.error("Erro ao sincronizar", { description: err.message }),
   });
 
   const createVersionMutation = trpc.contracts.createVersion.useMutation({
@@ -668,7 +687,7 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 w-7 p-0"
-                                onClick={() => resendMutation.mutate({ contractId, signerId: signer.id })}
+                                onClick={() => resendMutation.mutate({ contractId, message: `Lembrete para ${signer.name}: por favor assine o documento.` })}
                                 disabled={resendMutation.isPending}
                               >
                                 <Mail className="h-3.5 w-3.5" />
@@ -739,31 +758,103 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
 
               {/* ==================== TAB: ASSINATURA ==================== */}
               <TabsContent value="signing" className="space-y-4 pt-2">
+                {/* Status Card */}
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <Send className="h-4 w-4" />
-                      Envio para Assinatura (Clicksign)
+                      Assinatura Digital (Clicksign)
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-xs text-muted-foreground">
-                      Envie o contrato para assinatura digital via Clicksign. Todos os signatários cadastrados receberão o documento para assinatura.
-                    </p>
-                    <div className="flex items-center gap-3">
-                      <Button
-                        onClick={() => sendToClicksignMutation.mutate({ contractId })}
-                        disabled={sendToClicksignMutation.isPending || !signers || signers.length === 0}
-                        className="bg-[oklch(0.50_0.15_15)] hover:bg-[oklch(0.45_0.15_15)]"
-                      >
-                        {sendToClicksignMutation.isPending ? (
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Send className="h-4 w-4 mr-2" />
-                        )}
-                        Enviar para Assinatura
-                      </Button>
-                      {(!signers || signers.length === 0) && (
+                  <CardContent className="space-y-4">
+                    {/* Signature Status Banner */}
+                    {(() => {
+                      const sigStatus = contract?.signatureStatus || "not_sent";
+                      const statusMap: Record<string, { label: string; desc: string; color: string; icon: any }> = {
+                        not_sent: { label: "Não enviado", desc: "O contrato ainda não foi enviado para assinatura.", color: "bg-gray-50 border-gray-200 text-gray-700", icon: Clock },
+                        sending: { label: "Enviando...", desc: "O contrato está sendo processado pelo Clicksign.", color: "bg-blue-50 border-blue-200 text-blue-700", icon: RefreshCw },
+                        sent: { label: "Enviado", desc: "Aguardando assinatura dos signatários.", color: "bg-yellow-50 border-yellow-200 text-yellow-700", icon: Send },
+                        partially_signed: { label: "Parcialmente assinado", desc: "Alguns signatários já assinaram.", color: "bg-amber-50 border-amber-200 text-amber-700", icon: UserCheck },
+                        signed: { label: "Assinado", desc: "Todos os signatários assinaram o contrato.", color: "bg-green-50 border-green-200 text-green-700", icon: CheckCircle2 },
+                        refused: { label: "Recusado", desc: "Um ou mais signatários recusaram a assinatura.", color: "bg-red-50 border-red-200 text-red-700", icon: XCircle },
+                        cancelled: { label: "Cancelado", desc: "O envelope foi cancelado no Clicksign.", color: "bg-gray-50 border-gray-200 text-gray-500", icon: XCircle },
+                        expired: { label: "Expirado", desc: "O prazo de assinatura expirou.", color: "bg-orange-50 border-orange-200 text-orange-600", icon: AlertTriangle },
+                        send_failed: { label: "Falha no envio", desc: contract?.lastSendError || "Ocorreu um erro ao enviar para o Clicksign.", color: "bg-red-50 border-red-200 text-red-700", icon: AlertTriangle },
+                      };
+                      const st = statusMap[sigStatus] || statusMap.not_sent;
+                      const StIcon = st.icon;
+                      return (
+                        <div className={`flex items-start gap-3 p-3 rounded-lg border ${st.color}`}>
+                          <StIcon className={`h-5 w-5 mt-0.5 ${sigStatus === "sending" ? "animate-spin" : ""}`} />
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold">{st.label}</p>
+                            <p className="text-xs mt-0.5 opacity-80">{st.desc}</p>
+                            {contract?.clicksignEnvelopeId && (
+                              <p className="text-xs mt-1 font-mono opacity-60">Envelope: {contract.clicksignEnvelopeId}</p>
+                            )}
+                            {contract?.sendAttemptCount && contract.sendAttemptCount > 0 && (
+                              <p className="text-xs mt-0.5 opacity-60">
+                                Tentativas: {contract.sendAttemptCount} | Última: {formatDateTime(contract.lastSendAttemptAt)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* Send Button - only when not_sent or send_failed */}
+                      {(contract?.signatureStatus === "not_sent" || contract?.signatureStatus === "send_failed" || !contract?.signatureStatus) && canManage && (
+                        <Button
+                          onClick={() => sendToClicksignMutation.mutate({ contractId })}
+                          disabled={sendToClicksignMutation.isPending || !signers || signers.length === 0}
+                          className="bg-[oklch(0.50_0.15_15)] hover:bg-[oklch(0.45_0.15_15)]"
+                        >
+                          {sendToClicksignMutation.isPending ? (
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4 mr-2" />
+                          )}
+                          {contract?.signatureStatus === "send_failed" ? "Tentar Novamente" : "Enviar para Assinatura"}
+                        </Button>
+                      )}
+
+                      {/* Resend Notification - when sent or partially_signed */}
+                      {(contract?.signatureStatus === "sent" || contract?.signatureStatus === "partially_signed") && canManage && (
+                        <Button
+                          variant="outline"
+                          onClick={() => resendMutation.mutate({ contractId })}
+                          disabled={resendMutation.isPending}
+                        >
+                          {resendMutation.isPending ? (
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Mail className="h-4 w-4 mr-2" />
+                          )}
+                          Reenviar Notificação
+                        </Button>
+                      )}
+
+                      {/* Cancel - when sent or partially_signed */}
+                      {(contract?.signatureStatus === "sent" || contract?.signatureStatus === "partially_signed") && canManage && (
+                        <Button
+                          variant="outline"
+                          className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                          onClick={() => {
+                            if (confirm("Tem certeza que deseja cancelar o envio no Clicksign? Esta ação não pode ser desfeita.")) {
+                              cancelClicksignMutation.mutate({ contractId });
+                            }
+                          }}
+                          disabled={cancelClicksignMutation.isPending}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Cancelar Envio
+                        </Button>
+                      )}
+
+                      {/* Validation warnings */}
+                      {(!signers || signers.length === 0) && !contract?.signatureStatus && (
                         <p className="text-xs text-amber-600">
                           <AlertTriangle className="h-3 w-3 inline mr-1" />
                           Adicione signatários na aba anterior
@@ -780,24 +871,49 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
                     <div className="space-y-2">
                       {clicksignEvents.map((event) => {
                         const eventLabels: Record<string, string> = {
-                          document_created: "Documento criado",
-                          document_sent: "Documento enviado",
+                          envelope_created: "Envelope criado",
+                          document_uploaded: "Documento enviado",
+                          signers_added: "Signatários adicionados",
+                          requirements_set: "Requisitos configurados",
+                          envelope_activated: "Envelope ativado",
+                          notification_sent: "Notificação enviada",
                           signer_signed: "Signatário assinou",
                           signer_refused: "Signatário recusou",
-                          document_completed: "Assinatura concluída",
-                          document_cancelled: "Documento cancelado",
-                          document_expired: "Documento expirado",
-                          resend: "Reenvio",
+                          envelope_completed: "Assinatura concluída",
+                          envelope_cancelled: "Envelope cancelado",
+                          envelope_expired: "Envelope expirado",
+                          send_failed: "Falha no envio",
+                          resend: "Reenvio de notificação",
+                          webhook_received: "Evento recebido",
                         };
+                        const eventColors: Record<string, string> = {
+                          envelope_activated: "bg-green-100 text-green-700",
+                          notification_sent: "bg-blue-100 text-blue-700",
+                          signer_signed: "bg-green-100 text-green-700",
+                          signer_refused: "bg-red-100 text-red-700",
+                          envelope_completed: "bg-green-100 text-green-700",
+                          envelope_cancelled: "bg-gray-100 text-gray-500",
+                          send_failed: "bg-red-100 text-red-700",
+                          resend: "bg-blue-100 text-blue-700",
+                        };
+                        const color = eventColors[event.eventType] || "bg-muted text-muted-foreground";
                         return (
-                          <div key={event.id} className="flex items-center gap-3 p-2 rounded border text-xs">
-                            <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+                          <div key={event.id} className="flex items-center gap-3 p-2.5 rounded-lg border text-xs">
+                            <div className={`h-6 w-6 rounded-full flex items-center justify-center ${color}`}>
                               <FileText className="h-3 w-3" />
                             </div>
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                               <span className="font-medium">{eventLabels[event.eventType] || event.eventType}</span>
+                              {event.errorMessage && (
+                                <p className="text-red-600 mt-0.5 truncate" title={event.errorMessage}>
+                                  Erro: {event.errorMessage}
+                                </p>
+                              )}
+                              {event.httpStatus && (
+                                <span className="ml-2 text-muted-foreground">HTTP {event.httpStatus}</span>
+                              )}
                             </div>
-                            <span className="text-muted-foreground">{formatDateTime(event.createdAt)}</span>
+                            <span className="text-muted-foreground whitespace-nowrap">{formatDateTime(event.createdAt)}</span>
                           </div>
                         );
                       })}

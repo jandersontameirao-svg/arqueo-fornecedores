@@ -273,6 +273,15 @@ export const contracts = mysqlTable("contracts", {
   fileKey: varchar("fileKey", { length: 500 }),
   fileUrl: varchar("fileUrl", { length: 1000 }),
   fileName: varchar("fileName", { length: 255 }),
+  // Clicksign integration tracking
+  clicksignEnvelopeId: varchar("clicksignEnvelopeId", { length: 255 }),
+  clicksignDocumentId: varchar("clicksignDocumentId", { length: 255 }),
+  signatureStatus: mysqlEnum("signatureStatus", [
+    "not_sent", "sending", "sent", "partially_signed", "signed", "refused", "cancelled", "expired", "send_failed"
+  ]).default("not_sent"),
+  lastSendAttemptAt: timestamp("lastSendAttemptAt"),
+  lastSendError: text("lastSendError"),
+  sendAttemptCount: int("sendAttemptCount").default(0),
   // Metadata
   createdById: int("createdById").references(() => users.id),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -487,8 +496,11 @@ export const contractSigners = mysqlTable("contract_signers", {
   signOrder: int("signOrder").default(1),
   // Clicksign tracking
   clicksignSignerId: varchar("clicksignSignerId", { length: 255 }),
+  clicksignRequirementId: varchar("clicksignRequirementId", { length: 255 }),
   signedAt: timestamp("signedAt"),
   status: mysqlEnum("status", ["pending", "signed", "refused", "expired"]).default("pending").notNull(),
+  emailDeliveryStatus: varchar("emailDeliveryStatus", { length: 50 }),
+  lastNotifiedAt: timestamp("lastNotifiedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -502,11 +514,17 @@ export const contractClicksignEvents = mysqlTable("contract_clicksign_events", {
   contractId: int("contractId").notNull().references(() => contracts.id, { onDelete: "cascade" }),
   // Clicksign document tracking
   clicksignDocumentId: varchar("clicksignDocumentId", { length: 255 }),
+  clicksignEnvelopeId: varchar("clicksignEnvelopeId", { length: 255 }),
   eventType: mysqlEnum("eventType", [
-    "document_created", "document_sent", "signer_signed", "signer_refused",
-    "document_completed", "document_cancelled", "document_expired", "resend"
+    "envelope_created", "document_uploaded", "signers_added", "requirements_set",
+    "envelope_activated", "notification_sent", "signer_signed", "signer_refused",
+    "envelope_completed", "envelope_cancelled", "envelope_expired",
+    "resend", "send_failed", "webhook_received"
   ]).notNull(),
   eventData: json("eventData"),
+  errorMessage: text("errorMessage"),
+  httpStatus: int("httpStatus"),
+  requestId: varchar("requestId", { length: 255 }),
   signerId: int("signerId"), // references contractSigners.id (sem FK explícita)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
