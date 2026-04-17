@@ -149,6 +149,7 @@ export default function SupplierForm({ id }: SupplierFormProps) {
       notes: sanitize(formData.notes),
       categoryId: formData.categoryId || undefined,
       companyId: selectedCompany?.id || undefined,
+      groupId: selectedCompany?.groupId || undefined,
     };
 
     if (isEditing) {

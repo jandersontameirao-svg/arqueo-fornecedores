@@ -64,6 +64,8 @@ export const suppliers = mysqlTable("suppliers", {
   criticality: mysqlEnum("criticality", ["low", "medium", "high", "critical"]).default("medium"),
   // Company Association
   companyId: varchar("companyId", { length: 100 }),
+  // Group Association (FK para business_units — segregação obrigatória por grupo)
+  groupId: int("groupId").references(() => businessUnits.id),
   // Status
   status: mysqlEnum("status", ["pending", "approved", "rejected", "suspended", "inactive"]).default("pending").notNull(),
   approvedAt: timestamp("approvedAt"),

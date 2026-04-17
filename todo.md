@@ -434,3 +434,44 @@
 - [x] Alterado default de clicksignApiUrl em env.ts de sandbox para app.clicksign.com/api/v3
 - [x] Novas credenciais configuradas (CLICKSIGN_API_KEY + CLICKSIGN_WEBHOOK_SECRET)
 - [x] Servidor reiniciado, 93 testes passando
+
+## Correção Estrutural v5.21 — Segregação por Grupo e Visibilidade por Empresa
+
+### Problemas a corrigir
+- [x] Fornecedores do Grupo Arqueo Brasil aparecem no Grupo Arqueo Africa (vazamento de grupo)
+- [x] Fornecedores vinculados a outras empresas não aparecem nas empresas vinculadas
+
+### Schema
+- [x] Adicionar campo groupId em suppliers (FK para business_units)
+- [x] Migrar dados existentes: popular groupId com base no companyId → mapeamento estático de slugs
+
+### Backend
+- [x] Reescrever getAllSuppliers para filtrar por groupId + incluir vínculos via supplier_links
+- [x] Reescrever listSuppliers para filtrar por groupId + empresa ativa
+- [x] Reescrever dashboard/cards/gráficos para respeitar groupId (getDashboardStats, getSuppliersByCategory, getSuppliersByCriticality)
+- [x] Reescrever interações, avaliações e alertas para respeitar groupId (getRecentInteractions, getLatestEvaluations, getActiveAlerts)
+- [x] supplierSchema no routers.ts atualizado com groupId: z.number().optional()
+- [x] Todas as procedures de listagem/dashboard passam groupId
+
+### Frontend
+- [x] SelectedCompanyContext já expõe groupId: number no tipo SelectedCompany
+- [x] SelectCompany.tsx já passa groupId={activeUnit?.id || 0} ao criar companyData
+- [x] Suppliers.tsx: query com groupId
+- [x] Home.tsx: queries de dashboard com groupId
+- [x] Compliance.tsx: query com groupId
+- [x] Evaluations.tsx: query com groupId
+- [x] Interactions.tsx: query com groupId
+- [x] SupplierForm.tsx: payload de criação/atualização inclui groupId
+
+### Testes obrigatórios (10 casos — server/group-segregation.test.ts)
+- [x] Caso 1: fornecedor do grupo Brasil não aparece no grupo Africa
+- [x] Caso 2: listar por groupId retorna apenas fornecedores do grupo correto
+- [x] Caso 3: listar por companyId retorna apenas fornecedores daquela empresa
+- [x] Caso 4: sem filtro retorna todos os fornecedores
+- [x] Caso 5: dashboard stats filtrado por groupId
+- [x] Caso 6: categorias de fornecedores filtradas por groupId
+- [x] Caso 7: criticidade de fornecedores filtrada por groupId
+- [x] Caso 8: interações recentes filtradas por groupId
+- [x] Caso 9: avaliações recentes filtradas por groupId
+- [x] Caso 10: alertas de compliance filtrados por groupId
+- [x] 103 testes passando, 0 erros TypeScript

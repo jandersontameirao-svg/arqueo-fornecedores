@@ -49,7 +49,11 @@ type InteractionItem = { interaction: { id: number; type: string; subject: strin
 export default function Interactions() {
   const [, setLocation] = useLocation();
   const { selectedCompany } = useSelectedCompany();
-  const { data: interactions, isLoading } = trpc.interactions.listRecent.useQuery({ limit: 50, companyId: selectedCompany?.id });
+  const { data: interactions, isLoading } = trpc.interactions.listRecent.useQuery({
+    limit: 50,
+    companyId: selectedCompany?.id || undefined,
+    groupId: !selectedCompany?.id && selectedCompany?.groupId ? selectedCompany.groupId : undefined,
+  });
 
   return (
     <div className="space-y-6">

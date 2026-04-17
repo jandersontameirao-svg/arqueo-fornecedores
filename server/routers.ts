@@ -74,6 +74,7 @@ const supplierSchema = z.object({
   criticality: z.enum(["low", "medium", "high", "critical"]).optional(),
   notes: z.string().optional(),
   companyId: z.string().optional(),
+  groupId: z.number().optional(),
 });
 
 const documentSchema = z.object({
@@ -246,6 +247,7 @@ export const appRouter = router({
         criticality: z.string().optional(),
         search: z.string().optional(),
         companyId: z.string().optional(),
+        groupId: z.number().optional(),
       }).optional())
       .query(async ({ input }) => {
         return db.getAllSuppliers(input);
@@ -653,9 +655,9 @@ export const appRouter = router({
       }),
 
     listRecent: protectedProcedure
-      .input(z.object({ limit: z.number().optional(), companyId: z.string().optional() }))
+      .input(z.object({ limit: z.number().optional(), companyId: z.string().optional(), groupId: z.number().optional() }))
       .query(async ({ input }) => {
-        return db.getRecentInteractions(input.limit || 50, input.companyId);
+        return db.getRecentInteractions(input.limit || 50, input.companyId, input.groupId);
       }),
 
     create: managerProcedure
@@ -870,18 +872,18 @@ export const appRouter = router({
       }),
 
     getLatest: protectedProcedure
-      .input(z.object({ limit: z.number().optional(), companyId: z.string().optional() }))
+      .input(z.object({ limit: z.number().optional(), companyId: z.string().optional(), groupId: z.number().optional() }))
       .query(async ({ input }) => {
-        return db.getLatestEvaluations(input.limit || 10, input.companyId);
+        return db.getLatestEvaluations(input.limit || 10, input.companyId, input.groupId);
       }),
   }),
 
   // ==================== COMPLIANCE ====================
   compliance: router({
     getAlerts: protectedProcedure
-      .input(z.object({ companyId: z.string().optional() }).optional())
+      .input(z.object({ companyId: z.string().optional(), groupId: z.number().optional() }).optional())
       .query(async ({ input }) => {
-        return db.getActiveAlerts(input?.companyId);
+        return db.getActiveAlerts(input?.companyId, input?.groupId);
       }),
 
     resolveAlert: managerProcedure
@@ -940,21 +942,21 @@ export const appRouter = router({
   // ==================== DASHBOARD ====================
   dashboard: router({
     stats: protectedProcedure
-      .input(z.object({ companyId: z.string().optional() }).optional())
+      .input(z.object({ companyId: z.string().optional(), groupId: z.number().optional() }).optional())
       .query(async ({ input }) => {
-        return db.getDashboardStats(input?.companyId);
+        return db.getDashboardStats(input?.companyId, input?.groupId);
       }),
 
     suppliersByCategory: protectedProcedure
-      .input(z.object({ companyId: z.string().optional() }).optional())
+      .input(z.object({ companyId: z.string().optional(), groupId: z.number().optional() }).optional())
       .query(async ({ input }) => {
-        return db.getSuppliersByCategory(input?.companyId);
+        return db.getSuppliersByCategory(input?.companyId, input?.groupId);
       }),
 
     suppliersByCriticality: protectedProcedure
-      .input(z.object({ companyId: z.string().optional() }).optional())
+      .input(z.object({ companyId: z.string().optional(), groupId: z.number().optional() }).optional())
       .query(async ({ input }) => {
-        return db.getSuppliersByCriticality(input?.companyId);
+        return db.getSuppliersByCriticality(input?.companyId, input?.groupId);
       }),
   }),
 

@@ -117,7 +117,8 @@ export default function Suppliers() {
     status: statusFilter !== "all" ? statusFilter : undefined,
     categoryId: categoryFilter !== "all" ? parseInt(categoryFilter) : undefined,
     criticality: criticalityFilter !== "all" ? criticalityFilter : undefined,
-    companyId: selectedCompany?.id,
+    companyId: selectedCompany?.id || undefined,
+    groupId: !selectedCompany?.id && selectedCompany?.groupId ? selectedCompany.groupId : undefined,
   });
 
   const canCreate = user?.role === "admin" || user?.role === "manager";

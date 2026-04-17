@@ -85,11 +85,12 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const { activeUnit, setActiveUnitId } = useBusinessUnitContext();
   const { selectedCompany } = useSelectedCompany();
-  const companyId = selectedCompany?.id;
-  const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery({ companyId });
-  const { data: byCategory, isLoading: categoryLoading } = trpc.dashboard.suppliersByCategory.useQuery({ companyId });
-  const { data: byCriticality, isLoading: criticalityLoading } = trpc.dashboard.suppliersByCriticality.useQuery({ companyId });
-  const { data: alerts } = trpc.compliance.getAlerts.useQuery({ companyId });
+  const companyId = selectedCompany?.id || undefined;
+  const groupId = !selectedCompany?.id && selectedCompany?.groupId ? selectedCompany.groupId : undefined;
+  const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery({ companyId, groupId });
+  const { data: byCategory, isLoading: categoryLoading } = trpc.dashboard.suppliersByCategory.useQuery({ companyId, groupId });
+  const { data: byCriticality, isLoading: criticalityLoading } = trpc.dashboard.suppliersByCriticality.useQuery({ companyId, groupId });
+  const { data: alerts } = trpc.compliance.getAlerts.useQuery({ companyId, groupId });
   const { data: pendingWorkflows } = trpc.workflows.getPending.useQuery({ companyId });
 
   // Preparar dados para o gráfico de pizza (categorias)

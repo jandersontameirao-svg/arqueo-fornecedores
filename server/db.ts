@@ -167,9 +167,128 @@ export async function getAllSuppliers(filters?: {
   criticality?: string;
   search?: string;
   companyId?: string;
+  groupId?: number;
 }) {
   const db = await getDb();
   if (!db) return [];
+
+  // Monta condições base (sem companyId para poder unir com vínculos)
+  const baseConditions: any[] = [];
+
+  if (filters?.status) {
+    baseConditions.push(eq(suppliers.status, filters.status as any));
+  }
+  if (filters?.categoryId) {
+    baseConditions.push(eq(suppliers.categoryId, filters.categoryId));
+  }
+  if (filters?.criticality) {
+    baseConditions.push(eq(suppliers.criticality, filters.criticality as any));
+  }
+
+  // Filtro de busca textual
+  let searchCond: any = undefined;
+  if (filters?.search) {
+    const raw = filters.search.trim();
+    const cleanCnpj = raw.replace(/[.\-\/]/g, '');
+    const term = `%${raw}%`;
+    const termClean = `%${cleanCnpj}%`;
+    searchCond = or(
+      like(suppliers.companyName, term),
+      like(suppliers.tradeName, term),
+      like(suppliers.cnpj, term),
+      like(suppliers.cnpj, termClean),
+      like(suppliers.email, term),
+      like(suppliers.phone, term),
+      like(suppliers.city, term),
+      like(suppliers.state, term),
+      like(suppliers.neighborhood, term),
+      like(suppliers.notes, term)
+    );
+  }
+
+  // SEGREGAÇÃO POR GRUPO: quando groupId fornecido, filtrar por grupo
+  // SEGREGAÇÃO POR EMPRESA: quando companyId fornecido, incluir diretos + vinculados
+
+  if (filters?.companyId) {
+    // Busca fornecedores cadastrados diretamente nessa empresa
+    const directConds = [...baseConditions, eq(suppliers.companyId, filters.companyId)];
+    if (searchCond) directConds.push(searchCond);
+
+    const directQuery = db.select({
+      supplier: suppliers,
+      category: supplierCategories,
+      createdBy: users,
+    })
+      .from(suppliers)
+      .leftJoin(supplierCategories, eq(suppliers.categoryId, supplierCategories.id))
+      .leftJoin(users, eq(suppliers.createdById, users.id))
+      .where(and(...directConds))
+      .orderBy(desc(suppliers.createdAt));
+
+    const direct = await directQuery;
+
+    // Busca fornecedores vinculados a essa empresa (como destino)
+    const linkedRows = await db.select({
+      link: supplierLinks,
+      supplier: suppliers,
+      category: supplierCategories,
+      createdBy: users,
+    })
+      .from(supplierLinks)
+      .innerJoin(suppliers, eq(supplierLinks.supplierId, suppliers.id))
+      .leftJoin(supplierCategories, eq(suppliers.categoryId, supplierCategories.id))
+      .leftJoin(users, eq(suppliers.createdById, users.id))
+      .where(and(
+        eq(supplierLinks.targetCompanyId, filters.companyId),
+        eq(supplierLinks.status, "active")
+      ));
+
+    // Aplica filtros de busca/status/etc nos vinculados também
+    let linked = linkedRows;
+    if (filters?.status) {
+      linked = linked.filter(r => r.supplier.status === filters.status);
+    }
+    if (filters?.criticality) {
+      linked = linked.filter(r => r.supplier.criticality === filters.criticality);
+    }
+    if (filters?.categoryId) {
+      linked = linked.filter(r => r.supplier.categoryId === filters.categoryId);
+    }
+    if (searchCond && filters?.search) {
+      const term = filters.search.trim().toLowerCase();
+      linked = linked.filter(r => {
+        const s = r.supplier;
+        return (
+          s.companyName?.toLowerCase().includes(term) ||
+          s.tradeName?.toLowerCase().includes(term) ||
+          s.cnpj?.replace(/[.\-\/]/g, '').includes(term.replace(/[.\-\/]/g, '')) ||
+          s.email?.toLowerCase().includes(term) ||
+          s.city?.toLowerCase().includes(term) ||
+          s.state?.toLowerCase().includes(term)
+        );
+      });
+    }
+
+    // Deduplica: se fornecedor já está nos diretos, não adicionar nos vinculados
+    const directIds = new Set(direct.map(r => r.supplier.id));
+    const linkedUnique = linked.filter(r => !directIds.has(r.supplier.id));
+
+    // Retorna diretos + vinculados (vinculados marcados com _isLinked)
+    const linkedMapped = linkedUnique.map(r => ({
+      supplier: { ...r.supplier, _isLinked: true, _linkId: r.link.id },
+      category: r.category,
+      createdBy: r.createdBy,
+    }));
+
+    return [...direct, ...linkedMapped];
+  }
+
+  // Sem companyId: filtrar por groupId se fornecido (segregação por grupo)
+  const conditions = [...baseConditions];
+  if (filters?.groupId) {
+    conditions.push(eq(suppliers.groupId, filters.groupId));
+  }
+  if (searchCond) conditions.push(searchCond);
 
   let query = db.select({
     supplier: suppliers,
@@ -179,43 +298,6 @@ export async function getAllSuppliers(filters?: {
     .from(suppliers)
     .leftJoin(supplierCategories, eq(suppliers.categoryId, supplierCategories.id))
     .leftJoin(users, eq(suppliers.createdById, users.id));
-
-  const conditions = [];
-
-  if (filters?.status) {
-    conditions.push(eq(suppliers.status, filters.status as any));
-  }
-  if (filters?.categoryId) {
-    conditions.push(eq(suppliers.categoryId, filters.categoryId));
-  }
-  if (filters?.criticality) {
-    conditions.push(eq(suppliers.criticality, filters.criticality as any));
-  }
-  // SEGREGAÇÃO OBRIGATÓRIA: filtro por empresa sempre aplicado primeiro
-  if (filters?.companyId) {
-    conditions.push(eq(suppliers.companyId, filters.companyId));
-  }
-  if (filters?.search) {
-    // Normaliza busca: remove pontuação do CNPJ para comparação limpa
-    const raw = filters.search.trim();
-    const cleanCnpj = raw.replace(/[.\-\/]/g, '');
-    const term = `%${raw}%`;
-    const termClean = `%${cleanCnpj}%`;
-    conditions.push(
-      or(
-        like(suppliers.companyName, term),
-        like(suppliers.tradeName, term),
-        like(suppliers.cnpj, term),
-        like(suppliers.cnpj, termClean),
-        like(suppliers.email, term),
-        like(suppliers.phone, term),
-        like(suppliers.city, term),
-        like(suppliers.state, term),
-        like(suppliers.neighborhood, term),
-        like(suppliers.notes, term)
-      )
-    );
-  }
 
   if (conditions.length > 0) {
     query = query.where(and(...conditions)) as any;
@@ -579,7 +661,7 @@ export async function deleteInteraction(id: number) {
   await db.delete(interactions).where(eq(interactions.id, id));
 }
 
-export async function getRecentInteractions(limit: number = 50, companyId?: string) {
+export async function getRecentInteractions(limit: number = 50, companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return [];
   let q = db.select({
@@ -590,9 +672,10 @@ export async function getRecentInteractions(limit: number = 50, companyId?: stri
     .from(interactions)
     .leftJoin(suppliers, eq(interactions.supplierId, suppliers.id))
     .leftJoin(users, eq(interactions.createdById, users.id));
-  if (companyId) {
-    q = q.where(eq(suppliers.companyId, companyId)) as any;
-  }
+  const conds: any[] = [];
+  if (companyId) conds.push(eq(suppliers.companyId, companyId));
+  else if (groupId) conds.push(eq(suppliers.groupId, groupId));
+  if (conds.length > 0) q = q.where(and(...conds)) as any;
   return (q as any).orderBy(desc(interactions.interactionDate)).limit(limit);
 }
 
@@ -623,7 +706,7 @@ export async function updateEvaluation(id: number, data: Partial<InsertPerforman
   await db.update(performanceEvaluations).set(data).where(eq(performanceEvaluations.id, id));
 }
 
-export async function getLatestEvaluations(limit: number = 10, companyId?: string) {
+export async function getLatestEvaluations(limit: number = 10, companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return [];
   let q = db.select({
@@ -632,20 +715,21 @@ export async function getLatestEvaluations(limit: number = 10, companyId?: strin
   })
     .from(performanceEvaluations)
     .innerJoin(suppliers, eq(performanceEvaluations.supplierId, suppliers.id));
-  if (companyId) {
-    q = q.where(eq(suppliers.companyId, companyId)) as any;
-  }
+  const conds: any[] = [];
+  if (companyId) conds.push(eq(suppliers.companyId, companyId));
+  else if (groupId) conds.push(eq(suppliers.groupId, groupId));
+  if (conds.length > 0) q = q.where(and(...conds)) as any;
   return (q as any).orderBy(desc(performanceEvaluations.createdAt)).limit(limit);
 }
 
 // ==================== COMPLIANCE ALERT FUNCTIONS ====================
-export async function getActiveAlerts(companyId?: string) {
+export async function getActiveAlerts(companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return [];
   const resolvedCond = eq(complianceAlerts.isResolved, false);
-  const whereCond = companyId
-    ? and(resolvedCond, eq(suppliers.companyId, companyId))
-    : resolvedCond;
+  let whereCond: any = resolvedCond;
+  if (companyId) whereCond = and(resolvedCond, eq(suppliers.companyId, companyId));
+  else if (groupId) whereCond = and(resolvedCond, eq(suppliers.groupId, groupId));
   return db.select({
     alert: complianceAlerts,
     supplier: suppliers,
@@ -676,11 +760,15 @@ export async function resolveAlert(id: number, userId: number) {
 }
 
 // ==================== DASHBOARD STATS ====================
-export async function getDashboardStats(companyId?: string) {
+export async function getDashboardStats(companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return null;
-  // SEGREGAÇÃO: filtrar por empresa quando fornecida
-  const companyFilter = companyId ? eq(suppliers.companyId, companyId) : undefined;
+  // SEGREGAÇÃO: filtrar por empresa (prioridade) ou por grupo
+  const scopeFilter = companyId
+    ? eq(suppliers.companyId, companyId)
+    : groupId
+    ? eq(suppliers.groupId, groupId)
+    : undefined;
   const [
     totalSuppliers,
     pendingSuppliers,
@@ -689,14 +777,14 @@ export async function getDashboardStats(companyId?: string) {
     expiringDocs,
     activeAlerts,
   ] = await Promise.all([
-    companyFilter
-      ? db.select({ count: sql<number>`count(*)` }).from(suppliers).where(companyFilter)
+    scopeFilter
+      ? db.select({ count: sql<number>`count(*)` }).from(suppliers).where(scopeFilter)
       : db.select({ count: sql<number>`count(*)` }).from(suppliers),
-    companyFilter
-      ? db.select({ count: sql<number>`count(*)` }).from(suppliers).where(and(companyFilter, eq(suppliers.status, "pending")))
+    scopeFilter
+      ? db.select({ count: sql<number>`count(*)` }).from(suppliers).where(and(scopeFilter, eq(suppliers.status, "pending")))
       : db.select({ count: sql<number>`count(*)` }).from(suppliers).where(eq(suppliers.status, "pending")),
-    companyFilter
-      ? db.select({ count: sql<number>`count(*)` }).from(suppliers).where(and(companyFilter, eq(suppliers.status, "approved")))
+    scopeFilter
+      ? db.select({ count: sql<number>`count(*)` }).from(suppliers).where(and(scopeFilter, eq(suppliers.status, "approved")))
       : db.select({ count: sql<number>`count(*)` }).from(suppliers).where(eq(suppliers.status, "approved")),
     db.select({ count: sql<number>`count(*)` }).from(documents),
     getExpiringDocuments(30),
@@ -712,7 +800,7 @@ export async function getDashboardStats(companyId?: string) {
   };
 }
 
-export async function getSuppliersByCategory(companyId?: string) {
+export async function getSuppliersByCategory(companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return [];
   let q = db.select({
@@ -723,12 +811,11 @@ export async function getSuppliersByCategory(companyId?: string) {
   })
     .from(suppliers)
     .leftJoin(supplierCategories, eq(suppliers.categoryId, supplierCategories.id));
-  if (companyId) {
-    q = q.where(eq(suppliers.companyId, companyId)) as any;
-  }
+  if (companyId) q = q.where(eq(suppliers.companyId, companyId)) as any;
+  else if (groupId) q = q.where(eq(suppliers.groupId, groupId)) as any;
   return (q as any).groupBy(suppliers.categoryId, supplierCategories.name, supplierCategories.color);
 }
-export async function getSuppliersByCriticality(companyId?: string) {
+export async function getSuppliersByCriticality(companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return [];
   let q = db.select({
@@ -736,9 +823,8 @@ export async function getSuppliersByCriticality(companyId?: string) {
     count: sql<number>`count(*)`,
   })
     .from(suppliers);
-  if (companyId) {
-    q = q.where(eq(suppliers.companyId, companyId)) as any;
-  }
+  if (companyId) q = q.where(eq(suppliers.companyId, companyId)) as any;
+  else if (groupId) q = q.where(eq(suppliers.groupId, groupId)) as any;
   return (q as any).groupBy(suppliers.criticality);
 }
 
