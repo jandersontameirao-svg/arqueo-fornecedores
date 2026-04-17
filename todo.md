@@ -483,3 +483,13 @@
 - [x] sendContractToClicksign atualizado para passar cpfCnpj bruto (formatDocumentation cuida da máscara internamente)
 - [x] Validado com API real Clicksign (201 OK com CPF 083.019.941-18)
 - [x] 103 testes passando, 0 erros TypeScript
+
+## Correção v5.23 — Clicksign: role/action, activateEnvelope e geração de PDF real
+
+- [x] addRequirement: action deve ser "agree" e role deve ser "sign" (API v3)
+- [x] activateEnvelope: corrigido para PATCH /envelopes/{id} com status "running" (POST /activate não existe na v3)
+- [x] generateContractPdf: PDF real gerado com pdfkit a partir dos dados do contrato (título, objeto, partes, valor, datas)
+- [x] waitForDocumentReady: aguarda documento ficar ready (até 90s, poll a cada 5s) antes de adicionar signatários e requisitos
+- [x] SendContractToClicksignInput: adicionado contractMeta para dados do contrato
+- [x] routers.ts: passa contractMeta completo ao sendContractToClicksign
+- [x] 103 testes passando, 0 erros TypeScript

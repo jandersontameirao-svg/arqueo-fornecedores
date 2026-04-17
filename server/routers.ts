@@ -1550,6 +1550,17 @@ Estruture o contrato com:
         const result = await clicksign.sendContractToClicksign({
           contractTitle: contract.title,
           contractContent: contract.content || "",
+          contractMeta: {
+            number: contract.number,
+            object: contract.object,
+            contractorName: contract.contractorName,
+            contractorCnpj: contract.contractorCnpj,
+            totalValue: contract.totalValue,
+            currency: contract.currency,
+            startDate: contract.startDate,
+            endDate: contract.endDate,
+            paymentTerms: contract.paymentTerms,
+          },
           signers: signers.map(s => ({
             id: s.id,
             name: s.name,

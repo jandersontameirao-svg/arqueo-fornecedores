@@ -10,6 +10,7 @@
  * 6. sendNotification → envia notificação por e-mail aos signatários
  */
 
+import PDFDocument from "pdfkit";
 import { ENV } from "./_core/env";
 
 // ==================== TYPES ====================
@@ -248,14 +249,15 @@ export async function addRequirement(
   envelopeId: string,
   documentId: string,
   signerId: string,
-  action: "agree" | "sign" | "approve" | "acknowledge" = "sign",
 ): Promise<ClicksignApiResponse<ClicksignRequirement>> {
+  // Clicksign API v3: action must be 'agree' | 'provide_evidence' | 'rubricate'
+  // role must be 'sign' | 'approve' | 'acknowledge' | 'witness'
   return clicksignRequest<ClicksignRequirement>("POST", `/envelopes/${envelopeId}/requirements`, {
     data: {
       type: "requirements",
       attributes: {
-        action,
-        role: action,
+        action: "agree",
+        role: "sign",
       },
       relationships: {
         document: {
@@ -271,9 +273,19 @@ export async function addRequirement(
 
 /**
  * Step 5: Activate the envelope (makes it ready for signing)
+ * Clicksign API v3: use PATCH /envelopes/{id} with status: 'running'
+ * (POST /activate endpoint does not exist in v3 production)
  */
 export async function activateEnvelope(envelopeId: string): Promise<ClicksignApiResponse<ClicksignEnvelope>> {
-  return clicksignRequest<ClicksignEnvelope>("POST", `/envelopes/${envelopeId}/activate`);
+  return clicksignRequest<ClicksignEnvelope>("PATCH", `/envelopes/${envelopeId}`, {
+    data: {
+      type: "envelopes",
+      id: envelopeId,
+      attributes: {
+        status: "running",
+      },
+    },
+  });
 }
 
 /**
@@ -315,11 +327,121 @@ export async function cancelEnvelope(envelopeId: string): Promise<ClicksignApiRe
   return clicksignRequest<any>("DELETE", `/envelopes/${envelopeId}`);
 }
 
+// ==================== PDF GENERATION ====================
+
+/**
+ * Generate a real PDF from contract data using pdfkit
+ */
+async function generateContractPdf(
+  title: string,
+  content: string,
+  meta?: ContractMeta,
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: "A4", margin: 60 });
+    const chunks: Buffer[] = [];
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    const formatDate = (d: Date | null | undefined) =>
+      d ? new Date(d).toLocaleDateString("pt-BR") : "";
+    const formatCurrency = (v: string | null | undefined, currency: string | null | undefined) => {
+      if (!v) return "";
+      const num = parseFloat(v);
+      if (isNaN(num)) return v;
+      return new Intl.NumberFormat("pt-BR", { style: "currency", currency: currency || "BRL" }).format(num);
+    };
+
+    // Header
+    doc.fontSize(16).font("Helvetica-Bold").text(title, { align: "center" });
+    doc.moveDown(0.5);
+
+    if (meta?.number) {
+      doc.fontSize(11).font("Helvetica").text(`Número: ${meta.number}`, { align: "center" });
+    }
+
+    doc.moveDown(1);
+    doc.moveTo(60, doc.y).lineTo(535, doc.y).stroke();
+    doc.moveDown(1);
+
+    // Parties
+    if (meta?.contractorName) {
+      doc.fontSize(11).font("Helvetica-Bold").text("CONTRATANTE:");
+      doc.font("Helvetica").text(meta.contractorName);
+      if (meta.contractorCnpj) doc.text(`CNPJ: ${meta.contractorCnpj}`);
+      doc.moveDown(0.8);
+    }
+
+    // Object
+    if (meta?.object) {
+      doc.font("Helvetica-Bold").text("OBJETO:");
+      doc.font("Helvetica").text(meta.object, { align: "justify" });
+      doc.moveDown(0.8);
+    }
+
+    // Value and dates
+    if (meta?.totalValue) {
+      doc.font("Helvetica-Bold").text("VALOR TOTAL:");
+      doc.font("Helvetica").text(formatCurrency(meta.totalValue, meta.currency));
+      doc.moveDown(0.5);
+    }
+
+    if (meta?.startDate || meta?.endDate) {
+      doc.font("Helvetica-Bold").text("VIGÊNCIA:");
+      doc.font("Helvetica").text(
+        `${formatDate(meta.startDate)} a ${formatDate(meta.endDate)}`
+      );
+      doc.moveDown(0.5);
+    }
+
+    if (meta?.paymentTerms) {
+      doc.font("Helvetica-Bold").text("CONDIÇÕES DE PAGAMENTO:");
+      doc.font("Helvetica").text(meta.paymentTerms, { align: "justify" });
+      doc.moveDown(0.8);
+    }
+
+    // Content (if HTML, strip tags; otherwise use as-is)
+    if (content && content.trim().length > 0) {
+      doc.moveTo(60, doc.y).lineTo(535, doc.y).stroke();
+      doc.moveDown(0.8);
+      // Strip HTML tags if present
+      const plainText = content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      doc.font("Helvetica").fontSize(10).text(plainText, { align: "justify" });
+      doc.moveDown(1);
+    }
+
+    // Signature area
+    doc.moveDown(2);
+    doc.moveTo(60, doc.y).lineTo(535, doc.y).stroke();
+    doc.moveDown(0.5);
+    doc.fontSize(9).font("Helvetica").text(
+      "Documento gerado eletronicamente. Assinatura digital via Clicksign.",
+      { align: "center" }
+    );
+
+    doc.end();
+  });
+}
+
 // ==================== ORCHESTRATION ====================
+
+export interface ContractMeta {
+  number?: string | null;
+  object?: string | null;
+  contractorName?: string | null;
+  contractorCnpj?: string | null;
+  totalValue?: string | null;
+  currency?: string | null;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  paymentTerms?: string | null;
+}
 
 export interface SendContractToClicksignInput {
   contractTitle: string;
   contractContent: string;
+  contractMeta?: ContractMeta;
   signers: Array<{
     id: number; // local DB signer id
     name: string;
@@ -346,6 +468,28 @@ export interface SendContractToClicksignResult {
 }
 
 /**
+ * Wait for a document to reach 'ready' status (async processing by Clicksign)
+ * Returns true if ready, false if timeout or error
+ */
+async function waitForDocumentReady(
+  envelopeId: string,
+  documentId: string,
+  maxWaitMs = 90_000,
+  pollIntervalMs = 5_000,
+): Promise<boolean> {
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, pollIntervalMs));
+    const result = await clicksignRequest<any>("GET", `/envelopes/${envelopeId}/documents/${documentId}`);
+    const status = result.data?.attributes?.status;
+    console.log(`[Clicksign] Document status: ${status}`);
+    if (status === "ready") return true;
+    if (status === "error") return false;
+  }
+  return false;
+}
+
+/**
  * Full orchestration: create envelope → upload doc → add signers → add requirements → activate → notify
  * Returns detailed result with IDs for each step, or error with step identification.
  */
@@ -368,11 +512,9 @@ export async function sendContractToClicksign(
   const envelopeId = envelopeResult.data.id;
   console.log(`[Clicksign] Envelope created: ${envelopeId}`);
 
-  // Step 2: Generate PDF from content and upload
-  // Convert contract content to a simple PDF-like base64 (text content)
-  // In production, you'd generate a proper PDF here
-  const textContent = input.contractContent || "Contrato sem conteúdo";
-  const contentBase64 = `data:application/pdf;base64,${Buffer.from(textContent).toString("base64")}`;
+  // Step 2: Generate PDF from contract data and upload
+  const pdfBuffer = await generateContractPdf(input.contractTitle, input.contractContent, input.contractMeta);
+  const contentBase64 = `data:application/pdf;base64,${pdfBuffer.toString("base64")}`;
   const filename = `${input.contractTitle.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
 
   const docResult = await addDocument(envelopeId, filename, contentBase64);
@@ -388,6 +530,13 @@ export async function sendContractToClicksign(
   }
   const documentId = docResult.data.id;
   console.log(`[Clicksign] Document uploaded: ${documentId}`);
+
+  // Wait for document to be processed (async) before adding signers/requirements
+  console.log(`[Clicksign] Waiting for document to be processed...`);
+  const docReady = await waitForDocumentReady(envelopeId, documentId, 90_000, 5_000);
+  if (!docReady) {
+    console.warn(`[Clicksign] Document not ready after 90s — proceeding anyway`);
+  }
 
   // Step 3 & 4: Add signers and requirements
   const signerMappings: Array<{
@@ -425,7 +574,7 @@ export async function sendContractToClicksign(
     console.log(`[Clicksign] Signer added: ${signer.name} → ${clicksignSignerId}`);
 
     // Add requirement (link signer to document)
-    const reqResult = await addRequirement(envelopeId, documentId, clicksignSignerId, "sign");
+    const reqResult = await addRequirement(envelopeId, documentId, clicksignSignerId);
     
     if (!reqResult.success) {
       return {
