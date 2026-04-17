@@ -243,21 +243,21 @@ export async function addSignerToEnvelope(
 }
 
 /**
- * Step 4: Add a requirement (link signer to document with action)
+ * Step 4a: Add a QUALIFICATION requirement (link signer to document with role)
+ * Required for envelope activation: each document must have at least one qualification per signer.
  */
-export async function addRequirement(
+export async function addQualificationRequirement(
   envelopeId: string,
   documentId: string,
   signerId: string,
+  role: "sign" | "approve" | "acknowledge" | "witness" = "sign",
 ): Promise<ClicksignApiResponse<ClicksignRequirement>> {
-  // Clicksign API v3: action must be 'agree' | 'provide_evidence' | 'rubricate'
-  // role must be 'sign' | 'approve' | 'acknowledge' | 'witness'
   return clicksignRequest<ClicksignRequirement>("POST", `/envelopes/${envelopeId}/requirements`, {
     data: {
       type: "requirements",
       attributes: {
         action: "agree",
-        role: "sign",
+        role,
       },
       relationships: {
         document: {
@@ -270,6 +270,41 @@ export async function addRequirement(
     },
   });
 }
+
+/**
+ * Step 4b: Add an AUTHENTICATION requirement (token verification)
+ * Required for envelope activation: each signer must have at least one authentication method.
+ * Default: email token (code sent to signer's email).
+ */
+export async function addAuthenticationRequirement(
+  envelopeId: string,
+  documentId: string,
+  signerId: string,
+  auth: "email" | "sms" | "whatsapp" = "email",
+): Promise<ClicksignApiResponse<ClicksignRequirement>> {
+  return clicksignRequest<ClicksignRequirement>("POST", `/envelopes/${envelopeId}/requirements`, {
+    data: {
+      type: "requirements",
+      attributes: {
+        action: "provide_evidence",
+        auth,
+      },
+      relationships: {
+        document: {
+          data: { type: "documents", id: documentId },
+        },
+        signer: {
+          data: { type: "signers", id: signerId },
+        },
+      },
+    },
+  });
+}
+
+/**
+ * Backward-compatible alias for addQualificationRequirement
+ */
+export const addRequirement = addQualificationRequirement;
 
 /**
  * Step 5: Activate the envelope (makes it ready for signing)
@@ -531,14 +566,7 @@ export async function sendContractToClicksign(
   const documentId = docResult.data.id;
   console.log(`[Clicksign] Document uploaded: ${documentId}`);
 
-  // Wait for document to be processed (async) before adding signers/requirements
-  console.log(`[Clicksign] Waiting for document to be processed...`);
-  const docReady = await waitForDocumentReady(envelopeId, documentId, 90_000, 5_000);
-  if (!docReady) {
-    console.warn(`[Clicksign] Document not ready after 90s — proceeding anyway`);
-  }
-
-  // Step 3 & 4: Add signers and requirements
+  // Step 3 & 4: Add signers and requirements (qualification + authentication)
   const signerMappings: Array<{
     localSignerId: number;
     clicksignSignerId: string;
@@ -573,26 +601,45 @@ export async function sendContractToClicksign(
     const clicksignSignerId = signerResult.data.id;
     console.log(`[Clicksign] Signer added: ${signer.name} → ${clicksignSignerId}`);
 
-    // Add requirement (link signer to document)
-    const reqResult = await addRequirement(envelopeId, documentId, clicksignSignerId);
+    // Add QUALIFICATION requirement (link signer to document with role)
+    const qualResult = await addQualificationRequirement(envelopeId, documentId, clicksignSignerId);
     
-    if (!reqResult.success) {
+    if (!qualResult.success) {
       return {
         success: false,
         envelopeId,
         documentId,
         signerMappings,
-        error: `Falha ao configurar requisito para ${signer.name}: ${reqResult.error?.message}`,
+        error: `Falha ao configurar requisito de qualificação para ${signer.name}: ${qualResult.error?.message}`,
         step: `add_requirement_${signer.id}`,
-        httpStatus: reqResult.error?.status,
-        requestId: reqResult.requestId,
+        httpStatus: qualResult.error?.status,
+        requestId: qualResult.requestId,
       };
     }
+    console.log(`[Clicksign] Qualification requirement added for ${signer.name}`);
+
+    // Add AUTHENTICATION requirement (token by email)
+    // Required by Clicksign: each signer must have at least one authentication method for envelope activation
+    const authResult = await addAuthenticationRequirement(envelopeId, documentId, clicksignSignerId, "email");
+    
+    if (!authResult.success) {
+      return {
+        success: false,
+        envelopeId,
+        documentId,
+        signerMappings,
+        error: `Falha ao configurar requisito de autenticação para ${signer.name}: ${authResult.error?.message}`,
+        step: `add_auth_requirement_${signer.id}`,
+        httpStatus: authResult.error?.status,
+        requestId: authResult.requestId,
+      };
+    }
+    console.log(`[Clicksign] Authentication requirement added for ${signer.name}`);
 
     signerMappings.push({
       localSignerId: signer.id,
       clicksignSignerId,
-      clicksignRequirementId: reqResult.data?.id,
+      clicksignRequirementId: qualResult.data?.id,
     });
   }
 

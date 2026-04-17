@@ -493,3 +493,14 @@
 - [x] SendContractToClicksignInput: adicionado contractMeta para dados do contrato
 - [x] routers.ts: passa contractMeta completo ao sendContractToClicksign
 - [x] 103 testes passando, 0 erros TypeScript
+
+## Correção Definitiva Clicksign v5.24 — Resolver TODOS os erros
+
+- [x] Investigar por que documentos ficam em "draft" — não é o PDF, é processamento assíncrono do Clicksign; ativação funciona mesmo com doc em draft
+- [x] Causa raiz: faltava requisito de AUTENTICAÇÃO (provide_evidence + email) além do de QUALIFICAÇÃO (agree + sign)
+- [x] Corrigir fluxo completo: envelope → documento → signatários → qualificação + autenticação → ativação → notificação
+- [x] Testar fluxo completo com API real — SUCESSO (201/200 em TODAS as etapas)
+- [x] addQualificationRequirement() + addAuthenticationRequirement() criadas
+- [x] sendContractToClicksign() atualizado com ambos os requisitos
+- [x] Removido waitForDocumentReady (desnecessário)
+- [x] 103 testes passando, 0 erros TypeScript
