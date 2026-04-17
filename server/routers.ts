@@ -1501,10 +1501,6 @@ Estruture o contrato com:
         if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
 
         // Validações de pré-envio
-        if (!contract.content || contract.content.trim().length === 0) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "O contrato não possui conteúdo. Preencha o conteúdo antes de enviar para assinatura." });
-        }
-
         const signers = await db.getContractSigners(input.contractId);
         if (signers.length === 0) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Adicione ao menos um signatário antes de enviar para assinatura." });

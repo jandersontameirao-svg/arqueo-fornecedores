@@ -285,11 +285,16 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         {isLoading ? (
-          <div className="space-y-4 py-4">
-            <Skeleton className="h-8 w-2/3" />
-            <Skeleton className="h-4 w-1/3" />
-            <Skeleton className="h-32 w-full" />
-          </div>
+          <>
+            <DialogHeader>
+              <DialogTitle>Carregando contrato...</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <Skeleton className="h-8 w-2/3" />
+              <Skeleton className="h-4 w-1/3" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+          </>
         ) : contract ? (
           <>
             <DialogHeader>

@@ -421,3 +421,8 @@
 - [x] Testes: webhook handler (registerClicksignWebhookRoute)
 - [x] Testes: validação de pré-envio (rejeitar quando não configurado)
 - [x] 0 erros TypeScript, 0 regressões
+
+## Correções v5.18 (erros reportados 17/04)
+- [x] Remover validação de conteúdo obrigatório no sendToClicksign (contrato pode não ter conteúdo ainda)
+- [x] Adicionar DialogTitle no estado de loading do ContractViewer (acessibilidade Radix)
+- [x] 93 testes passando, 0 erros TypeScript
