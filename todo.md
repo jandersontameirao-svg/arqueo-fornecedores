@@ -546,3 +546,52 @@
 - [x] Fluxo de contratos, signatários, Clicksign, templates, avaliações, interações, compliance, auditoria, relatórios, export, onboarding, aprovações, categorias, documentos — todos OK
 - [x] Bug corrigido: GROUPS no SupplierLink.tsx estava desatualizado (tinha "Grupo Arqueo Africa" que não existe no SelectCompany.tsx) — removido para manter consistência
 - [x] Observação: getCompanyById no fillFromTemplate retorna null porque tabela companies está vazia (não é bug, é dado)
+
+## Bloco 1 — Clicksign: Reenvio após Cancelamento de Envelope (v5.27)
+
+- [ ] Backend: detectar envelope cancelado e limpar IDs externos no contrato
+- [ ] Backend: permitir novo envio real após cancelamento (novo envelope/fluxo)
+- [ ] Backend: adicionar campos cancelled_at, cancelled_by, resent_from_cancelled_envelope, integration_response_snapshot
+- [ ] Backend: registrar auditoria de cancelamento e novo envio
+- [ ] Backend: logs estruturados de cada etapa
+- [ ] Frontend: botão de reenvio funcional após cancelamento
+- [ ] Frontend: status refletindo realidade (não travar contrato após cancelamento)
+- [ ] Frontend: mensagens de erro claras e feedback real de sucesso
+- [ ] Testes: casos de teste para cancelamento + reenvio
+
+## Bloco 2 — Expiração de Documentos: Janela Preventiva 1 ano / Alerta 15 dias (v5.27)
+
+- [ ] Backend: corrigir cálculo — alerta ativo somente com ≤15 dias para vencer
+- [ ] Backend: janela preventiva de 1 ano sem gerar alerta crítico
+- [ ] Backend: corrigir jobs agendados de notificação (somente ≤15 dias)
+- [ ] Backend: corrigir consulta de Alertas Ativos (somente ≤15 dias ou vencidos)
+- [ ] Backend: corrigir contadores do dashboard
+- [ ] Frontend: aba Alertas Ativos — somente ≤15 dias ou vencidos
+- [ ] Frontend: badge "expira em breve" somente ≤15 dias
+- [ ] Frontend: coerência entre dashboard, documentos e alertas
+- [ ] Testes: casos de teste para as 4 situações de expiração
+
+## Bloco 1 — Clicksign: Reenvio após cancelamento (v5.27)
+
+- [x] cancelClicksign: limpar clicksignEnvelopeId/clicksignDocumentId após cancelamento
+- [x] cancelClicksign: resetar todos os signatários para pending (limpar clicksignSignerId/clicksignRequirementId)
+- [x] cancelClicksign: registrar cancelled_at, cancelled_by e resentFromCancelledEnvelope no eventData
+- [x] sendToClicksign: permitir reenvio quando signatureStatus === "cancelled"
+- [x] sendToClicksign: registrar resentFromCancelledEnvelope no evento de auditoria
+- [x] ContractViewer: botão de reenvio visível quando status === "cancelled" e há signatários
+- [x] ContractViewer: aviso de "adicione signatários" quando cancelado e sem signatários
+- [x] ContractViewer: invalidar signers e getSignatureStatus após cancelamento e reenvio
+
+## Bloco 2 — Expiração de documentos: janela crítica 15 dias (v5.27)
+
+- [x] db.ts getExpiringDocuments: padrão alterado de 30 para 15 dias
+- [x] db.ts getDashboardStats: getExpiringDocuments(30) → getExpiringDocuments(15)
+- [x] db.ts getActiveAlerts: alertas de expiração somente exibidos se dueDate ≤ 15 dias ou vencido
+- [x] notifications.ts checkAndNotifyExpiringDocuments: janela alterada de 30 para 15 dias; lista [30,15,7,3,1] → [15,7,3,1]
+- [x] notifications.ts sendBatchExpirationNotifications: janela alterada de 30 para 15 dias
+- [x] routers.ts upload (base64): alerta criado somente se daysUntilExpiration ≤ 15; severity dinâmica
+- [x] routers.ts upload (S3): alerta criado somente se daysUntilExpiration ≤ 15; severity dinâmica
+- [x] SupplierDocuments.tsx: isExpiringSoon alterado de 30 para 15 dias
+- [x] Documents.tsx: isExpiringSoon alterado de 30 para 15 dias; label filtro atualizado
+- [x] SupplierDetail.tsx: expiringDocs alterado de 30 para 15 dias
+- [x] Home.tsx: label "expirando em 30 dias" → "expirando em 15 dias"

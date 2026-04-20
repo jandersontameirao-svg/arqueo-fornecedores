@@ -234,12 +234,13 @@ export default function SupplierDocuments({ supplierId, canEdit }: SupplierDocum
     setFiles((prev) => prev.filter((f) => f.status !== "success"));
   };
 
+  // Janela crítica: somente documentos com ≤15 dias para vencer
   const isExpiringSoon = (expiresAt: Date | null) => {
     if (!expiresAt) return false;
     const daysUntilExpiry = Math.ceil(
       (new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
     );
-    return daysUntilExpiry <= 30 && daysUntilExpiry > 0;
+    return daysUntilExpiry <= 15 && daysUntilExpiry > 0;
   };
 
   const isExpired = (expiresAt: Date | null) => {

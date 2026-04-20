@@ -443,17 +443,24 @@ export const appRouter = router({
           userId: ctx.user.id,
           userEmail: ctx.user.email,
         });
-        // Create expiration alert if document has expiration date
+        // Criar alerta de expiração somente se o documento vence em até 15 dias (janela crítica)
         if (input.expiresAt) {
-          await db.createAlert({
-            supplierId: input.supplierId,
-            documentId: id,
-            alertType: "expiration",
-            severity: "medium",
-            title: `Documento "${input.name}" expira em breve`,
-            description: `O documento expira em ${input.expiresAt}`,
-            dueDate: new Date(input.expiresAt),
-          });
+          const expirationDate = new Date(input.expiresAt);
+          const daysUntilExpiration = Math.ceil(
+            (expirationDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+          );
+          if (daysUntilExpiration > 0 && daysUntilExpiration <= 15) {
+            const severity = daysUntilExpiration <= 3 ? "critical" : daysUntilExpiration <= 7 ? "high" : "medium";
+            await db.createAlert({
+              supplierId: input.supplierId,
+              documentId: id,
+              alertType: "expiration",
+              severity,
+              title: `Documento "${input.name}" expira em ${daysUntilExpiration} dia(s)`,
+              description: `O documento expira em ${expirationDate.toLocaleDateString("pt-BR")} (${daysUntilExpiration} dia(s) restante(s))`,
+              dueDate: expirationDate,
+            });
+          }
         }
         return { id };
       }),
@@ -549,18 +556,24 @@ export const appRouter = router({
           userEmail: ctx.user.email,
         });
         
-        // Create expiration alert if document has expiration date
+        // Criar alerta de expiração somente se o documento vence em até 15 dias (janela crítica)
         if (input.expiresAt) {
           const expirationDate = new Date(input.expiresAt);
-          await db.createAlert({
-            supplierId: input.supplierId,
-            documentId: id,
-            alertType: "expiration",
-            severity: "medium",
-            title: `Documento "${input.name}" expira em breve`,
-            description: `O documento expira em ${expirationDate.toLocaleDateString("pt-BR")}`,
-            dueDate: expirationDate,
-          });
+          const daysUntilExpiration = Math.ceil(
+            (expirationDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+          );
+          if (daysUntilExpiration > 0 && daysUntilExpiration <= 15) {
+            const severity = daysUntilExpiration <= 3 ? "critical" : daysUntilExpiration <= 7 ? "high" : "medium";
+            await db.createAlert({
+              supplierId: input.supplierId,
+              documentId: id,
+              alertType: "expiration",
+              severity,
+              title: `Documento "${input.name}" expira em ${daysUntilExpiration} dia(s)`,
+              description: `O documento expira em ${expirationDate.toLocaleDateString("pt-BR")} (${daysUntilExpiration} dia(s) restante(s))`,
+              dueDate: expirationDate,
+            });
+          }
         }
         
         return { id, url };
@@ -1524,6 +1537,9 @@ Estruture o contrato com:
           throw new TRPCError({ code: "BAD_REQUEST", message: "Este contrato já foi enviado para assinatura. Use 'Reenviar' para notificar novamente os signatários." });
         }
 
+        // Detectar se é reenvio após cancelamento para rastreabilidade
+        const resentFromCancelled = contract.signatureStatus === "cancelled";
+
         // Marcar como "sending" antes de iniciar
         await db.updateContract(input.contractId, {
           signatureStatus: "sending" as any,
@@ -1641,6 +1657,7 @@ Estruture o contrato com:
             signerMappings: result.signerMappings,
             sentBy: ctx.user.email,
             attemptNumber: (contract.sendAttemptCount || 0) + 1,
+            resentFromCancelledEnvelope: resentFromCancelled,
           },
         });
 
@@ -1651,6 +1668,7 @@ Estruture o contrato com:
           eventData: {
             signerCount: signers.length,
             signers: signers.map(s => ({ name: s.name, email: s.email })),
+            resentFromCancelledEnvelope: resentFromCancelled,
           },
         });
 
@@ -1659,11 +1677,17 @@ Estruture o contrato com:
           entityId: input.contractId,
           action: "update",
           changes: {
-            action: "sent_to_clicksign",
+            action: resentFromCancelled ? "resent_after_cancellation" : "sent_to_clicksign",
             envelopeId: result.envelopeId,
             documentId: result.documentId,
             signerCount: signers.length,
             attemptNumber: (contract.sendAttemptCount || 0) + 1,
+            resentFromCancelledEnvelope: resentFromCancelled,
+            integrationResponseSnapshot: {
+              envelopeId: result.envelopeId,
+              documentId: result.documentId,
+              signerMappings: result.signerMappings,
+            },
           },
           userId: ctx.user.id,
           userEmail: ctx.user.email,
@@ -1674,7 +1698,10 @@ Estruture o contrato com:
           envelopeId: result.envelopeId,
           documentId: result.documentId,
           signerMappings: result.signerMappings,
-          message: `Contrato enviado com sucesso para ${signers.length} signatário(s) via Clicksign.`,
+          resentFromCancelledEnvelope: resentFromCancelled,
+          message: resentFromCancelled
+            ? `Contrato reenviado com sucesso após cancelamento para ${signers.length} signatário(s) via Clicksign. Novo envelope gerado.`
+            : `Contrato enviado com sucesso para ${signers.length} signatário(s) via Clicksign.`,
         };
       }),
 
@@ -1760,26 +1787,45 @@ Estruture o contrato com:
           throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Clicksign não configurado." });
         }
 
-        const result = await clicksign.cancelEnvelope(contract.clicksignEnvelopeId);
+        const cancelledEnvelopeId = contract.clicksignEnvelopeId;
+        const cancelledDocumentId = contract.clicksignDocumentId;
+        const cancelledAt = new Date().toISOString();
 
+        const result = await clicksign.cancelEnvelope(cancelledEnvelopeId);
+
+        // Limpar IDs externos e marcar como cancelado para liberar novo envio
         await db.updateContract(input.contractId, {
           signatureStatus: "cancelled" as any,
+          clicksignEnvelopeId: null,
+          clicksignDocumentId: null,
+          lastSendError: null,
         });
 
-        // Reset all pending signers
+        // Resetar todos os signatários para pending e limpar IDs externos do Clicksign
         const signers = await db.getContractSigners(input.contractId);
-        for (const signer of signers.filter(s => s.status === "pending")) {
-          await db.updateContractSigner(signer.id, { status: "expired" });
+        for (const signer of signers) {
+          await db.updateContractSigner(signer.id, {
+            status: "pending",
+            clicksignSignerId: null,
+            clicksignRequirementId: null,
+            signedAt: null,
+            lastNotifiedAt: null,
+          });
         }
 
         await db.createContractClicksignEvent({
           contractId: input.contractId,
-          clicksignEnvelopeId: contract.clicksignEnvelopeId,
+          clicksignEnvelopeId: cancelledEnvelopeId,
+          clicksignDocumentId: cancelledDocumentId,
           eventType: "envelope_cancelled",
           eventData: {
             cancelledBy: ctx.user.email,
-            cancelledAt: new Date().toISOString(),
+            cancelledAt,
+            cancelledEnvelopeId,
+            cancelledDocumentId,
+            signersReset: signers.length,
             clicksignResponse: result.success ? "ok" : result.error?.message,
+            resentFromCancelledEnvelope: false,
           },
         });
 
@@ -1787,12 +1833,20 @@ Estruture o contrato com:
           entityType: "contract",
           entityId: input.contractId,
           action: "update",
-          changes: { action: "clicksign_cancelled" },
+          changes: {
+            action: "clicksign_cancelled",
+            cancelledBy: ctx.user.email,
+            cancelledAt,
+            cancelledEnvelopeId,
+            cancelledDocumentId,
+            signersReset: signers.length,
+            integrationResponseSnapshot: result.success ? "ok" : result.error?.message,
+          },
           userId: ctx.user.id,
           userEmail: ctx.user.email,
         });
 
-        return { success: true, message: "Envelope cancelado no Clicksign." };
+        return { success: true, message: "Envelope cancelado. O contrato pode ser reenviado para assinatura." };
       }),
 
     syncClicksignStatus: managerProcedure

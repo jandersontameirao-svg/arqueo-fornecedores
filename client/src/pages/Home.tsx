@@ -184,7 +184,7 @@ export default function Home() {
               <div className="text-2xl font-bold">{stats?.totalDocuments || 0}</div>
             )}
             <p className="text-xs text-muted-foreground mt-1">
-              {stats?.expiringDocuments || 0} expirando em 30 dias
+              {stats?.expiringDocuments || 0} expirando em 15 dias
             </p>
           </CardContent>
         </Card>

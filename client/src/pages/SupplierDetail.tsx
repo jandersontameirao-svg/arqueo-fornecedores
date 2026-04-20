@@ -138,12 +138,13 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
   const expiredDocs = documentsData?.filter((d: any) => 
     d.expirationDate && new Date(d.expirationDate) < new Date()
   ).length || 0;
+  // Janela crítica: somente documentos com ≤15 dias para vencer
   const expiringDocs = documentsData?.filter((d: any) => {
     if (!d.expirationDate) return false;
     const expDate = new Date(d.expirationDate);
     const now = new Date();
-    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    return expDate >= now && expDate <= thirtyDaysFromNow;
+    const fifteenDaysFromNow = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+    return expDate >= now && expDate <= fifteenDaysFromNow;
   }).length || 0;
   
   const evaluationsCount = evaluationsData?.length || 0;

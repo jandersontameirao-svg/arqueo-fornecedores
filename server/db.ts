@@ -441,7 +441,13 @@ export async function deleteDocument(id: number) {
   await db.delete(documents).where(eq(documents.id, id));
 }
 
-export async function getExpiringDocuments(daysAhead: number = 30) {
+/**
+ * Retorna documentos que vencem dentro de `daysAhead` dias (janela de alerta ativo).
+ * Padrão: 15 dias — janela crítica de alerta ativo.
+ * Use daysAhead=365 para a janela preventiva (sem alerta crítico).
+ * Documentos já vencidos não são incluídos aqui (use getExpiredDocuments).
+ */
+export async function getExpiringDocuments(daysAhead: number = 15) {
   const db = await getDb();
   if (!db) return [];
 
@@ -761,9 +767,25 @@ export async function getLatestEvaluations(limit: number = 10, companyId?: strin
 }
 
 // ==================== COMPLIANCE ALERT FUNCTIONS ====================
+/**
+ * Retorna alertas ativos.
+ * Para alertas do tipo "expiration": somente exibe se dueDate é nulo (sem data),
+ * já vencido (dueDate < agora) ou dentro da janela crítica de 15 dias.
+ * Alertas de outros tipos (missing_document, compliance_issue, review_needed) são sempre exibidos.
+ */
 export async function getActiveAlerts(companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return [];
+
+  // Janela crítica: alertas de expiração só aparecem se dueDate é nulo, já vencido ou ≤15 dias
+  const fifteenDaysFromNow = new Date();
+  fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
+  // Condição: não é expiração OU (dueDate é nulo OU dueDate <= 15 dias a partir de agora)
+  const expirationWindowCond = sql`(
+    ${complianceAlerts.alertType} != 'expiration'
+    OR ${complianceAlerts.dueDate} IS NULL
+    OR ${complianceAlerts.dueDate} <= ${fifteenDaysFromNow}
+  )`;
 
   if (companyId) {
     const direct = await db.select({ id: suppliers.id }).from(suppliers).where(eq(suppliers.companyId, companyId));
@@ -774,9 +796,10 @@ export async function getActiveAlerts(companyId?: string, groupId?: number) {
     linked.forEach(r => ids.add(r.supplierId));
     const visibleIds = Array.from(ids);
     const resolvedCond = eq(complianceAlerts.isResolved, false);
-    const whereCond = visibleIds.length > 0
-      ? and(resolvedCond, sql`${complianceAlerts.supplierId} IN (${sql.join(visibleIds.map(id => sql`${id}`), sql`, `)})`)
-      : and(resolvedCond, sql`1=0`);
+    const supplierCond = visibleIds.length > 0
+      ? sql`${complianceAlerts.supplierId} IN (${sql.join(visibleIds.map(id => sql`${id}`), sql`, `)})`
+      : sql`1=0`;
+    const whereCond = and(resolvedCond, supplierCond, expirationWindowCond);
     return db.select({
       alert: complianceAlerts,
       supplier: suppliers,
@@ -788,10 +811,9 @@ export async function getActiveAlerts(companyId?: string, groupId?: number) {
       .where(whereCond)
       .orderBy(desc(complianceAlerts.severity), complianceAlerts.dueDate);
   }
-
   const resolvedCond = eq(complianceAlerts.isResolved, false);
-  let whereCond: any = resolvedCond;
-  if (groupId) whereCond = and(resolvedCond, eq(suppliers.groupId, groupId));
+  let whereCond: any = and(resolvedCond, expirationWindowCond);
+  if (groupId) whereCond = and(resolvedCond, eq(suppliers.groupId, groupId), expirationWindowCond);
   return db.select({
     alert: complianceAlerts,
     supplier: suppliers,
@@ -868,7 +890,7 @@ export async function getDashboardStats(companyId?: string, groupId?: number) {
       ? db.select({ count: sql<number>`count(*)` }).from(suppliers).where(and(scopeFilter, eq(suppliers.status, "approved")))
       : db.select({ count: sql<number>`count(*)` }).from(suppliers).where(eq(suppliers.status, "approved")),
     db.select({ count: sql<number>`count(*)` }).from(documents),
-    getExpiringDocuments(30),
+    getExpiringDocuments(15),
     db.select({ count: sql<number>`count(*)` }).from(complianceAlerts).where(eq(complianceAlerts.isResolved, false)),
   ]);
   return {

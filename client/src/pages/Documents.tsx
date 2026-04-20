@@ -61,12 +61,13 @@ export default function Documents() {
     expirationStatus: expirationFilter !== "all" ? expirationFilter : undefined,
   });
 
+  // Janela crítica: somente documentos com ≤15 dias para vencer
   const isExpiringSoon = (expiresAt: Date | null) => {
     if (!expiresAt) return false;
     const daysUntilExpiry = Math.ceil(
       (new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
     );
-    return daysUntilExpiry <= 30 && daysUntilExpiry > 0;
+    return daysUntilExpiry <= 15 && daysUntilExpiry > 0;
   };
 
   const isExpired = (expiresAt: Date | null) => {
@@ -129,7 +130,7 @@ export default function Documents() {
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="expired">Expirados</SelectItem>
-                <SelectItem value="expiring">Expirando em 30 dias</SelectItem>
+                <SelectItem value="expiring">Expirando em 15 dias</SelectItem>
                 <SelectItem value="valid">Válidos</SelectItem>
               </SelectContent>
             </Select>

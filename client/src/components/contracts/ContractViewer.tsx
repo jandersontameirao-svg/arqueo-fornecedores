@@ -186,6 +186,8 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
       toast.success("Enviado para assinatura", { description: result.message });
       utils.contracts.listClicksignEvents.invalidate({ contractId });
       utils.contracts.getById.invalidate({ id: contractId });
+      utils.contracts.listSigners.invalidate({ contractId });
+      utils.contracts.getSignatureStatus.invalidate({ contractId });
     },
     onError: (err) => toast.error("Erro ao enviar", { description: err.message }),
   });
@@ -213,6 +215,7 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
       utils.contracts.getById.invalidate({ id: contractId });
       utils.contracts.listClicksignEvents.invalidate({ contractId });
       utils.contracts.listSigners.invalidate({ contractId });
+      utils.contracts.getSignatureStatus.invalidate({ contractId });
     },
     onError: (err: any) => toast.error("Erro ao cancelar", { description: err.message }),
   });
@@ -782,7 +785,7 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
                         partially_signed: { label: "Parcialmente assinado", desc: "Alguns signatários já assinaram.", color: "bg-amber-50 border-amber-200 text-amber-700", icon: UserCheck },
                         signed: { label: "Assinado", desc: "Todos os signatários assinaram o contrato.", color: "bg-green-50 border-green-200 text-green-700", icon: CheckCircle2 },
                         refused: { label: "Recusado", desc: "Um ou mais signatários recusaram a assinatura.", color: "bg-red-50 border-red-200 text-red-700", icon: XCircle },
-                        cancelled: { label: "Cancelado", desc: "O envelope foi cancelado no Clicksign.", color: "bg-gray-50 border-gray-200 text-gray-500", icon: XCircle },
+                        cancelled: { label: "Cancelado", desc: "O envelope foi cancelado. Clique em 'Reenviar para Assinatura' para gerar um novo envelope.", color: "bg-amber-50 border-amber-200 text-amber-700", icon: XCircle },
                         expired: { label: "Expirado", desc: "O prazo de assinatura expirou.", color: "bg-orange-50 border-orange-200 text-orange-600", icon: AlertTriangle },
                         send_failed: { label: "Falha no envio", desc: contract?.lastSendError || "Ocorreu um erro ao enviar para o Clicksign.", color: "bg-red-50 border-red-200 text-red-700", icon: AlertTriangle },
                       };
@@ -809,8 +812,8 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
 
                     {/* Action Buttons */}
                     <div className="flex flex-wrap items-center gap-2">
-                      {/* Send Button - only when not_sent or send_failed */}
-                      {(contract?.signatureStatus === "not_sent" || contract?.signatureStatus === "send_failed" || !contract?.signatureStatus) && canManage && (
+                      {/* Send Button - when not_sent, send_failed, or cancelled */}
+                      {(contract?.signatureStatus === "not_sent" || contract?.signatureStatus === "send_failed" || contract?.signatureStatus === "cancelled" || !contract?.signatureStatus) && canManage && (
                         <Button
                           onClick={() => sendToClicksignMutation.mutate({ contractId })}
                           disabled={sendToClicksignMutation.isPending || !signers || signers.length === 0}
@@ -821,7 +824,7 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
                           ) : (
                             <Send className="h-4 w-4 mr-2" />
                           )}
-                          {contract?.signatureStatus === "send_failed" ? "Tentar Novamente" : "Enviar para Assinatura"}
+                          {contract?.signatureStatus === "send_failed" ? "Tentar Novamente" : contract?.signatureStatus === "cancelled" ? "Reenviar para Assinatura" : "Enviar para Assinatura"}
                         </Button>
                       )}
 
@@ -859,10 +862,10 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
                       )}
 
                       {/* Validation warnings */}
-                      {(!signers || signers.length === 0) && !contract?.signatureStatus && (
+                      {(!signers || signers.length === 0) && (contract?.signatureStatus === "cancelled" || !contract?.signatureStatus) && (
                         <p className="text-xs text-amber-600">
                           <AlertTriangle className="h-3 w-3 inline mr-1" />
-                          Adicione signatários na aba anterior
+                          Adicione signatários na aba anterior antes de enviar
                         </p>
                       )}
                     </div>

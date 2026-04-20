@@ -266,7 +266,8 @@ export async function checkAndNotifyExpiringDocuments(): Promise<{
   notified: number;
   supplierNotifications: number;
 }> {
-  const expiringDocs = await db.getExpiringDocuments(30); // Documents expiring in 30 days
+  // Janela crítica: somente documentos com ≤15 dias para vencer
+  const expiringDocs = await db.getExpiringDocuments(15);
   let notified = 0;
   let supplierNotifications = 0;
 
@@ -279,8 +280,8 @@ export async function checkAndNotifyExpiringDocuments(): Promise<{
 
     const supplierEmail = doc.supplier.email || undefined;
 
-    // Notify at 30, 15, 7, 3, and 1 day(s) before expiration
-    if ([30, 15, 7, 3, 1].includes(daysUntilExpiration)) {
+    // Notificar somente em 15, 7, 3 e 1 dia(s) antes da expiração (janela crítica)
+    if ([15, 7, 3, 1].includes(daysUntilExpiration)) {
       // Notify gestor
       const success = await notifyDocumentExpiring(
         doc.supplier.companyName,
@@ -327,7 +328,8 @@ export async function sendBatchExpirationNotifications(): Promise<{
   suppliersNotified: number;
   documentsIncluded: number;
 }> {
-  const expiringDocs = await db.getExpiringDocuments(30);
+  // Janela crítica: somente documentos com ≤15 dias para vencer
+  const expiringDocs = await db.getExpiringDocuments(15);
   
   // Group by supplier
   const supplierDocs = new Map<number, {
