@@ -134,7 +134,68 @@ export async function updateUserStatus(id: number, isActive: boolean) {
   await db.update(users).set({ isActive }).where(eq(users.id, id));
 }
 
-// ==================== SUPPLIER CATEGORY FUNCTIONS ====================
+// Gera um openId interno para usuários criados manualmente (sem OAuth)
+export function generateInternalOpenId(): string {
+  return `internal_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export async function createUser(data: {
+  name: string;
+  email: string;
+  role: "admin" | "manager" | "reader";
+  isActive?: boolean;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Verificar se e-mail já existe
+  const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, data.email)).limit(1);
+  if (existing.length > 0) throw new Error("Já existe um usuário com este e-mail");
+  const openId = generateInternalOpenId();
+  const result = await db.insert(users).values({
+    openId,
+    name: data.name,
+    email: data.email,
+    role: data.role,
+    isActive: data.isActive ?? true,
+    loginMethod: "manual",
+    lastSignedIn: new Date(),
+  });
+  return (result[0] as any).insertId as number;
+}
+
+export async function updateUser(id: number, data: {
+  name?: string;
+  email?: string;
+  role?: "admin" | "manager" | "reader";
+  isActive?: boolean;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Verificar duplicidade de e-mail (excluindo o próprio usuário)
+  if (data.email) {
+    const existing = await db.select({ id: users.id }).from(users)
+      .where(eq(users.email, data.email)).limit(1);
+    if (existing.length > 0 && existing[0].id !== id) {
+      throw new Error("Já existe outro usuário com este e-mail");
+    }
+  }
+  const updateSet: Record<string, unknown> = {};
+  if (data.name !== undefined) updateSet.name = data.name;
+  if (data.email !== undefined) updateSet.email = data.email;
+  if (data.role !== undefined) updateSet.role = data.role;
+  if (data.isActive !== undefined) updateSet.isActive = data.isActive;
+  if (Object.keys(updateSet).length === 0) return;
+  await db.update(users).set(updateSet).where(eq(users.id, id));
+}
+
+// Soft delete: desativa o usuário sem remover do banco
+export async function deleteUser(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({ isActive: false }).where(eq(users.id, id));
+}
+
+// ==================== SUPPLIER CATEGORY FUNCTIONS =====================
 export async function getAllCategories() {
   const db = await getDb();
   if (!db) return [];

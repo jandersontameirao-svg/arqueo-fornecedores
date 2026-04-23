@@ -175,6 +175,66 @@ export const appRouter = router({
         });
         return { success: true };
       }),
+
+    create: adminProcedure
+      .input(z.object({
+        name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+        email: z.string().email("E-mail inválido"),
+        role: z.enum(["admin", "manager", "reader"]),
+        isActive: z.boolean().optional().default(true),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const id = await db.createUser(input);
+        await db.createAuditLog({
+          entityType: "user",
+          entityId: id,
+          action: "create",
+          changes: { name: input.name, email: input.email, role: input.role, isActive: input.isActive },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { id };
+      }),
+
+    update: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres").optional(),
+        email: z.string().email("E-mail inválido").optional(),
+        role: z.enum(["admin", "manager", "reader"]).optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { id, ...data } = input;
+        await db.updateUser(id, data);
+        await db.createAuditLog({
+          entityType: "user",
+          entityId: id,
+          action: "update",
+          changes: data,
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { success: true };
+      }),
+
+    delete: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (input.id === ctx.user.id) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Você não pode excluir sua própria conta" });
+        }
+        await db.deleteUser(input.id);
+        await db.createAuditLog({
+          entityType: "user",
+          entityId: input.id,
+          action: "delete",
+          changes: { deleted: true, softDelete: true },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { success: true };
+      }),
   }),
 
   // ==================== CATEGORIES ====================

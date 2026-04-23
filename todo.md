@@ -595,3 +595,19 @@
 - [x] Documents.tsx: isExpiringSoon alterado de 30 para 15 dias; label filtro atualizado
 - [x] SupplierDetail.tsx: expiringDocs alterado de 30 para 15 dias
 - [x] Home.tsx: label "expirando em 30 dias" → "expirando em 15 dias"
+
+## CRUD Completo de Usuários (v5.28)
+
+- [x] db.ts: createUser (geração de openId interno, validação de e-mail único)
+- [x] db.ts: updateUser (nome, email, role, isActive)
+- [x] db.ts: deleteUser (soft delete — isActive = false)
+- [x] routers.ts: users.create (adminProcedure + auditoria)
+- [x] routers.ts: users.update (adminProcedure + auditoria)
+- [x] routers.ts: users.delete (adminProcedure + proteção contra auto-exclusão + auditoria)
+- [x] Users.tsx: botão "Novo Usuário" funcional
+- [x] Users.tsx: modal de criação com campos nome, email, perfil, status
+- [x] Users.tsx: modal de edição completo (todos os campos)
+- [x] Users.tsx: confirmação de exclusão (AlertDialog)
+- [x] Users.tsx: badge de status ativo/inativo na listagem
+- [x] Users.tsx: coluna de status na tabela
+- [x] Testes unitários para users.create, users.update, users.delete

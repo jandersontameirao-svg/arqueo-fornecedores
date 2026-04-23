@@ -4,6 +4,8 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -27,6 +29,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
@@ -38,6 +50,10 @@ import {
   Calendar,
   Mail,
   Edit,
+  Trash2,
+  UserPlus,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 
 const roleLabels: Record<string, string> = {
@@ -59,19 +75,68 @@ function getInitials(name: string | null | undefined): string {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
+
+type UserFormData = {
+  name: string;
+  email: string;
+  role: "admin" | "manager" | "reader";
+  isActive: boolean;
+};
+
+const emptyForm: UserFormData = {
+  name: "",
+  email: "",
+  role: "reader",
+  isActive: true,
+};
+
 export default function Users() {
   const { user: currentUser } = useAuth();
-  const [editingUser, setEditingUser] = useState<any>(null);
-  const [newRole, setNewRole] = useState<string>("");
-
   const utils = trpc.useUtils();
+
+  // Modal state
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [deletingUser, setDeletingUser] = useState<any>(null);
+  const [form, setForm] = useState<UserFormData>(emptyForm);
+  const [formErrors, setFormErrors] = useState<Partial<UserFormData & { general: string }>>({});
+
   const { data: users, isLoading } = trpc.users.list.useQuery();
 
-  const updateRoleMutation = trpc.users.updateRole.useMutation({
+  // ── Mutations ──────────────────────────────────────────────────────────────
+  const createMutation = trpc.users.create.useMutation({
     onSuccess: () => {
-      toast.success("Permissão atualizada!");
+      toast.success("Usuário criado com sucesso!");
+      utils.users.list.invalidate();
+      setCreateOpen(false);
+      setForm(emptyForm);
+      setFormErrors({});
+    },
+    onError: (error) => {
+      toast.error(error.message);
+      setFormErrors({ general: error.message });
+    },
+  });
+
+  const updateMutation = trpc.users.update.useMutation({
+    onSuccess: () => {
+      toast.success("Usuário atualizado com sucesso!");
       utils.users.list.invalidate();
       setEditingUser(null);
+      setForm(emptyForm);
+      setFormErrors({});
+    },
+    onError: (error) => {
+      toast.error(error.message);
+      setFormErrors({ general: error.message });
+    },
+  });
+
+  const deleteMutation = trpc.users.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Usuário desativado com sucesso!");
+      utils.users.list.invalidate();
+      setDeletingUser(null);
     },
     onError: (error) => {
       toast.error(error.message);
@@ -80,28 +145,69 @@ export default function Users() {
 
   const isAdmin = currentUser?.role === "admin";
 
-  const handleEditRole = (user: any) => {
+  // ── Form helpers ───────────────────────────────────────────────────────────
+  const validateForm = (): boolean => {
+    const errors: Partial<UserFormData & { general: string }> = {};
+    if (!form.name || form.name.trim().length < 2) errors.name = "Nome deve ter pelo menos 2 caracteres" as any;
+    if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = "E-mail inválido" as any;
+    if (!form.role) errors.role = "Perfil é obrigatório" as any;
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleOpenCreate = () => {
+    setForm(emptyForm);
+    setFormErrors({});
+    setCreateOpen(true);
+  };
+
+  const handleOpenEdit = (user: any) => {
+    setForm({
+      name: user.name || "",
+      email: user.email || "",
+      role: user.role,
+      isActive: user.isActive,
+    });
+    setFormErrors({});
     setEditingUser(user);
-    setNewRole(user.role);
   };
 
-  const handleSaveRole = () => {
-    if (!editingUser || !newRole) return;
-    updateRoleMutation.mutate({ id: editingUser.id, role: newRole as "admin" | "manager" | "reader" });
+  const handleCreate = () => {
+    if (!validateForm()) return;
+    createMutation.mutate(form);
   };
 
+  const handleUpdate = () => {
+    if (!editingUser) return;
+    if (!validateForm()) return;
+    updateMutation.mutate({ id: editingUser.id, ...form });
+  };
+
+  const handleDelete = () => {
+    if (!deletingUser) return;
+    deleteMutation.mutate({ id: deletingUser.id });
+  };
+
+  // ── Stats ──────────────────────────────────────────────────────────────────
   const totalCount = users?.length || 0;
   const adminCount = users?.filter((u) => u.role === "admin").length || 0;
   const managerCount = users?.filter((u) => u.role === "manager").length || 0;
   const readerCount = users?.filter((u) => u.role === "reader").length || 0;
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Usuários</h1>
-        <p className="text-muted-foreground">
-          Gerencie os usuários e suas permissões
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Usuários</h1>
+          <p className="text-muted-foreground">Gerencie os usuários e suas permissões</p>
+        </div>
+        {isAdmin && (
+          <Button onClick={handleOpenCreate} className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            Novo Usuário
+          </Button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -162,7 +268,8 @@ export default function Users() {
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
                   <TableHead className="font-medium">Usuário</TableHead>
                   <TableHead className="font-medium">Email</TableHead>
-                  <TableHead className="font-medium">Permissão</TableHead>
+                  <TableHead className="font-medium">Perfil</TableHead>
+                  <TableHead className="font-medium">Status</TableHead>
                   <TableHead className="font-medium">Último Acesso</TableHead>
                   <TableHead className="font-medium">Cadastro</TableHead>
                   {isAdmin && <TableHead className="font-medium text-right">Ações</TableHead>}
@@ -188,12 +295,25 @@ export default function Users() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className={`${roleColors[user.role]} font-medium px-3 py-1`}
                       >
                         {roleLabels[user.role]}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {user.isActive ? (
+                        <div className="flex items-center gap-1.5 text-sm text-emerald-600">
+                          <CheckCircle className="h-4 w-4" />
+                          Ativo
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <XCircle className="h-4 w-4" />
+                          Inativo
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -210,15 +330,27 @@ export default function Users() {
                     </TableCell>
                     {isAdmin && (
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditRole(user)}
-                          disabled={user.id === currentUser?.id}
-                          className="h-8 w-8 hover:bg-muted"
-                        >
-                          <Edit className="h-4 w-4 text-muted-foreground" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenEdit(user)}
+                            className="h-8 w-8 hover:bg-muted"
+                            title="Editar usuário"
+                          >
+                            <Edit className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeletingUser(user)}
+                            disabled={user.id === currentUser?.id}
+                            className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
+                            title={user.id === currentUser?.id ? "Não é possível desativar sua própria conta" : "Desativar usuário"}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>
@@ -237,42 +369,145 @@ export default function Users() {
         </CardContent>
       </Card>
 
-      {/* Edit Role Dialog */}
-      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
-        <DialogContent>
+      {/* ── Modal: Criar Usuário ─────────────────────────────────────────────── */}
+      <Dialog open={createOpen} onOpenChange={(open) => { if (!open) { setCreateOpen(false); setFormErrors({}); } }}>
+        <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle>Alterar Permissão</DialogTitle>
+            <DialogTitle>Novo Usuário</DialogTitle>
             <DialogDescription>
-              Altere a permissão do usuário {editingUser?.name || editingUser?.email}
+              Preencha os dados para criar um novo usuário no sistema.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Select value={newRole} onValueChange={setNewRole}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a permissão" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="admin">Administrador</SelectItem>
-                <SelectItem value="manager">Gestor</SelectItem>
-                <SelectItem value="reader">Leitura</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="mt-4 text-sm text-muted-foreground space-y-2">
-              <p><strong>Administrador:</strong> Acesso total ao sistema</p>
-              <p><strong>Gestor:</strong> Pode criar e editar fornecedores, documentos e aprovar workflows</p>
-              <p><strong>Leitura:</strong> Apenas visualização de dados</p>
-            </div>
-          </div>
+          <UserForm form={form} setForm={setForm} errors={formErrors} />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingUser(null)}>
+            <Button variant="outline" onClick={() => { setCreateOpen(false); setFormErrors({}); }}>
               Cancelar
             </Button>
-            <Button onClick={handleSaveRole} disabled={updateRoleMutation.isPending}>
-              Salvar
+            <Button onClick={handleCreate} disabled={createMutation.isPending}>
+              {createMutation.isPending ? "Criando..." : "Criar Usuário"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Modal: Editar Usuário ────────────────────────────────────────────── */}
+      <Dialog open={!!editingUser} onOpenChange={(open) => { if (!open) { setEditingUser(null); setFormErrors({}); } }}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Editar Usuário</DialogTitle>
+            <DialogDescription>
+              Edite os dados do usuário <strong>{editingUser?.name || editingUser?.email}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <UserForm form={form} setForm={setForm} errors={formErrors} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditingUser(null); setFormErrors({}); }}>
+              Cancelar
+            </Button>
+            <Button onClick={handleUpdate} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── AlertDialog: Confirmar Exclusão ─────────────────────────────────── */}
+      <AlertDialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desativar usuário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O usuário <strong>{deletingUser?.name || deletingUser?.email}</strong> será desativado e não poderá mais acessar o sistema. Esta ação pode ser revertida editando o usuário.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteMutation.isPending ? "Desativando..." : "Desativar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
+// ── Sub-componente: formulário reutilizável ──────────────────────────────────
+function UserForm({
+  form,
+  setForm,
+  errors,
+}: {
+  form: UserFormData;
+  setForm: (f: UserFormData) => void;
+  errors: Partial<{ name: string; email: string; role: string; isActive: boolean; general: string }>;
+}) {
+  return (
+    <div className="space-y-4 py-2">
+      {errors.general && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+          {errors.general}
+        </p>
+      )}
+      <div className="space-y-1.5">
+        <Label htmlFor="user-name">Nome completo *</Label>
+        <Input
+          id="user-name"
+          placeholder="Ex: João da Silva"
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          className={errors.name ? "border-red-400" : ""}
+        />
+        {errors.name && <p className="text-xs text-red-500">{String(errors.name)}</p>}
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="user-email">E-mail *</Label>
+        <Input
+          id="user-email"
+          type="email"
+          placeholder="usuario@empresa.com"
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+          className={errors.email ? "border-red-400" : ""}
+        />
+        {errors.email && <p className="text-xs text-red-500">{String(errors.email)}</p>}
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="user-role">Perfil de acesso *</Label>
+        <Select
+          value={form.role}
+          onValueChange={(v) => setForm({ ...form, role: v as "admin" | "manager" | "reader" })}
+        >
+          <SelectTrigger id="user-role" className={errors.role ? "border-red-400" : ""}>
+            <SelectValue placeholder="Selecione o perfil" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="admin">Administrador — Acesso total</SelectItem>
+            <SelectItem value="manager">Gestor — Criar e editar fornecedores</SelectItem>
+            <SelectItem value="reader">Leitura — Apenas visualização</SelectItem>
+          </SelectContent>
+        </Select>
+        {errors.role && <p className="text-xs text-red-500">{String(errors.role)}</p>}
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="user-status">Status</Label>
+        <Select
+          value={form.isActive ? "active" : "inactive"}
+          onValueChange={(v) => setForm({ ...form, isActive: v === "active" })}
+        >
+          <SelectTrigger id="user-status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Ativo</SelectItem>
+            <SelectItem value="inactive">Inativo</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
