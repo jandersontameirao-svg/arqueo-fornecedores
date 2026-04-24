@@ -952,7 +952,12 @@ export async function getDashboardStats(companyId?: string, groupId?: number) {
       : db.select({ count: sql<number>`count(*)` }).from(suppliers).where(eq(suppliers.status, "approved")),
     db.select({ count: sql<number>`count(*)` }).from(documents),
     getExpiringDocuments(15),
-    db.select({ count: sql<number>`count(*)` }).from(complianceAlerts).where(eq(complianceAlerts.isResolved, false)),
+    // Aplicar scopeFilter aos alertas: contar apenas alertas de fornecedores visiveis
+    scopeFilter
+      ? db.select({ count: sql<number>`count(*)` }).from(complianceAlerts)
+          .innerJoin(suppliers, eq(complianceAlerts.supplierId, suppliers.id))
+          .where(and(scopeFilter, eq(complianceAlerts.isResolved, false)))
+      : db.select({ count: sql<number>`count(*)` }).from(complianceAlerts).where(eq(complianceAlerts.isResolved, false)),
   ]);
   return {
     totalSuppliers: totalSuppliers[0]?.count || 0,

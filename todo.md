@@ -616,3 +616,8 @@
 
 - [x] routers.ts suppliers.create: sanitizar CNPJ (remover pontos, barra, hífen)
 - [x] routers.ts suppliers.update: sanitizar CNPJ se fornecido
+
+## Correção: Card de Alertas Ativos no Dashboard (v5.30)
+
+- [x] db.ts getDashboardStats: aplicar scopeFilter aos alertas ativos (innerJoin com suppliers)
+- [x] Alertas agora são contados apenas para fornecedores visiveis (companyId ou groupId)
