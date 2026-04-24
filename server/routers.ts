@@ -322,8 +322,11 @@ export const appRouter = router({
     create: managerProcedure
       .input(supplierSchema)
       .mutation(async ({ input, ctx }) => {
+        // Sanitizar CNPJ: remover pontos, barra e hífen
+        const sanitizedCnpj = input.cnpj.replace(/[.\/-]/g, "");
         const id = await db.createSupplier({
           ...input,
+          cnpj: sanitizedCnpj,
           createdById: ctx.user.id,
         });
         await db.createAuditLog({
@@ -357,6 +360,10 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }).merge(supplierSchema.partial()))
       .mutation(async ({ input, ctx }) => {
         const { id, ...data } = input;
+        // Sanitizar CNPJ se fornecido: remover pontos, barra e hífen
+        if (data.cnpj) {
+          data.cnpj = data.cnpj.replace(/[.\/-]/g, "");
+        }
         await db.updateSupplier(id, data);
         await db.createAuditLog({
           entityType: "supplier",

@@ -611,3 +611,8 @@
 - [x] Users.tsx: badge de status ativo/inativo na listagem
 - [x] Users.tsx: coluna de status na tabela
 - [x] Testes unitários para users.create, users.update, users.delete
+
+## Correção: Sanitização de CNPJ (v5.29)
+
+- [x] routers.ts suppliers.create: sanitizar CNPJ (remover pontos, barra, hífen)
+- [x] routers.ts suppliers.update: sanitizar CNPJ se fornecido
