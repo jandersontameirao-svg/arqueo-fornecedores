@@ -933,6 +933,15 @@ export async function getDashboardStats(companyId?: string, groupId?: number) {
     ? eq(suppliers.groupId, groupId)
     : undefined;
 
+  // Janela crítica: alertas de expiração só aparecem se dueDate é nulo, já vencido ou ≤15 dias
+  const fifteenDaysFromNow = new Date();
+  fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
+  const expirationWindowCond = sql`(
+    ${complianceAlerts.alertType} != 'expiration'
+    OR ${complianceAlerts.dueDate} IS NULL
+    OR ${complianceAlerts.dueDate} <= ${fifteenDaysFromNow}
+  )`;
+
   const [
     totalSuppliers,
     pendingSuppliers,
@@ -956,8 +965,8 @@ export async function getDashboardStats(companyId?: string, groupId?: number) {
     scopeFilter
       ? db.select({ count: sql<number>`count(*)` }).from(complianceAlerts)
           .innerJoin(suppliers, eq(complianceAlerts.supplierId, suppliers.id))
-          .where(and(scopeFilter, eq(complianceAlerts.isResolved, false)))
-      : db.select({ count: sql<number>`count(*)` }).from(complianceAlerts).where(eq(complianceAlerts.isResolved, false)),
+          .where(and(scopeFilter, eq(complianceAlerts.isResolved, false), expirationWindowCond))
+      : db.select({ count: sql<number>`count(*)` }).from(complianceAlerts).where(and(eq(complianceAlerts.isResolved, false), expirationWindowCond)),
   ]);
   return {
     totalSuppliers: totalSuppliers[0]?.count || 0,

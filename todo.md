@@ -621,3 +621,8 @@
 
 - [x] db.ts getDashboardStats: aplicar scopeFilter aos alertas ativos (innerJoin com suppliers)
 - [x] Alertas agora são contados apenas para fornecedores visiveis (companyId ou groupId)
+
+## Correcao Final: Card de Alertas Ativos - Janela de 15 dias (v5.31)
+
+- [x] db.ts getDashboardStats: aplicar expirationWindowCond (janela de 15 dias) aos alertas
+- [x] Alertas agora sao contados apenas se dentro da janela critica (15 dias para expiracao)
