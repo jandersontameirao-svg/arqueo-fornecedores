@@ -46,6 +46,8 @@ import {
   Star,
   FilePlus,
   ScrollText,
+  Link2,
+  History,
 } from "lucide-react";
 
 // Sub-components
@@ -55,6 +57,8 @@ import SupplierInteractions from "@/components/supplier/SupplierInteractions";
 import SupplierEvaluations from "@/components/supplier/SupplierEvaluations";
 import SupplierWorkflow from "@/components/supplier/SupplierWorkflow";
 import SupplierContracts from "@/components/contracts/SupplierContracts";
+import SupplierLinks from "@/components/supplier/SupplierLinks";
+import SupplierHistory from "@/components/supplier/SupplierHistory";
 
 interface SupplierDetailProps {
   id: number;
@@ -191,14 +195,6 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
       <div className="bg-gradient-to-r from-[oklch(0.35_0.15_350)] to-[oklch(0.45_0.12_350)] rounded-xl p-6 text-white">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setLocation("/suppliers")}
-              className="text-white hover:bg-white/20"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
             <div className="flex items-center gap-4">
               <div className="h-16 w-16 rounded-xl bg-white/20 flex items-center justify-center">
                 <Building2 className="h-8 w-8 text-white" />
@@ -378,7 +374,7 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
 
       {/* Main Content with Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-8 w-full h-auto p-1 bg-muted/50">
+        <TabsList className="flex flex-wrap w-full h-auto p-1 bg-muted/50 gap-1">
           <TabsTrigger value="overview" className="flex items-center gap-2 py-2.5">
             <Building2 className="h-4 w-4" />
             <span className="hidden lg:inline">Visão Geral</span>
@@ -419,6 +415,14 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
           <TabsTrigger value="workflow" className="flex items-center gap-2 py-2.5">
             <Shield className="h-4 w-4" />
             <span className="hidden lg:inline">Aprovação</span>
+          </TabsTrigger>
+          <TabsTrigger value="vinculos" className="flex items-center gap-2 py-2.5">
+            <Link2 className="h-4 w-4" />
+            <span className="hidden lg:inline">Vínculos</span>
+          </TabsTrigger>
+          <TabsTrigger value="historico" className="flex items-center gap-2 py-2.5">
+            <History className="h-4 w-4" />
+            <span className="hidden lg:inline">Histórico</span>
           </TabsTrigger>
         </TabsList>
 
@@ -942,6 +946,16 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
         {/* Workflow Tab */}
         <TabsContent value="workflow">
           <SupplierWorkflow supplierId={id} />
+        </TabsContent>
+
+        {/* Vínculos Tab */}
+        <TabsContent value="vinculos">
+          <SupplierLinks supplierId={id} />
+        </TabsContent>
+
+        {/* Histórico Tab */}
+        <TabsContent value="historico">
+          <SupplierHistory supplierId={id} />
         </TabsContent>
       </Tabs>
     </div>

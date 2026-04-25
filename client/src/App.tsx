@@ -7,7 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { BusinessUnitProvider } from "./contexts/BusinessUnitContext";
 import { CompanyProvider } from "./contexts/CompanyContext";
 import { SelectedCompanyProvider } from "./contexts/SelectedCompanyContext";
-import DashboardLayout from "./components/DashboardLayout";
+import TopbarLayout from "./components/TopbarLayout";
 
 // Pages
 import SelectBusinessUnit from "./pages/SelectBusinessUnit";
@@ -28,6 +28,7 @@ import Onboarding from "./pages/Onboarding";
 import Reports from "./pages/Reports";
 import ContractTemplates from "./pages/ContractTemplates";
 import SupplierLink from "./pages/SupplierLink";
+import AddSupplierAI from "./pages/AddSupplierAI";
 
 function Router() {
   return (
@@ -37,104 +38,109 @@ function Router() {
       
       {/* SelectBusinessUnit as landing page */}
       <Route path="/">
-        <DashboardLayout>
+        <TopbarLayout>
           <SelectBusinessUnit />
-        </DashboardLayout>
+        </TopbarLayout>
       </Route>
 
       {/* Intermediate company selection screen */}
       <Route path="/select-company">
-        <DashboardLayout>
+        <TopbarLayout>
           <SelectCompany />
-        </DashboardLayout>
+        </TopbarLayout>
       </Route>
 
       {/* Dashboard (former Home) */}
       <Route path="/dashboard">
-        <DashboardLayout>
+        <TopbarLayout>
           <Home />
-        </DashboardLayout>
+        </TopbarLayout>
       </Route>
 
-      {/* Protected routes with DashboardLayout */}
+      {/* Protected routes with TopbarLayout */}
       <Route path="/suppliers">
-        <DashboardLayout>
+        <TopbarLayout>
           <Suppliers />
-        </DashboardLayout>
+        </TopbarLayout>
+      </Route>
+      <Route path="/suppliers/add-ai">
+        <TopbarLayout>
+          <AddSupplierAI />
+        </TopbarLayout>
       </Route>
       <Route path="/suppliers/link">
-        <DashboardLayout>
+        <TopbarLayout>
           <SupplierLink />
-        </DashboardLayout>
+        </TopbarLayout>
       </Route>
       <Route path="/suppliers/new">
-        <DashboardLayout>
+        <TopbarLayout>
           <SupplierForm />
-        </DashboardLayout>
+        </TopbarLayout>
       </Route>
       <Route path="/suppliers/:id">
         {(params) => (
-          <DashboardLayout>
+          <TopbarLayout>
             <SupplierDetail id={parseInt(params.id)} />
-          </DashboardLayout>
+          </TopbarLayout>
         )}
       </Route>
       <Route path="/suppliers/:id/edit">
         {(params) => (
-          <DashboardLayout>
+          <TopbarLayout>
             <SupplierForm id={parseInt(params.id)} />
-          </DashboardLayout>
+          </TopbarLayout>
         )}
       </Route>
       <Route path="/categories">
-        <DashboardLayout>
+        <TopbarLayout>
           <Categories />
-        </DashboardLayout>
+        </TopbarLayout>
       </Route>
       <Route path="/documents">
-        <DashboardLayout>
+        <TopbarLayout>
           <Documents />
-        </DashboardLayout>
+        </TopbarLayout>
       </Route>
       <Route path="/approvals">
-        <DashboardLayout>
+        <TopbarLayout>
           <Approvals />
-        </DashboardLayout>
+        </TopbarLayout>
       </Route>
       <Route path="/compliance">
-        <DashboardLayout>
+        <TopbarLayout>
           <Compliance />
-        </DashboardLayout>
+        </TopbarLayout>
       </Route>
       <Route path="/interactions">
-        <DashboardLayout>
+        <TopbarLayout>
           <Interactions />
-        </DashboardLayout>
+        </TopbarLayout>
       </Route>
       <Route path="/evaluations">
-        <DashboardLayout>
+        <TopbarLayout>
           <Evaluations />
-        </DashboardLayout>
+        </TopbarLayout>
       </Route>
       <Route path="/audit">
-        <DashboardLayout>
+        <TopbarLayout>
           <Audit />
-        </DashboardLayout>
+        </TopbarLayout>
       </Route>
       <Route path="/users">
-        <DashboardLayout>
+        <TopbarLayout>
           <Users />
-        </DashboardLayout>
+        </TopbarLayout>
       </Route>
       <Route path="/reports">
-        <DashboardLayout>
+        <TopbarLayout>
           <Reports />
-        </DashboardLayout>
+        </TopbarLayout>
       </Route>
       <Route path="/contract-templates">
-        <DashboardLayout>
+        <TopbarLayout>
           <ContractTemplates />
-        </DashboardLayout>
+        </TopbarLayout>
       </Route>
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />

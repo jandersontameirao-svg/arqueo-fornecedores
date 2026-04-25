@@ -134,6 +134,13 @@
       "when": 1776435051303,
       "tag": "0018_living_lyja",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1777145645884,
+      "tag": "0019_public_crystal",
+      "breakpoints": true
     }
   ]
 }

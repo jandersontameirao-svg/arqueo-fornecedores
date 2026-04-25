@@ -626,3 +626,53 @@
 
 - [x] db.ts getDashboardStats: aplicar expirationWindowCond (janela de 15 dias) aos alertas
 - [x] Alertas agora sao contados apenas se dentro da janela critica (15 dias para expiracao)
+
+## Reestruturação v6.0 — Base Geral de Fornecedores
+
+### Schema e Migração
+- [x] Reestruturar suppliers como base geral (CNPJ único, dados gerais)
+- [x] Criar tabela supplier_company_links (vínculo por empresa/unidade com dados específicos)
+- [x] Migração segura: consolidar duplicados por CNPJ, preservar documentos/contratos/vínculos
+- [x] pnpm db:push
+
+### Backend (tRPC)
+- [x] Procedures para base geral de fornecedores (CRUD sem empresa)
+- [x] Procedures para vínculos por empresa/unidade (criar, editar, remover)
+- [x] Procedure "Adicionar fornecedor com IA" (upload doc → extração → busca CNPJ → revisão → vinculação)
+- [x] Busca global (fornecedores, CNPJ, documentos, contratos, empresas)
+- [x] Permissões por empresa/unidade (visualizar apenas fornecedores vinculados)
+- [x] Auditoria expandida (fornecedor criado, vinculado, dados alterados, extração IA)
+
+### Layout e Navegação
+- [x] Substituir sidebar por topbar fixa + navegação horizontal + breadcrumbs
+- [x] Topbar: Grupo Arqueo Brasil | Unidade atual | Busca global | Notificações | Usuário
+- [x] Nav horizontal: Home | Fornecedores | Contratos | Documentos | Avaliações | Relatórios | Configurações
+
+### Home Operacional
+- [x] Painel com indicadores (fornecedores homologados, pendentes, docs vencidos, contratos vencendo)
+- [x] Ações rápidas: Adicionar com IA, Buscar na base, Vincular existente, Upload documento
+- [x] Atividade recente
+
+### Página Completa do Fornecedor
+- [x] Abas: Resumo, Dados cadastrais, Documentos, Homologação, Contratos, Vínculos, Avaliações, Histórico
+- [x] Documentos gerais vs documentos por vínculo
+- [x] Status geral e status por vínculo
+
+### Fluxo "Adicionar Fornecedor com IA"
+- [x] Upload de documento (cartão CNPJ, contrato social, NF, proposta, etc.)
+- [x] Extração de dados por LLM
+- [x] Busca na base geral por CNPJ/CPF
+- [x] Se existe: exibir e permitir vincular
+- [x] Se não existe: criar pré-preenchido com revisão manual
+- [x] Tela de revisão antes de confirmar
+- [x] Indicação de campos extraídos vs não identificados
+
+### Experiência Visual
+- [x] Aparência moderna sem visual de ERP antigo
+- [x] Cards de resumo, badges de status, alertas visuais
+- [x] Botão "Adicionar fornecedor com IA" destacado
+
+### Testes e Validação
+- [x] Testes unitários atualizados
+- [x] TypeScript 0 erros
+- [x] Migração segura validada

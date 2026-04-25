@@ -2783,6 +2783,256 @@ REGRAS CRÍTICAS:
   }),
 
   // ==================== SUPPLIER LINKS (VÍNCULOS) ====================
+  // ==================== SUPPLIER COMPANY LINKS (VÍNCULOS v6.0) ====================
+  supplierCompanyLinks: router({
+    // Lista vínculos de um fornecedor
+    getBySupplier: protectedProcedure
+      .input(z.object({ supplierId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getSupplierCompanyLinks(input.supplierId);
+      }),
+
+    // Lista fornecedores vinculados a uma empresa
+    getByCompany: protectedProcedure
+      .input(z.object({ companyId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getSuppliersByCompanyLink(input.companyId);
+      }),
+
+    // Lista fornecedores por área de negócio
+    getByBusinessUnit: protectedProcedure
+      .input(z.object({ businessUnitId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getSuppliersByBusinessUnit(input.businessUnitId);
+      }),
+
+    // Criar vínculo
+    create: managerProcedure
+      .input(z.object({
+        supplierId: z.number(),
+        companyId: z.number(),
+        businessUnitId: z.number().optional(),
+        categoryId: z.number().optional(),
+        criticality: z.enum(["low", "medium", "high", "critical"]).optional(),
+        serviceScope: z.string().optional(),
+        internalResponsibleId: z.number().optional(),
+        internalNotes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Verificar duplicata
+        const exists = await db.checkSupplierCompanyLinkExists(input.supplierId, input.companyId);
+        if (exists) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Este fornecedor já está vinculado a esta empresa.",
+          });
+        }
+
+        const id = await db.createSupplierCompanyLink({
+          supplierId: input.supplierId,
+          companyId: input.companyId,
+          businessUnitId: input.businessUnitId,
+          categoryId: input.categoryId,
+          criticality: input.criticality || "medium",
+          serviceScope: input.serviceScope,
+          internalResponsibleId: input.internalResponsibleId,
+          homologationStatus: "pending",
+          status: "active",
+          internalNotes: input.internalNotes,
+          linkedById: ctx.user.id,
+        });
+
+        await db.createAuditLog({
+          entityType: "supplier_company_link",
+          entityId: id,
+          action: "create",
+          changes: { supplierId: input.supplierId, companyId: input.companyId },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+
+        return { id, success: true };
+      }),
+
+    // Atualizar vínculo
+    update: managerProcedure
+      .input(z.object({
+        id: z.number(),
+        categoryId: z.number().optional(),
+        criticality: z.enum(["low", "medium", "high", "critical"]).optional(),
+        serviceScope: z.string().optional(),
+        internalResponsibleId: z.number().optional(),
+        homologationStatus: z.enum(["pending", "in_progress", "approved", "rejected", "suspended"]).optional(),
+        status: z.enum(["active", "inactive", "suspended"]).optional(),
+        internalNotes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { id, ...data } = input;
+        const updateData: any = { ...data };
+        if (data.homologationStatus === "approved") {
+          updateData.homologatedAt = new Date();
+          updateData.homologatedById = ctx.user.id;
+        }
+        await db.updateSupplierCompanyLink(id, updateData);
+        await db.createAuditLog({
+          entityType: "supplier_company_link",
+          entityId: id,
+          action: "update",
+          changes: data,
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { success: true };
+      }),
+
+    // Desativar vínculo (soft delete)
+    deactivate: managerProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await db.deleteSupplierCompanyLink(input.id);
+        await db.createAuditLog({
+          entityType: "supplier_company_link",
+          entityId: input.id,
+          action: "delete",
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { success: true };
+      }),
+  }),
+
+  // ==================== BASE GERAL ====================
+  baseGeral: router({
+    // Buscar fornecedor por CNPJ na base geral
+    findByCnpj: protectedProcedure
+      .input(z.object({ cnpj: z.string() }))
+      .query(async ({ input }) => {
+        return db.findSupplierByCnpj(input.cnpj);
+      }),
+
+    // Listar todos os fornecedores da base geral
+    list: protectedProcedure
+      .query(async () => {
+        return db.getAllSuppliersBaseGeral();
+      }),
+  }),
+
+  // ==================== BUSCA GLOBAL ====================
+  globalSearch: router({
+    search: protectedProcedure
+      .input(z.object({ query: z.string().min(2), limit: z.number().optional() }))
+      .query(async ({ input }) => {
+        return db.globalSearch(input.query, input.limit);
+      }),
+  }),
+
+  // ==================== EXTRAÇÃO IA ====================
+  aiExtraction: router({
+    // Extrair dados de fornecedor a partir de documento
+    extractSupplierData: protectedProcedure
+      .input(z.object({
+        fileBase64: z.string(),
+        fileName: z.string(),
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        // Extrair texto do documento
+        const buffer = Buffer.from(input.fileBase64, "base64");
+        const ext = input.fileName.split(".").pop()?.toLowerCase() || "";
+        const text = await extractTextFromBuffer(buffer, ext);
+
+        if (!text || text.trim().length < 10) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Não foi possível extrair texto do documento. Tente um arquivo PDF ou TXT.",
+          });
+        }
+
+        // Usar LLM para extrair dados estruturados
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: `Você é um assistente especializado em extrair dados cadastrais de fornecedores a partir de documentos.
+Extraia os seguintes campos quando disponíveis. Retorne APENAS JSON válido, sem markdown.
+Campos: companyName, tradeName, cnpj, stateRegistration, municipalRegistration, email, phone, website, street, number, complement, neighborhood, city, state, zipCode, country, bankName, bankAgency, bankAccount, bankAccountType (checking ou savings), pixKey, legalRepresentatives (array de {name, cpf, role}).
+Se um campo não for encontrado, omita-o do JSON. Sanitize o CNPJ para apenas números.`,
+            },
+            {
+              role: "user",
+              content: `Extraia os dados do fornecedor a partir do seguinte documento:\n\n${text.substring(0, 8000)}`,
+            },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "supplier_extraction",
+              strict: false,
+              schema: {
+                type: "object",
+                properties: {
+                  companyName: { type: "string" },
+                  tradeName: { type: "string" },
+                  cnpj: { type: "string" },
+                  stateRegistration: { type: "string" },
+                  municipalRegistration: { type: "string" },
+                  email: { type: "string" },
+                  phone: { type: "string" },
+                  website: { type: "string" },
+                  street: { type: "string" },
+                  number: { type: "string" },
+                  complement: { type: "string" },
+                  neighborhood: { type: "string" },
+                  city: { type: "string" },
+                  state: { type: "string" },
+                  zipCode: { type: "string" },
+                  country: { type: "string" },
+                  bankName: { type: "string" },
+                  bankAgency: { type: "string" },
+                  bankAccount: { type: "string" },
+                  bankAccountType: { type: "string" },
+                  pixKey: { type: "string" },
+                  legalRepresentatives: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string" },
+                        cpf: { type: "string" },
+                        role: { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        const rawContent = response.choices?.[0]?.message?.content;
+        const content = typeof rawContent === "string" ? rawContent : "{}";
+        let extracted;
+        try {
+          extracted = JSON.parse(content);
+        } catch {
+          extracted = {};
+        }
+
+        // Verificar se já existe na base geral
+        let existingSupplier = null;
+        if (extracted.cnpj) {
+          existingSupplier = await db.findSupplierByCnpj(extracted.cnpj);
+        }
+
+        return {
+          extracted,
+          existingSupplier,
+          fieldsFound: Object.keys(extracted).filter(k => extracted[k] !== null && extracted[k] !== undefined && extracted[k] !== ""),
+        };
+      }),
+  }),
+
+  // ==================== SUPPLIER LINKS (LEGADO) ====================
   supplierLinks: router({
     // Lista vínculos de um fornecedor específico
     getBySupplier: protectedProcedure

@@ -1,7 +1,7 @@
 import { trpc } from "@/lib/trpc";
-import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Building2,
@@ -10,13 +10,17 @@ import {
   CheckCircle,
   Clock,
   TrendingUp,
-  Users,
   FolderOpen,
+  Plus,
+  Link2,
+  BarChart3,
+  ArrowRight,
+  Globe,
+  Activity,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useBusinessUnitContext } from "@/contexts/BusinessUnitContext";
 import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
-import { ArrowLeft, Globe } from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -83,7 +87,7 @@ const CustomBarTooltip = ({ active, payload, label }: any) => {
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const { activeUnit, setActiveUnitId } = useBusinessUnitContext();
+  const { activeUnit } = useBusinessUnitContext();
   const { selectedCompany } = useSelectedCompany();
   const companyId = selectedCompany?.id || undefined;
   const groupId = !selectedCompany?.id && selectedCompany?.groupId ? selectedCompany.groupId : undefined;
@@ -109,15 +113,9 @@ export default function Home() {
   })) || [];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => { setActiveUnitId(null); setLocation("/"); }}
-          className="w-9 h-9 rounded-xl bg-muted/50 hover:bg-muted flex items-center justify-center transition-colors shrink-0"
-          title="Voltar para Áreas de Negócio"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
@@ -128,20 +126,32 @@ export default function Home() {
               </Badge>
             )}
           </div>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mt-1">
             {selectedCompany
               ? `Gestão de fornecedores — ${selectedCompany.name}`
               : "Visão geral da gestão de fornecedores do Grupo Arqueo"}
           </p>
         </div>
+
+        {/* Quick Actions */}
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setLocation("/suppliers/new")} size="sm" className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            Novo Fornecedor
+          </Button>
+          <Button onClick={() => setLocation("/suppliers/link")} variant="outline" size="sm" className="gap-1.5">
+            <Link2 className="h-4 w-4" />
+            Vincular
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/suppliers")}>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow group" onClick={() => setLocation("/suppliers")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Fornecedores</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <Building2 className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
           </CardHeader>
           <CardContent>
             {statsLoading ? (
@@ -155,10 +165,10 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/approvals")}>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow group" onClick={() => setLocation("/approvals")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pendentes de Aprovação</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
+            <Clock className="h-4 w-4 text-yellow-500 group-hover:text-yellow-600 transition-colors" />
           </CardHeader>
           <CardContent>
             {statsLoading ? (
@@ -172,10 +182,10 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/suppliers")}>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow group" onClick={() => setLocation("/suppliers")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Documentos</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <FileText className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
           </CardHeader>
           <CardContent>
             {statsLoading ? (
@@ -189,10 +199,10 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/compliance")}>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow group" onClick={() => setLocation("/compliance")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Alertas Ativos</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-500" />
+            <AlertTriangle className="h-4 w-4 text-red-500 group-hover:text-red-600 transition-colors" />
           </CardHeader>
           <CardContent>
             {statsLoading ? (
@@ -319,15 +329,23 @@ export default function Home() {
         </Card>
       </div>
 
+      {/* Activity Row */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Recent Alerts */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              Alertas Recentes
-            </CardTitle>
-            <CardDescription>Últimos alertas de conformidade</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                Alertas Recentes
+              </CardTitle>
+              <CardDescription>Últimos alertas de conformidade</CardDescription>
+            </div>
+            {alerts && alerts.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setLocation("/compliance")} className="gap-1 text-xs">
+                Ver todos <ArrowRight className="h-3 w-3" />
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {alerts && alerts.length > 0 ? (
@@ -335,10 +353,10 @@ export default function Home() {
                 {alerts.slice(0, 5).map((item) => (
                   <div
                     key={item.alert.id}
-                    className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
+                    className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                   >
                     <AlertTriangle
-                      className={`h-4 w-4 mt-0.5 ${
+                      className={`h-4 w-4 mt-0.5 shrink-0 ${
                         item.alert.severity === "critical"
                           ? "text-red-500"
                           : item.alert.severity === "high"
@@ -366,12 +384,19 @@ export default function Home() {
 
         {/* Pending Approvals */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-blue-500" />
-              Aprovações Pendentes
-            </CardTitle>
-            <CardDescription>Workflows aguardando ação</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-blue-500" />
+                Aprovações Pendentes
+              </CardTitle>
+              <CardDescription>Workflows aguardando ação</CardDescription>
+            </div>
+            {pendingWorkflows && pendingWorkflows.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setLocation("/approvals")} className="gap-1 text-xs">
+                Ver todos <ArrowRight className="h-3 w-3" />
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {pendingWorkflows && pendingWorkflows.length > 0 ? (

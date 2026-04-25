@@ -30,7 +30,9 @@ export const supplierCategories = mysqlTable("supplier_categories", {
 export type SupplierCategory = typeof supplierCategories.$inferSelect;
 export type InsertSupplierCategory = typeof supplierCategories.$inferInsert;
 
-// ==================== SUPPLIERS ====================
+// ==================== SUPPLIERS (BASE GERAL) ====================
+// Cada fornecedor existe UMA ÚNICA VEZ na base geral, identificado por CNPJ/CPF.
+// Dados gerais do fornecedor ficam aqui. Dados de vínculo ficam em supplier_company_links.
 export const suppliers = mysqlTable("suppliers", {
   id: int("id").autoincrement().primaryKey(),
   // Basic Info
@@ -59,14 +61,16 @@ export const suppliers = mysqlTable("suppliers", {
   bankAccount: varchar("bankAccount", { length: 30 }),
   bankAccountType: mysqlEnum("bankAccountType", ["checking", "savings"]),
   pixKey: varchar("pixKey", { length: 255 }),
-  // Classification
+  // Representantes legais
+  legalRepresentatives: json("legalRepresentatives"),
+  // Classification (mantidos para compatibilidade — dados de vínculo ficam em supplier_company_links)
   categoryId: int("categoryId").references(() => supplierCategories.id),
   criticality: mysqlEnum("criticality", ["low", "medium", "high", "critical"]).default("medium"),
-  // Company Association
+  // Company Association (legado — mantido para compatibilidade com dados existentes)
   companyId: varchar("companyId", { length: 100 }),
   // Group Association (FK para business_units — segregação obrigatória por grupo)
   groupId: int("groupId").references(() => businessUnits.id),
-  // Status
+  // Status geral na base
   status: mysqlEnum("status", ["pending", "approved", "rejected", "suspended", "inactive"]).default("pending").notNull(),
   approvedAt: timestamp("approvedAt"),
   approvedById: int("approvedById").references(() => users.id),
@@ -79,6 +83,39 @@ export const suppliers = mysqlTable("suppliers", {
 
 export type Supplier = typeof suppliers.$inferSelect;
 export type InsertSupplier = typeof suppliers.$inferInsert;
+
+// ==================== SUPPLIER COMPANY LINKS (VÍNCULOS POR EMPRESA/UNIDADE) ====================
+// Cada empresa/unidade vincula fornecedores da base geral à sua operação.
+// Contém dados específicos da relação: categoria, escopo, responsável, status de homologação.
+export const supplierCompanyLinks = mysqlTable("supplier_company_links", {
+  id: int("id").autoincrement().primaryKey(),
+  // Fornecedor da base geral
+  supplierId: int("supplierId").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
+  // Empresa/unidade vinculada (FK para companies)
+  companyId: int("companyId").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  // Área de negócio (para facilitar consultas)
+  businessUnitId: int("businessUnitId").references(() => businessUnits.id),
+  // Dados específicos do vínculo
+  categoryId: int("categoryId").references(() => supplierCategories.id),
+  criticality: mysqlEnum("criticality", ["low", "medium", "high", "critical"]).default("medium"),
+  serviceScope: text("serviceScope"),
+  internalResponsibleId: int("internalResponsibleId").references(() => users.id),
+  // Status de homologação nesta unidade
+  homologationStatus: mysqlEnum("homologationStatus", ["pending", "in_progress", "approved", "rejected", "suspended"]).default("pending").notNull(),
+  homologatedAt: timestamp("homologatedAt"),
+  homologatedById: int("homologatedById").references(() => users.id),
+  // Status do vínculo
+  status: mysqlEnum("status", ["active", "inactive", "suspended"]).default("active").notNull(),
+  // Observações internas da unidade
+  internalNotes: text("internalNotes"),
+  // Auditoria
+  linkedById: int("linkedById").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SupplierCompanyLink = typeof supplierCompanyLinks.$inferSelect;
+export type InsertSupplierCompanyLink = typeof supplierCompanyLinks.$inferInsert;
 
 // ==================== SUPPLIER CONTACTS ====================
 export const supplierContacts = mysqlTable("supplier_contacts", {

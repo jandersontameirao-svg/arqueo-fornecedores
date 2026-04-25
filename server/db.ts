@@ -20,6 +20,7 @@ import {
   businessUnits, InsertBusinessUnit,
   companies, InsertCompany,
   supplierLinks, InsertSupplierLink,
+  supplierCompanyLinks, InsertSupplierCompanyLink,
   documentExpirationNotifications, InsertDocumentExpirationNotification,
   contractExpirationNotifications,
   contractVersions, InsertContractVersion,
@@ -1774,4 +1775,204 @@ export async function getContractByClicksignEnvelopeId(envelopeId: string) {
   if (!db) return null;
   const rows = await db.select().from(contracts).where(eq(contracts.clicksignEnvelopeId, envelopeId)).limit(1);
   return rows[0] || null;
+}
+
+
+// ==================== SUPPLIER COMPANY LINKS (VÍNCULOS) ====================
+
+export async function getSupplierCompanyLinks(supplierId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    link: supplierCompanyLinks,
+    company: companies,
+    businessUnit: businessUnits,
+    category: supplierCategories,
+    responsible: {
+      id: users.id,
+      name: users.name,
+      email: users.email,
+    },
+  })
+    .from(supplierCompanyLinks)
+    .leftJoin(companies, eq(supplierCompanyLinks.companyId, companies.id))
+    .leftJoin(businessUnits, eq(supplierCompanyLinks.businessUnitId, businessUnits.id))
+    .leftJoin(supplierCategories, eq(supplierCompanyLinks.categoryId, supplierCategories.id))
+    .leftJoin(users, eq(supplierCompanyLinks.internalResponsibleId, users.id))
+    .where(eq(supplierCompanyLinks.supplierId, supplierId))
+    .orderBy(desc(supplierCompanyLinks.createdAt));
+}
+
+export async function getSuppliersByCompanyLink(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    link: supplierCompanyLinks,
+    supplier: suppliers,
+    category: supplierCategories,
+  })
+    .from(supplierCompanyLinks)
+    .innerJoin(suppliers, eq(supplierCompanyLinks.supplierId, suppliers.id))
+    .leftJoin(supplierCategories, eq(supplierCompanyLinks.categoryId, supplierCategories.id))
+    .where(and(
+      eq(supplierCompanyLinks.companyId, companyId),
+      eq(supplierCompanyLinks.status, "active")
+    ))
+    .orderBy(suppliers.companyName);
+}
+
+export async function getSuppliersByBusinessUnit(businessUnitId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    link: supplierCompanyLinks,
+    supplier: suppliers,
+    company: companies,
+    category: supplierCategories,
+  })
+    .from(supplierCompanyLinks)
+    .innerJoin(suppliers, eq(supplierCompanyLinks.supplierId, suppliers.id))
+    .leftJoin(companies, eq(supplierCompanyLinks.companyId, companies.id))
+    .leftJoin(supplierCategories, eq(supplierCompanyLinks.categoryId, supplierCategories.id))
+    .where(and(
+      eq(supplierCompanyLinks.businessUnitId, businessUnitId),
+      eq(supplierCompanyLinks.status, "active")
+    ))
+    .orderBy(suppliers.companyName);
+}
+
+export async function createSupplierCompanyLink(data: InsertSupplierCompanyLink): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(supplierCompanyLinks).values(data);
+  return Number(result[0].insertId);
+}
+
+export async function updateSupplierCompanyLink(id: number, data: Partial<InsertSupplierCompanyLink>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(supplierCompanyLinks).set(data).where(eq(supplierCompanyLinks.id, id));
+}
+
+export async function deleteSupplierCompanyLink(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(supplierCompanyLinks).set({ status: "inactive" }).where(eq(supplierCompanyLinks.id, id));
+}
+
+export async function checkSupplierCompanyLinkExists(supplierId: number, companyId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const rows = await db.select({ id: supplierCompanyLinks.id })
+    .from(supplierCompanyLinks)
+    .where(and(
+      eq(supplierCompanyLinks.supplierId, supplierId),
+      eq(supplierCompanyLinks.companyId, companyId),
+      eq(supplierCompanyLinks.status, "active")
+    ))
+    .limit(1);
+  return rows.length > 0;
+}
+
+// ==================== BASE GERAL — BUSCA POR CNPJ ====================
+
+export async function findSupplierByCnpj(cnpj: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const sanitized = cnpj.replace(/\D/g, "");
+  const rows = await db.select().from(suppliers).where(eq(suppliers.cnpj, sanitized)).limit(1);
+  return rows[0] || null;
+}
+
+export async function getAllSuppliersBaseGeral() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    supplier: suppliers,
+    category: {
+      id: supplierCategories.id,
+      name: supplierCategories.name,
+      color: supplierCategories.color,
+    },
+  })
+    .from(suppliers)
+    .leftJoin(supplierCategories, eq(suppliers.categoryId, supplierCategories.id))
+    .orderBy(suppliers.companyName);
+}
+
+// ==================== BUSCA GLOBAL ====================
+
+export async function globalSearch(query: string, limit = 20) {
+  const db = await getDb();
+  if (!db) return { suppliers: [], documents: [], contracts: [], companies: [] };
+  
+  const searchTerm = `%${query}%`;
+  
+  const [supplierResults, documentResults, contractResults, companyResults] = await Promise.all([
+    db.select({
+      id: suppliers.id,
+      companyName: suppliers.companyName,
+      tradeName: suppliers.tradeName,
+      cnpj: suppliers.cnpj,
+      email: suppliers.email,
+      status: suppliers.status,
+    })
+      .from(suppliers)
+      .where(or(
+        like(suppliers.companyName, searchTerm),
+        like(suppliers.tradeName, searchTerm),
+        like(suppliers.cnpj, searchTerm),
+        like(suppliers.email, searchTerm),
+      ))
+      .limit(limit),
+    
+    db.select({
+      id: documents.id,
+      name: documents.name,
+      type: documents.type,
+      fileName: documents.fileName,
+      supplierId: documents.supplierId,
+    })
+      .from(documents)
+      .where(or(
+        like(documents.name, searchTerm),
+        like(documents.fileName, searchTerm),
+      ))
+      .limit(limit),
+    
+    db.select({
+      id: contracts.id,
+      title: contracts.title,
+      number: contracts.number,
+      status: contracts.status,
+      supplierId: contracts.supplierId,
+    })
+      .from(contracts)
+      .where(or(
+        like(contracts.title, searchTerm),
+        like(contracts.number, searchTerm),
+      ))
+      .limit(limit),
+    
+    db.select({
+      id: companies.id,
+      legalName: companies.legalName,
+      tradeName: companies.tradeName,
+      cnpj: companies.cnpj,
+    })
+      .from(companies)
+      .where(or(
+        like(companies.legalName, searchTerm),
+        like(companies.tradeName, searchTerm),
+        like(companies.cnpj, searchTerm),
+      ))
+      .limit(limit),
+  ]);
+  
+  return {
+    suppliers: supplierResults,
+    documents: documentResults,
+    contracts: contractResults,
+    companies: companyResults,
+  };
 }
