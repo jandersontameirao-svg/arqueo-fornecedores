@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Building2,
   ChevronRight,
-  UserPlus,
   Users,
   ArrowRight,
 } from "lucide-react";
@@ -56,13 +55,11 @@ function CompanyCard({
   groupName,
   groupId,
   onSelect,
-  onRegisterSupplier,
 }: {
   company: CompanyDef;
   groupName: string;
   groupId: number;
   onSelect: (c: SelectedCompany) => void;
-  onRegisterSupplier: (c: SelectedCompany) => void;
 }) {
   const companyData: SelectedCompany = {
     id: company.id,
@@ -115,22 +112,13 @@ function CompanyCard({
           </span>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <button
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
-            style={{ backgroundColor: company.color }}
-            onClick={(e) => { e.stopPropagation(); onSelect(companyData); }}
-          >
-            Acessar <ChevronRight size={16} />
-          </button>
-          <button
-            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold border-2 transition-all duration-200 hover:opacity-80 active:scale-[0.98] bg-white"
-            style={{ borderColor: company.color, color: company.color }}
-            onClick={(e) => { e.stopPropagation(); onRegisterSupplier(companyData); }}
-          >
-            <UserPlus size={15} /> Cadastrar Fornecedor
-          </button>
-        </div>
+        <button
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
+          style={{ backgroundColor: company.color }}
+          onClick={(e) => { e.stopPropagation(); onSelect(companyData); }}
+        >
+          Acessar <ChevronRight size={16} />
+        </button>
       </div>
     </div>
   );
@@ -211,11 +199,6 @@ export default function SelectCompany() {
   const handleSelect = (company: SelectedCompany) => {
     setSelectedCompany(company);
     setLocation("/dashboard");
-  };
-
-  const handleRegisterSupplier = (company: SelectedCompany) => {
-    setSelectedCompany(company);
-    setLocation("/suppliers/new");
   };
 
   const handleBack = () => {
@@ -353,14 +336,13 @@ export default function SelectCompany() {
           ) : (
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {companies.map((company) => (
-                <CompanyCard
-                  key={company.id}
-                  company={company}
-                  groupName={activeUnit?.name || ""}
-                  groupId={activeUnit?.id || 0}
-                  onSelect={handleSelect}
-                  onRegisterSupplier={handleRegisterSupplier}
-                />
+              <CompanyCard
+                key={company.id}
+                company={company}
+                groupName={activeUnit?.name || ""}
+                groupId={activeUnit?.id || 0}
+                onSelect={handleSelect}
+              />
               ))}
             </div>
           )}

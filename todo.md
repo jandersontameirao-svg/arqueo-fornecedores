@@ -679,3 +679,6 @@
 
 ## Reestruturação SelectCompany (v6.3)
 - [x] Exibir dois cards principais ao entrar na unidade: card "Empresas" (lista de empresas) e card "Fornecedores" (contagem total da unidade)
+
+## v6.5 — Remoção de Cadastro de Fornecedor
+- [x] Remover botão "Cadastrar Fornecedor" dos CompanyCards na vista de Empresas
