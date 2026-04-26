@@ -492,9 +492,12 @@ function MobileMenu() {
 
 export default function TopbarLayout({ children }: { children: React.ReactNode }) {
   const { loading, user, logout } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { selectedCompany, clearSelectedCompany } = useSelectedCompany();
   const isMobile = useIsMobile();
+
+  // Rotas de seleção não exibem nav horizontal nem breadcrumbs
+  const isSelectionRoute = location === "/" || location === "/select-company";
 
   if (loading) {
     return (
@@ -624,13 +627,15 @@ export default function TopbarLayout({ children }: { children: React.ReactNode }
         </div>
       </header>
 
-      {/* Horizontal navigation (desktop only) */}
-      <div className="hidden md:block">
-        <HorizontalNav />
-      </div>
+      {/* Horizontal navigation (desktop only) — oculta nas telas de seleção */}
+      {!isSelectionRoute && (
+        <div className="hidden md:block">
+          <HorizontalNav />
+        </div>
+      )}
 
-      {/* Breadcrumbs */}
-      <Breadcrumbs />
+      {/* Breadcrumbs — ocultos nas telas de seleção */}
+      {!isSelectionRoute && <Breadcrumbs />}
 
       {/* Main content */}
       <main className="flex-1 p-4 md:p-6">{children}</main>
