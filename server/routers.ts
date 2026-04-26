@@ -2811,6 +2811,12 @@ REGRAS CRÍTICAS:
       .query(async ({ input }) => {
         return db.countSuppliersByBusinessUnit(input.businessUnitId);
       }),
+    // Contar fornecedores por companyId string (campo direto na tabela suppliers)
+    countByCompanyStringId: protectedProcedure
+      .input(z.object({ companyId: z.string() }))
+      .query(async ({ input }) => {
+        return db.countSuppliersByCompanyStringId(input.companyId);
+      }),
 
     // Criar vínculo
     create: managerProcedure

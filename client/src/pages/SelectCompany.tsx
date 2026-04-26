@@ -1,9 +1,10 @@
 import { useLocation } from "wouter";
-import { ArrowLeft, Building2, ChevronRight, UserPlus } from "lucide-react";
+import { ArrowLeft, Building2, ChevronRight, UserPlus, Users } from "lucide-react";
 import { useBusinessUnitContext } from "@/contexts/BusinessUnitContext";
 import { useSelectedCompany, type SelectedCompany } from "@/contexts/SelectedCompanyContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { trpc } from "@/lib/trpc";
 
 // ─── Definição estática das empresas por grupo ────────────────────────────────
 interface CompanyDef {
@@ -64,6 +65,11 @@ function CompanyCard({
     groupId,
   };
 
+  const { data: supplierCount } = trpc.supplierCompanyLinks.countByCompanyStringId.useQuery(
+    { companyId: company.id },
+    { staleTime: 30_000 }
+  );
+
   return (
     <div
       className="group relative bg-white rounded-2xl shadow-warm hover:shadow-warm-lg border border-white/60 transition-all duration-300 hover:-translate-y-1 overflow-hidden cursor-pointer"
@@ -99,6 +105,30 @@ function CompanyCard({
           <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px] font-semibold rounded-full shrink-0 ml-2">
             Ativa
           </Badge>
+        </div>
+
+        {/* Card de Fornecedores */}
+        <div
+          className="flex items-center gap-3 rounded-xl p-3 mb-3 border"
+          style={{ backgroundColor: `${company.color}0D`, borderColor: `${company.color}30` }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(companyData);
+          }}
+        >
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+            style={{ backgroundColor: `${company.color}20`, color: company.color }}
+          >
+            <Users size={15} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Fornecedores</p>
+            <p className="text-lg font-bold leading-tight" style={{ color: company.color }}>
+              {supplierCount ?? "—"}
+            </p>
+            <p className="text-[10px] text-muted-foreground">vinculados</p>
+          </div>
         </div>
 
         {/* Action Buttons */}

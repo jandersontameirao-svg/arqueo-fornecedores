@@ -1988,3 +1988,14 @@ export async function countSuppliersByBusinessUnit(businessUnitId: number): Prom
     ));
   return Number(result[0]?.count ?? 0);
 }
+
+// Contar fornecedores por companyId string (campo direto na tabela suppliers)
+export async function countSuppliersByCompanyStringId(companyId: string): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(suppliers)
+    .where(eq(suppliers.companyId, companyId));
+  return Number(result[0]?.count ?? 0);
+}
