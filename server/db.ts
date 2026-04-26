@@ -1976,3 +1976,15 @@ export async function globalSearch(query: string, limit = 20) {
     companies: companyResults,
   };
 }
+
+export async function countSuppliersByBusinessUnit(businessUnitId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select({ count: sql<number>`count(distinct ${supplierCompanyLinks.supplierId})` })
+    .from(supplierCompanyLinks)
+    .where(and(
+      eq(supplierCompanyLinks.businessUnitId, businessUnitId),
+      eq(supplierCompanyLinks.status, "active")
+    ));
+  return Number(result[0]?.count ?? 0);
+}

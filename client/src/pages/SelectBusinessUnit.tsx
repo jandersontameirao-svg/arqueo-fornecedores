@@ -59,6 +59,8 @@ function UnitCard({
 }) {
   const companiesQuery = trpc.businessUnits.getCompanies.useQuery({ businessUnitId: unit.id });
   const companies = Array.isArray(companiesQuery.data) ? companiesQuery.data : [];
+  const supplierCountQuery = trpc.supplierCompanyLinks.countByBusinessUnit.useQuery({ businessUnitId: unit.id });
+  const supplierCount = typeof supplierCountQuery.data === "number" ? supplierCountQuery.data : 0;
 
   return (
     <div className="group relative bg-white rounded-2xl shadow-warm hover:shadow-warm-lg border border-white/60 transition-all duration-300 hover:-translate-y-1 overflow-hidden">
@@ -66,7 +68,7 @@ function UnitCard({
       <div className={`h-1.5 ${style.accentBar}`} />
       <div className="p-5">
         {/* Header */}
-        <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className={`w-11 h-11 rounded-xl ${style.iconClass} flex items-center justify-center shrink-0 shadow-sm`}>
               <Globe size={20} />
@@ -87,39 +89,54 @@ function UnitCard({
           </Badge>
         </div>
 
-        {/* Companies */}
-        {companies.length > 0 ? (
-          <div className="mb-4">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-              Empresas vinculadas
-            </p>
-            <div className="space-y-1">
-              {companies.slice(0, 3).map((c: any) => (
-                <div key={c.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                  {c.logoUrl ? (
-                    <img src={c.logoUrl} alt="" className="w-5 h-5 rounded object-contain" />
-                  ) : (
-                    <Building2 size={12} className="text-muted-foreground shrink-0" />
-                  )}
-                  <span className="text-xs text-foreground truncate">{c.tradeName || c.legalName}</span>
-                  <Badge variant="outline" className="ml-auto text-[9px] px-1 py-0 rounded-full border-emerald-200 text-emerald-600">
-                    Ativa
-                  </Badge>
-                </div>
-              ))}
-              {companies.length > 3 && (
-                <p className="text-[10px] text-muted-foreground text-center mt-1">
-                  +{companies.length - 3} empresa(s)
-                </p>
-              )}
+        {/* ── Dois cards de acesso rápido: Empresas + Fornecedores ── */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          {/* Card Empresas */}
+          <div className="rounded-xl border border-border/40 bg-muted/20 p-3 flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Building2 size={13} />
+              <span className="text-[10px] font-semibold uppercase tracking-wider">Empresas</span>
             </div>
+            {companies.length > 0 ? (
+              <div className="space-y-1">
+                {companies.slice(0, 3).map((c: any) => (
+                  <div key={c.id} className="flex items-center gap-1.5">
+                    {c.logoUrl ? (
+                      <img src={c.logoUrl} alt="" className="w-4 h-4 rounded object-contain shrink-0" />
+                    ) : (
+                      <div className="w-4 h-4 rounded bg-muted flex items-center justify-center shrink-0">
+                        <Building2 size={9} className="text-muted-foreground" />
+                      </div>
+                    )}
+                    <span className="text-[11px] text-foreground truncate">{c.tradeName || c.legalName}</span>
+                  </div>
+                ))}
+                {companies.length > 3 && (
+                  <p className="text-[10px] text-muted-foreground">+{companies.length - 3} mais</p>
+                )}
+              </div>
+            ) : (
+              <span className="text-[11px] text-muted-foreground">Nenhuma vinculada</span>
+            )}
+            <p className="text-[13px] font-bold text-foreground mt-auto pt-1">
+              {companiesQuery.isLoading ? "—" : companies.length}
+            </p>
           </div>
-        ) : (
-          <div className="mb-4 flex items-center gap-2 px-2.5 py-2 rounded-lg bg-muted/20">
-            <Building2 size={12} className="text-muted-foreground" />
-            <span className="text-[11px] text-muted-foreground">Nenhuma empresa vinculada</span>
+
+          {/* Card Fornecedores */}
+          <div className="rounded-xl border border-border/40 bg-muted/20 p-3 flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg>
+              <span className="text-[10px] font-semibold uppercase tracking-wider">Fornecedores</span>
+            </div>
+            <p className="text-[13px] font-bold text-foreground mt-auto pt-1">
+              {supplierCountQuery.isLoading ? "—" : supplierCount}
+            </p>
+            <span className="text-[11px] text-muted-foreground">
+              {supplierCount === 1 ? "vinculado" : "vinculados"}
+            </span>
           </div>
-        )}
+        </div>
 
         {/* CTA */}
         <button

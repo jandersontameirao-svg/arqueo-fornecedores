@@ -2805,6 +2805,12 @@ REGRAS CRÍTICAS:
       .query(async ({ input }) => {
         return db.getSuppliersByBusinessUnit(input.businessUnitId);
       }),
+    // Conta fornecedores por área de negócio
+    countByBusinessUnit: protectedProcedure
+      .input(z.object({ businessUnitId: z.number() }))
+      .query(async ({ input }) => {
+        return db.countSuppliersByBusinessUnit(input.businessUnitId);
+      }),
 
     // Criar vínculo
     create: managerProcedure
