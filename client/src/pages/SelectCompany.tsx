@@ -136,8 +136,8 @@ function CompanyCard({
   );
 }
 
-// ─── Card de resumo de fornecedores por empresa (usado na vista Fornecedores) ─
-function SupplierSummaryCard({
+// ─── Card de empresa na vista de Fornecedores (central de gestão) ─────────────
+function CompanySupplierCard({
   company,
   groupName,
   groupId,
@@ -162,31 +162,33 @@ function SupplierSummaryCard({
   );
 
   return (
-    <div
-      className="bg-white rounded-2xl border border-white/60 shadow-warm hover:shadow-warm-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden cursor-pointer"
+    <button
       onClick={() => onSelect(companyData)}
+      className="w-full text-left bg-white rounded-2xl border border-white/60 shadow-warm hover:shadow-warm-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden group"
     >
       <div className="h-1.5 w-full" style={{ backgroundColor: company.color }} />
-      <div className="p-4 flex items-center gap-4">
-        {company.logoUrl ? (
-          <img src={company.logoUrl} alt={company.name} className="w-10 h-10 rounded-xl object-contain shrink-0" />
-        ) : (
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ backgroundColor: `${company.color}18`, color: company.color }}
-          >
-            <Building2 size={18} />
+      <div className="p-5 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          {company.logoUrl ? (
+            <img src={company.logoUrl} alt={company.name} className="w-12 h-12 rounded-xl object-contain shrink-0 shadow-sm" />
+          ) : (
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
+              style={{ backgroundColor: `${company.color}18`, color: company.color }}
+            >
+              <Building2 size={22} />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold font-heading text-foreground text-[15px] leading-tight">{company.name}</h3>
+            <p className="text-[12px] text-muted-foreground mt-1">
+              <span className="font-bold" style={{ color: company.color }}>{count ?? "—"}</span> fornecedor{count !== 1 ? "es" : ""}
+            </p>
           </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-[13px] text-foreground truncate">{company.name}</p>
-          <p className="text-[12px] text-muted-foreground">
-            <span className="font-bold" style={{ color: company.color }}>{count ?? "—"}</span> fornecedor{count !== 1 ? "es" : ""}
-          </p>
         </div>
-        <ChevronRight size={16} className="text-muted-foreground shrink-0" />
+        <ChevronRight size={18} className="text-muted-foreground shrink-0 group-hover:translate-x-1 transition-transform" />
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -258,7 +260,7 @@ export default function SelectCompany() {
             )}
             {view === "fornecedores" && (
               <>
-                <h1 className="text-2xl md:text-3xl font-bold font-heading text-foreground">
+                <h1 className="text-xl md:text-2xl font-bold font-heading text-foreground">
                   <span className="text-arqueo-laranja">Fornecedores</span> da Unidade
                 </h1>
                 <p className="text-muted-foreground text-sm mt-0.5">Visão consolidada de todos os fornecedores desta área de negócio</p>
@@ -365,10 +367,10 @@ export default function SelectCompany() {
         </section>
       )}
 
-      {/* ── Vista: fornecedores da unidade ── */}
+      {/* ── Vista: fornecedores da unidade (central de gestão) ── */}
       {view === "fornecedores" && (
-        <section>
-          <div className="flex items-center gap-3 mb-5">
+        <section className="space-y-6">
+          <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl icon-bordo flex items-center justify-center">
               <Users size={18} />
             </div>
@@ -378,9 +380,10 @@ export default function SelectCompany() {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+          {/* Grid de empresas com contagem de fornecedores */}
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {companies.map((company) => (
-              <SupplierSummaryCard
+              <CompanySupplierCard
                 key={company.id}
                 company={company}
                 groupName={activeUnit?.name || ""}
@@ -390,7 +393,8 @@ export default function SelectCompany() {
             ))}
           </div>
 
-          <div className="flex justify-center">
+          {/* Botão para ver todos os fornecedores */}
+          <div className="flex justify-center pt-4">
             <Button
               variant="outline"
               className="gap-2"
