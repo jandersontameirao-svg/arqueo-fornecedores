@@ -1,5 +1,13 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Building2, ChevronRight, UserPlus, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Building2,
+  ChevronRight,
+  UserPlus,
+  Users,
+  ArrowRight,
+} from "lucide-react";
 import { useBusinessUnitContext } from "@/contexts/BusinessUnitContext";
 import { useSelectedCompany, type SelectedCompany } from "@/contexts/SelectedCompanyContext";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +35,6 @@ const COMPANIES_BY_GROUP: Record<string, CompanyDef[]> = {
   ],
 };
 
-// Grupos que possuem tela intermediária de seleção de empresa
 const GROUPS_WITH_COMPANY_SELECTION = Object.keys(COMPANIES_BY_GROUP);
 
 export function hasCompanySelection(groupName: string): boolean {
@@ -43,7 +50,7 @@ export function getCompaniesForGroup(groupName: string): CompanyDef[] {
   return key ? COMPANIES_BY_GROUP[key] : [];
 }
 
-// ─── Componente de card de empresa ───────────────────────────────────────────
+// ─── Card individual de empresa (usado na vista Empresas) ─────────────────────
 function CompanyCard({
   company,
   groupName,
@@ -75,18 +82,12 @@ function CompanyCard({
       className="group relative bg-white rounded-2xl shadow-warm hover:shadow-warm-lg border border-white/60 transition-all duration-300 hover:-translate-y-1 overflow-hidden cursor-pointer"
       onClick={() => onSelect(companyData)}
     >
-      {/* Accent bar top */}
       <div className="h-1.5 w-full" style={{ backgroundColor: company.color }} />
       <div className="p-5">
-        {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             {company.logoUrl ? (
-              <img
-                src={company.logoUrl}
-                alt={company.name}
-                className="w-11 h-11 rounded-xl object-contain shrink-0 shadow-sm"
-              />
+              <img src={company.logoUrl} alt={company.name} className="w-11 h-11 rounded-xl object-contain shrink-0 shadow-sm" />
             ) : (
               <div
                 className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
@@ -107,56 +108,27 @@ function CompanyCard({
           </Badge>
         </div>
 
-        {/* Card de Fornecedores */}
-        <div
-          className="flex items-center gap-3 rounded-xl p-3 mb-3 border"
-          style={{ backgroundColor: `${company.color}0D`, borderColor: `${company.color}30` }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(companyData);
-          }}
-        >
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-            style={{ backgroundColor: `${company.color}20`, color: company.color }}
-          >
-            <Users size={15} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Fornecedores</p>
-            <p className="text-lg font-bold leading-tight" style={{ color: company.color }}>
-              {supplierCount ?? "—"}
-            </p>
-            <p className="text-[10px] text-muted-foreground">vinculados</p>
-          </div>
+        <div className="flex items-center gap-2 mb-4 px-1">
+          <Users size={13} className="text-muted-foreground shrink-0" />
+          <span className="text-[12px] text-muted-foreground">
+            <span className="font-bold text-foreground">{supplierCount ?? "—"}</span> fornecedor{supplierCount !== 1 ? "es" : ""} vinculado{supplierCount !== 1 ? "s" : ""}
+          </span>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex flex-col gap-2">
-          {/* Acessar Dashboard */}
           <button
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
             style={{ backgroundColor: company.color }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(companyData);
-            }}
+            onClick={(e) => { e.stopPropagation(); onSelect(companyData); }}
           >
             Acessar <ChevronRight size={16} />
           </button>
-
-          {/* Cadastrar Fornecedor — botão secundário */}
           <button
             className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold border-2 transition-all duration-200 hover:opacity-80 active:scale-[0.98] bg-white"
             style={{ borderColor: company.color, color: company.color }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onRegisterSupplier(companyData);
-            }}
-            title={`Cadastrar fornecedor para ${company.name}`}
+            onClick={(e) => { e.stopPropagation(); onRegisterSupplier(companyData); }}
           >
-            <UserPlus size={15} />
-            Cadastrar Fornecedor
+            <UserPlus size={15} /> Cadastrar Fornecedor
           </button>
         </div>
       </div>
@@ -164,13 +136,75 @@ function CompanyCard({
   );
 }
 
+// ─── Card de resumo de fornecedores por empresa (usado na vista Fornecedores) ─
+function SupplierSummaryCard({
+  company,
+  groupName,
+  groupId,
+  onSelect,
+}: {
+  company: CompanyDef;
+  groupName: string;
+  groupId: number;
+  onSelect: (c: SelectedCompany) => void;
+}) {
+  const companyData: SelectedCompany = {
+    id: company.id,
+    name: company.name,
+    color: company.color,
+    groupName,
+    groupId,
+  };
+
+  const { data: count } = trpc.supplierCompanyLinks.countByCompanyStringId.useQuery(
+    { companyId: company.id },
+    { staleTime: 30_000 }
+  );
+
+  return (
+    <div
+      className="bg-white rounded-2xl border border-white/60 shadow-warm hover:shadow-warm-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden cursor-pointer"
+      onClick={() => onSelect(companyData)}
+    >
+      <div className="h-1.5 w-full" style={{ backgroundColor: company.color }} />
+      <div className="p-4 flex items-center gap-4">
+        {company.logoUrl ? (
+          <img src={company.logoUrl} alt={company.name} className="w-10 h-10 rounded-xl object-contain shrink-0" />
+        ) : (
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ backgroundColor: `${company.color}18`, color: company.color }}
+          >
+            <Building2 size={18} />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-[13px] text-foreground truncate">{company.name}</p>
+          <p className="text-[12px] text-muted-foreground">
+            <span className="font-bold" style={{ color: company.color }}>{count ?? "—"}</span> fornecedor{count !== 1 ? "es" : ""}
+          </p>
+        </div>
+        <ChevronRight size={16} className="text-muted-foreground shrink-0" />
+      </div>
+    </div>
+  );
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
+type View = "menu" | "empresas" | "fornecedores";
+
 export default function SelectCompany() {
   const [, setLocation] = useLocation();
   const { activeUnit } = useBusinessUnitContext();
   const { setSelectedCompany } = useSelectedCompany();
+  const [view, setView] = useState<View>("menu");
 
   const companies = activeUnit ? getCompaniesForGroup(activeUnit.name) : [];
+
+  const { data: totalSuppliers } = trpc.supplierCompanyLinks.countByBusinessUnit.useQuery(
+    { businessUnitId: activeUnit?.id ?? 0 },
+    { enabled: !!activeUnit?.id, staleTime: 30_000 }
+  );
 
   const handleSelect = (company: SelectedCompany) => {
     setSelectedCompany(company);
@@ -178,13 +212,16 @@ export default function SelectCompany() {
   };
 
   const handleRegisterSupplier = (company: SelectedCompany) => {
-    // Define o contexto da empresa e navega direto para o formulário de cadastro
     setSelectedCompany(company);
     setLocation("/suppliers/new");
   };
 
   const handleBack = () => {
-    setLocation("/");
+    if (view !== "menu") {
+      setView("menu");
+    } else {
+      setLocation("/");
+    }
   };
 
   return (
@@ -203,12 +240,30 @@ export default function SelectCompany() {
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-0.5">
               {activeUnit?.name}
             </p>
-            <h1 className="text-2xl md:text-3xl font-bold font-heading text-foreground">
-              Selecione a <span className="text-arqueo-laranja">Empresa</span>
-            </h1>
-            <p className="text-muted-foreground text-sm mt-0.5">
-              Escolha a empresa para acessar o painel de fornecedores
-            </p>
+            {view === "menu" && (
+              <>
+                <h1 className="text-2xl md:text-3xl font-bold font-heading text-foreground">
+                  O que deseja <span className="text-arqueo-laranja">acessar?</span>
+                </h1>
+                <p className="text-muted-foreground text-sm mt-0.5">Selecione uma área para continuar</p>
+              </>
+            )}
+            {view === "empresas" && (
+              <>
+                <h1 className="text-2xl md:text-3xl font-bold font-heading text-foreground">
+                  Selecione a <span className="text-arqueo-laranja">Empresa</span>
+                </h1>
+                <p className="text-muted-foreground text-sm mt-0.5">Escolha a empresa para acessar o painel de fornecedores</p>
+              </>
+            )}
+            {view === "fornecedores" && (
+              <>
+                <h1 className="text-2xl md:text-3xl font-bold font-heading text-foreground">
+                  <span className="text-arqueo-laranja">Fornecedores</span> da Unidade
+                </h1>
+                <p className="text-muted-foreground text-sm mt-0.5">Visão consolidada de todos os fornecedores desta área de negócio</p>
+              </>
+            )}
           </div>
         </div>
         <img
@@ -218,40 +273,134 @@ export default function SelectCompany() {
         />
       </div>
 
-      {/* ── Cards de empresas ── */}
-      <section>
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-9 h-9 rounded-xl icon-laranja flex items-center justify-center">
-            <Building2 size={18} />
-          </div>
-          <div>
-            <h2 className="font-bold font-heading text-foreground text-lg">Empresas</h2>
-            <p className="text-xs text-muted-foreground">Selecione uma empresa para continuar ou cadastre um fornecedor diretamente</p>
-          </div>
-        </div>
+      {/* ── Vista: menu principal (dois cards grandes) ── */}
+      {view === "menu" && (
+        <div className="grid gap-6 md:grid-cols-2 max-w-2xl">
+          {/* Card Empresas */}
+          <button
+            onClick={() => setView("empresas")}
+            className="group text-left bg-white rounded-2xl shadow-warm hover:shadow-warm-lg border border-white/60 transition-all duration-300 hover:-translate-y-1 overflow-hidden"
+          >
+            <div className="h-1.5 w-full bg-arqueo-laranja" />
+            <div className="p-6 flex flex-col gap-4">
+              <div className="w-14 h-14 rounded-2xl icon-laranja flex items-center justify-center shadow-sm">
+                <Building2 size={26} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold font-heading text-foreground">Empresas</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Acesse o painel de uma empresa específica desta área de negócio
+                </p>
+              </div>
+              <div className="flex items-center justify-between mt-auto pt-2 border-t border-border/30">
+                <span className="text-sm font-semibold text-arqueo-laranja">
+                  {companies.length} empresa{companies.length !== 1 ? "s" : ""}
+                </span>
+                <ArrowRight size={18} className="text-arqueo-laranja group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+          </button>
 
-        {companies.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-muted-foreground">Nenhuma empresa disponível para este grupo.</p>
-            <Button onClick={handleBack} variant="outline" className="mt-4 gap-2">
-              <ArrowLeft size={16} /> Voltar
-            </Button>
+          {/* Card Fornecedores */}
+          <button
+            onClick={() => setView("fornecedores")}
+            className="group text-left bg-white rounded-2xl shadow-warm hover:shadow-warm-lg border border-white/60 transition-all duration-300 hover:-translate-y-1 overflow-hidden"
+          >
+            <div className="h-1.5 w-full bg-arqueo-bordo" />
+            <div className="p-6 flex flex-col gap-4">
+              <div className="w-14 h-14 rounded-2xl icon-bordo flex items-center justify-center shadow-sm">
+                <Users size={26} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold font-heading text-foreground">Fornecedores</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Visualize e gerencie todos os fornecedores desta área de negócio
+                </p>
+              </div>
+              <div className="flex items-center justify-between mt-auto pt-2 border-t border-border/30">
+                <span className="text-sm font-semibold text-arqueo-bordo">
+                  {totalSuppliers ?? "—"} fornecedor{totalSuppliers !== 1 ? "es" : ""}
+                </span>
+                <ArrowRight size={18} className="text-arqueo-bordo group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* ── Vista: lista de empresas ── */}
+      {view === "empresas" && (
+        <section>
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-9 h-9 rounded-xl icon-laranja flex items-center justify-center">
+              <Building2 size={18} />
+            </div>
+            <div>
+              <h2 className="font-bold font-heading text-foreground text-lg">Empresas</h2>
+              <p className="text-xs text-muted-foreground">Selecione uma empresa para continuar ou cadastre um fornecedor diretamente</p>
+            </div>
           </div>
-        ) : (
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+
+          {companies.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-muted-foreground">Nenhuma empresa disponível para este grupo.</p>
+              <Button onClick={() => setView("menu")} variant="outline" className="mt-4 gap-2">
+                <ArrowLeft size={16} /> Voltar
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {companies.map((company) => (
+                <CompanyCard
+                  key={company.id}
+                  company={company}
+                  groupName={activeUnit?.name || ""}
+                  groupId={activeUnit?.id || 0}
+                  onSelect={handleSelect}
+                  onRegisterSupplier={handleRegisterSupplier}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ── Vista: fornecedores da unidade ── */}
+      {view === "fornecedores" && (
+        <section>
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-9 h-9 rounded-xl icon-bordo flex items-center justify-center">
+              <Users size={18} />
+            </div>
+            <div>
+              <h2 className="font-bold font-heading text-foreground text-lg">Fornecedores</h2>
+              <p className="text-xs text-muted-foreground">Todos os fornecedores vinculados a esta área de negócio</p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
             {companies.map((company) => (
-              <CompanyCard
+              <SupplierSummaryCard
                 key={company.id}
                 company={company}
                 groupName={activeUnit?.name || ""}
                 groupId={activeUnit?.id || 0}
                 onSelect={handleSelect}
-                onRegisterSupplier={handleRegisterSupplier}
               />
             ))}
           </div>
-        )}
-      </section>
+
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setLocation("/suppliers")}
+            >
+              <Users size={16} /> Ver todos os fornecedores
+            </Button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

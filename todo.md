@@ -676,3 +676,6 @@
 - [x] Testes unitários atualizados
 - [x] TypeScript 0 erros
 - [x] Migração segura validada
+
+## Reestruturação SelectCompany (v6.3)
+- [x] Exibir dois cards principais ao entrar na unidade: card "Empresas" (lista de empresas) e card "Fornecedores" (contagem total da unidade)
