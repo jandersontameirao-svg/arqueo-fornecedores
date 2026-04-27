@@ -2579,7 +2579,7 @@ Estruture o contrato com:
         await writeFile(htmlPath, html, "utf8");
 
         await new Promise<void>((resolve, reject) => {
-          execFile("/usr/local/bin/weasyprint", [htmlPath, pdfPath], { timeout: 30000 }, (err) => {
+          execFile("/usr/bin/python3.11", ["-m", "weasyprint", htmlPath, pdfPath], { timeout: 30000 }, (err) => {
             if (err) reject(new Error(`WeasyPrint error: ${err.message}`));
             else resolve();
           });
