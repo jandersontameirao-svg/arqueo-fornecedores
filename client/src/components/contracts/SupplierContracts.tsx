@@ -346,6 +346,7 @@ export default function SupplierContracts({ supplierId, supplierName, supplierCn
         open={pdfImportOpen}
         onClose={() => setPdfImportOpen(false)}
         onSuccess={() => utils.contracts.listBySupplier.invalidate({ supplierId, companySlug })}
+        companySlug={companySlug}
       />
 
       {/* Delete Confirmation */}

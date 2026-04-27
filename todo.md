@@ -789,3 +789,10 @@
 - [x] Corrigir encoding UTF-8: todos os campos escapados com esc() antes de inserir no HTML
 - [x] Atualizar contracts.generatePDF para retornar PDF binário (base64) com extensão .pdf
 - [x] Atualizar frontend ContractViewer para baixar .pdf real via Blob + URL.createObjectURL
+
+## v7.15 — Segregação estrita por empresa
+- [x] Corrigir filtro de contratos: removida inclusão de NULL slug — contratos sem slug NÃO aparecem em nenhuma empresa
+- [x] Contratos com companyScope=all_group aparecem em todas as empresas
+- [x] Contratos com contractCompanySlug definido só aparecem na empresa correspondente
+- [x] ContractPDFImport agora recebe e passa companySlug ao criar contrato via PDF
+- [x] Filtro de fornecedores já estava correto (companyId + supplierLinks)

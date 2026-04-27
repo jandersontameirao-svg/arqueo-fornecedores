@@ -1522,17 +1522,17 @@ export async function getContractsBySupplierWithEffectiveEndDate(supplierId: num
   const db = await getDb();
   if (!db) return [];
 
-  // Filtro de segregação por empresa:
-  // - Se companySlug fornecido: retorna contratos da empresa + all_group + legados (slug NULL)
-  // - Se não fornecido: retorna todos (sem contexto de empresa)
+  // Filtro de segregação por empresa (regra estrita):
+  // - Se companySlug fornecido: retorna APENAS contratos da empresa OU companyScope=all_group
+  //   Contratos sem slug (NULL) NÃO aparecem em nenhuma empresa
+  // - Se não fornecido: retorna todos (sem contexto de empresa, ex: visões globais)
   let whereClause: any;
   if (companySlug) {
     whereClause = and(
       eq(contracts.supplierId, supplierId),
       or(
         eq(contracts.contractCompanySlug, companySlug),
-        eq(contracts.companyScope, "all_group"),
-        isNull(contracts.contractCompanySlug) // legados sem empresa definida
+        eq(contracts.companyScope, "all_group")
       )
     );
   } else {

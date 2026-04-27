@@ -42,6 +42,7 @@ interface ContractPDFImportProps {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  companySlug?: string;
 }
 
 const contractTypeLabels: Record<string, string> = {
@@ -76,7 +77,7 @@ type ExtractedData = {
 
 type Step = "upload" | "extracting" | "review" | "saving";
 
-export function ContractPDFImport({ supplierId, open, onClose, onSuccess }: ContractPDFImportProps) {
+export function ContractPDFImport({ supplierId, open, onClose, onSuccess, companySlug }: ContractPDFImportProps) {
   const utils = trpc.useUtils();
   const [step, setStep] = useState<Step>("upload");
   const [dragOver, setDragOver] = useState(false);
@@ -246,6 +247,8 @@ export function ContractPDFImport({ supplierId, open, onClose, onSuccess }: Cont
       notes: summary ? `Resumo IA: ${summary}` : undefined,
       status: "review",
       creationMode: "ai",
+      contractCompanySlug: companySlug || undefined,
+      companyScope: companySlug ? "single" : undefined,
     });
   };
 
