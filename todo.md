@@ -730,3 +730,6 @@
 - [x] Investigar tabela companies no banco para verificar status da Arqueocean
 - [x] Garantir que Arqueocean aparece no dropdown de empresas do wizard Cadastrar via I.A.
 - [x] Adicionar opção "Ambas as 4 empresas" exclusiva para cadastros na Grupo Arqueo Brasil
+
+## v7.3 — Opção "Ambas as 4 empresas" no cadastro manual
+- [x] Implementar opção "Ambas as 4 empresas" no formulário de cadastro manual de fornecedores

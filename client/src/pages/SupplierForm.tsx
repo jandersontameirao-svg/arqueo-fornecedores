@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
@@ -26,6 +26,43 @@ export default function SupplierForm({ id }: SupplierFormProps) {
   const [, setLocation] = useLocation();
   const isEditing = !!id;
   const { selectedCompany } = useSelectedCompany();
+
+  // Company selection for linking
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const { data: companies } = trpc.companies.listAll.useQuery();
+
+  const grupoArqueoBrasilCompanies = useMemo(() => {
+    if (!companies) return [];
+    return companies.filter((c: any) => c.businessUnitId === 1);
+  }, [companies]);
+
+  const isGrupoArqueoBrasil = selectedCompany?.groupId === 1;
+
+  const linkMutation = trpc.supplierCompanyLinks.create.useMutation({
+    onError: (error: any) => {
+      toast.error(error.message || "Erro ao vincular fornecedor à empresa.");
+    },
+  });
+
+  const linkSupplierToCompanies = (supplierId: number) => {
+    if (!selectedCompanyId) return;
+
+    if (selectedCompanyId === "all_grupo_arqueo_brasil") {
+      for (const company of grupoArqueoBrasilCompanies) {
+        linkMutation.mutate({
+          supplierId,
+          companyId: company.id,
+          criticality: formData.criticality,
+        });
+      }
+    } else {
+      linkMutation.mutate({
+        supplierId,
+        companyId: parseInt(selectedCompanyId, 10),
+        criticality: formData.criticality,
+      });
+    }
+  };
 
   const [formData, setFormData] = useState({
     companyName: "",
@@ -63,6 +100,9 @@ export default function SupplierForm({ id }: SupplierFormProps) {
   const createMutation = trpc.suppliers.create.useMutation({
     onSuccess: (data) => {
       toast.success("Fornecedor cadastrado com sucesso!");
+      if (selectedCompanyId) {
+        linkSupplierToCompanies(data.id);
+      }
       setLocation(`/suppliers/${data.id}`);
     },
     onError: (error) => {
@@ -148,7 +188,9 @@ export default function SupplierForm({ id }: SupplierFormProps) {
       pixKey: sanitize(formData.pixKey),
       notes: sanitize(formData.notes),
       categoryId: formData.categoryId || undefined,
-      companyId: selectedCompany?.id || undefined,
+      companyId: selectedCompanyId === "all_grupo_arqueo_brasil"
+        ? String(grupoArqueoBrasilCompanies[0]?.id || selectedCompany?.id || "")
+        : (selectedCompanyId || selectedCompany?.id || undefined),
       groupId: selectedCompany?.groupId || undefined,
     };
 
@@ -309,6 +351,29 @@ export default function SupplierForm({ id }: SupplierFormProps) {
                     <SelectItem value="medium">Média</SelectItem>
                     <SelectItem value="high">Alta</SelectItem>
                     <SelectItem value="critical">Crítica</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Separator />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Empresa/Unidade (vínculo)</Label>
+                <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a empresa (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isGrupoArqueoBrasil && grupoArqueoBrasilCompanies.length > 1 && (
+                      <SelectItem value="all_grupo_arqueo_brasil" className="font-semibold text-violet-700">
+                        Ambas as {grupoArqueoBrasilCompanies.length} empresas
+                      </SelectItem>
+                    )}
+                    {companies?.map((company: any) => (
+                      <SelectItem key={company.id} value={String(company.id)}>
+                        {company.tradeName || company.legalName}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
