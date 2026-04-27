@@ -750,3 +750,6 @@
 ## v7.6 — Remover sidebar lateral definitivamente
 - [x] Remover DashboardLayout (sidebar fixo) de todas as páginas
 - [x] Garantir que apenas TopbarLayout (navegação superior) permanece
+
+## v7.7 — Fix TypeError toLowerCase em GenerateContract
+- [x] Corrigir TypeError: Cannot read properties of undefined (reading 'toLowerCase') em GenerateContract.tsx

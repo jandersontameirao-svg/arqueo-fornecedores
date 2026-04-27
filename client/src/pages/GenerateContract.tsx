@@ -105,7 +105,7 @@ export default function GenerateContract() {
   const filteredSuppliers = useMemo(() => {
     if (!suppliers) return [];
     return (suppliers as any[]).filter((s: any) =>
-      s.companyName.toLowerCase().includes(searchSupplier.toLowerCase()) ||
+      (s.companyName || "").toLowerCase().includes(searchSupplier.toLowerCase()) ||
       (s.cnpj || "").includes(searchSupplier) ||
       (s.email || "").toLowerCase().includes(searchSupplier.toLowerCase())
     );
@@ -485,11 +485,11 @@ export default function GenerateContract() {
                           value={filledFields[field.fieldKey] || ""}
                           onChange={e => updateField(field.fieldKey, e.target.value)}
                           rows={3}
-                          placeholder={`Preencha ${field.label.toLowerCase()}...`}
+                          placeholder={`Preencha ${(field.label || "").toLowerCase()}...`}
                         />
                       ) : field.fieldType === "select" && field.selectOptions ? (
                         <Select value={filledFields[field.fieldKey] || ""} onValueChange={v => updateField(field.fieldKey, v)}>
-                          <SelectTrigger><SelectValue placeholder={`Selecione ${field.label.toLowerCase()}`} /></SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder={`Selecione ${(field.label || "").toLowerCase()}`} /></SelectTrigger>
                           <SelectContent>
                             {(Array.isArray(field.selectOptions) ? field.selectOptions : []).map((opt: string) => (
                               <SelectItem key={opt} value={opt}>{opt}</SelectItem>
@@ -501,7 +501,7 @@ export default function GenerateContract() {
                           type={field.fieldType === "number" || field.fieldType === "currency" ? "text" : field.fieldType === "date" ? "date" : "text"}
                           value={filledFields[field.fieldKey] || ""}
                           onChange={e => updateField(field.fieldKey, e.target.value)}
-                          placeholder={`Preencha ${field.label.toLowerCase()}...`}
+                          placeholder={`Preencha ${(field.label || "").toLowerCase()}...`}
                         />
                       )}
                     </div>
