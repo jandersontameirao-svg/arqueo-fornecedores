@@ -682,3 +682,9 @@
 
 ## v6.5 — Remoção de Cadastro de Fornecedor
 - [x] Remover botão "Cadastrar Fornecedor" dos CompanyCards na vista de Empresas
+
+## v6.6 — Central de Gestão de Fornecedores da Unidade
+- [x] Adicionar businessUnitId como filtro na procedure suppliers.list (alias de groupId)
+- [x] Criar página UnitSuppliers com lista consolidada, busca, filtros (status/criticidade/categoria) e botão Novo Fornecedor
+- [x] Registrar rota /unit-suppliers no App.tsx
+- [x] Card "Fornecedores" no SelectCompany navega diretamente para /unit-suppliers

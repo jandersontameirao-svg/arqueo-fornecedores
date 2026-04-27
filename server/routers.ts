@@ -308,9 +308,14 @@ export const appRouter = router({
         search: z.string().optional(),
         companyId: z.string().optional(),
         groupId: z.number().optional(),
+        businessUnitId: z.number().optional(),
       }).optional())
       .query(async ({ input }) => {
-        return db.getAllSuppliers(input);
+        // businessUnitId é alias de groupId (suppliers.groupId = businessUnits.id)
+        const filters = input
+          ? { ...input, groupId: input.groupId ?? input.businessUnitId }
+          : undefined;
+        return db.getAllSuppliers(filters);
       }),
 
     getById: protectedProcedure

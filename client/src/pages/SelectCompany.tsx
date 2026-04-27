@@ -288,7 +288,7 @@ export default function SelectCompany() {
 
           {/* Card Fornecedores */}
           <button
-            onClick={() => setView("fornecedores")}
+            onClick={() => setLocation("/unit-suppliers")}
             className="group text-left bg-white rounded-2xl shadow-warm hover:shadow-warm-lg border border-white/60 transition-all duration-300 hover:-translate-y-1 overflow-hidden"
           >
             <div className="h-1.5 w-full bg-arqueo-bordo" />
@@ -378,11 +378,10 @@ export default function SelectCompany() {
           {/* Botão para ver todos os fornecedores */}
           <div className="flex justify-center pt-4">
             <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => setLocation("/suppliers")}
+              className="gap-2 bg-arqueo-bordo hover:bg-arqueo-bordo/90 text-white"
+              onClick={() => setLocation("/unit-suppliers")}
             >
-              <Users size={16} /> Ver todos os fornecedores
+              <Users size={16} /> Acessar Central de Fornecedores
             </Button>
           </div>
         </section>

@@ -29,6 +29,7 @@ import Reports from "./pages/Reports";
 import ContractTemplates from "./pages/ContractTemplates";
 import SupplierLink from "./pages/SupplierLink";
 import AddSupplierAI from "./pages/AddSupplierAI";
+import UnitSuppliers from "./pages/UnitSuppliers";
 
 function Router() {
   return (
@@ -47,6 +48,13 @@ function Router() {
       <Route path="/select-company">
         <TopbarLayout>
           <SelectCompany />
+        </TopbarLayout>
+      </Route>
+
+      {/* Central de gestão de fornecedores da unidade */}
+      <Route path="/unit-suppliers">
+        <TopbarLayout>
+          <UnitSuppliers />
         </TopbarLayout>
       </Route>
 
