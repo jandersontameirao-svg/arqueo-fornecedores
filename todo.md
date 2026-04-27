@@ -688,3 +688,28 @@
 - [x] Criar página UnitSuppliers com lista consolidada, busca, filtros (status/criticidade/categoria) e botão Novo Fornecedor
 - [x] Registrar rota /unit-suppliers no App.tsx
 - [x] Card "Fornecedores" no SelectCompany navega diretamente para /unit-suppliers
+
+## v7.0 — Módulo Templates e Contratos (Novo Card + Módulo Completo)
+- [ ] Schema: generated_contracts_v2, extraction_runs, extracted_fields, contract_versions_v2
+- [ ] DB functions e procedures tRPC para CRUD de templates (já existem parcialmente, expandir)
+- [ ] DB functions e procedures tRPC para geração de contratos e vínculo automático com fornecedor
+- [ ] Card "Templates e Contratos" na tela SelectCompany (mesmo nível visual dos demais)
+- [ ] UI: Módulo Templates e Contratos (listagem, criação, edição, geração de contrato)
+- [ ] UI: Gerar contrato para fornecedor já cadastrado (Caminho A)
+- [ ] UI: Gerar contrato durante cadastro de novo fornecedor (Caminho B)
+- [ ] UI: Preenchimento por IA via PDF (extração, formulário de revisão, score de confiança)
+- [ ] Vinculação automática contrato→fornecedor (nunca contrato órfão)
+- [ ] Histórico de contratos no perfil do fornecedor (seção fortalecida)
+- [ ] Rotas e navegação integradas
+- [ ] Testes e verificação de regressão
+
+## v7.0 — Módulo Templates e Contratos (Implementado)
+- [x] Schema: template_fields, extraction_runs, extracted_fields + expansão contracts
+- [x] DB functions: CRUD template fields, extraction runs, geração de contrato
+- [x] Procedures tRPC: getFields, saveFields, extractFromPdf, generateContract, countByBusinessUnit
+- [x] Página GenerateContract com wizard 4 etapas (template → fornecedor → campos → revisão)
+- [x] Extração por IA via PDF com drag-and-drop, score de confiança e revisão obrigatória
+- [x] Card "Templates e Contratos" na tela SelectCompany com contagem dinâmica
+- [x] Botão "Gerar via Template" no SupplierContracts (aba Contratos do fornecedor)
+- [x] Rota /generate-contract integrada no App.tsx e UNIT_ROUTES
+- [x] Breadcrumb "Gerar Contrato" no TopbarLayout

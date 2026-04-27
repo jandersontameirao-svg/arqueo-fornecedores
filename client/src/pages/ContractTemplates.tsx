@@ -1,5 +1,6 @@
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ import {
   Upload,
   Download,
   FileUp,
+  ScrollText,
 } from "lucide-react";
 import { useCallback, useRef } from "react";
 import { TemplateAIAutoInsert } from "@/components/contracts/TemplateAIAutoInsert";
@@ -463,6 +465,8 @@ function PreviewDialog({ template, open, onClose }: { template: Record<string, u
 
 // ===== MAIN PAGE =====
 export default function ContractTemplatesPage() {
+  const [, navigate] = useLocation();
+  const navigateToGenerate = () => navigate("/generate-contract");
   const utils = trpc.useUtils();
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("all");
@@ -516,6 +520,10 @@ export default function ContractTemplatesPage() {
             <Button onClick={() => setShowCreate(true)}>
               <Plus className="h-4 w-4 mr-1.5" />
               Novo Template
+            </Button>
+            <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => navigateToGenerate()}>
+              <ScrollText className="h-4 w-4 mr-1.5" />
+              Gerar Contrato
             </Button>
           </div>
         </div>

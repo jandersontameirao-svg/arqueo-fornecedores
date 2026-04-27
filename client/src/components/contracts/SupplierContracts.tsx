@@ -38,7 +38,9 @@ import {
   Tag,
   GitBranch,
   AlertTriangle,
+  Sparkles,
 } from "lucide-react";
+import { useLocation } from "wouter";
 import { ContractCreationModal, type ContractCreationMode } from "./ContractCreationModal";
 import { ContractEditor } from "./ContractEditor";
 import { ContractViewer } from "./ContractViewer";
@@ -69,6 +71,7 @@ const typeLabels: Record<string, string> = {
 };
 
 export default function SupplierContracts({ supplierId, supplierName, supplierCnpj }: SupplierContractsProps) {
+  const [, navigate] = useLocation();
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const canManage = user?.role === "admin" || user?.role === "manager";
@@ -133,13 +136,22 @@ export default function SupplierContracts({ supplierId, supplierName, supplierCn
           </p>
         </div>
         {canManage && (
-          <Button
-            onClick={() => setCreationModalOpen(true)}
-            className="bg-[oklch(0.50_0.15_15)] hover:bg-[oklch(0.45_0.15_15)]"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Contrato
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/generate-contract?supplierId=${supplierId}`)}
+            >
+              <Sparkles className="h-4 w-4 mr-2 text-purple-600" />
+              Gerar via Template
+            </Button>
+            <Button
+              onClick={() => setCreationModalOpen(true)}
+              className="bg-[oklch(0.50_0.15_15)] hover:bg-[oklch(0.45_0.15_15)]"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Contrato
+            </Button>
+          </div>
         )}
       </div>
 

@@ -2643,6 +2643,235 @@ REGRAS CRÍTICAS:
         }
         return { success: true, extracted, fileUrl };
       }),
+
+    // ==================== TEMPLATE FIELDS ====================
+    getFields: protectedProcedure
+      .input(z.object({ templateId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getTemplateFields(input.templateId);
+      }),
+
+    saveFields: managerProcedure
+      .input(z.object({
+        templateId: z.number(),
+        fields: z.array(z.object({
+          id: z.number().optional(),
+          fieldKey: z.string().min(1),
+          label: z.string().min(1),
+          fieldType: z.enum(["text", "number", "date", "currency", "textarea", "select"]).default("text"),
+          isRequired: z.boolean().default(true),
+          defaultValue: z.string().optional(),
+          description: z.string().optional(),
+          selectOptions: z.any().optional(),
+          sortOrder: z.number().default(0),
+        })),
+      }))
+      .mutation(async ({ input }) => {
+        await db.deleteTemplateFieldsByTemplateId(input.templateId);
+        for (const field of input.fields) {
+          await db.createTemplateField({
+            templateId: input.templateId,
+            fieldKey: field.fieldKey,
+            label: field.label,
+            fieldType: field.fieldType,
+            isRequired: field.isRequired,
+            defaultValue: field.defaultValue || null,
+            description: field.description || null,
+            selectOptions: field.selectOptions || null,
+            sortOrder: field.sortOrder,
+          });
+        }
+        return { success: true };
+      }),
+
+    // ==================== GERAR CONTRATO A PARTIR DE TEMPLATE ====================
+    generateContract: protectedProcedure
+      .input(z.object({
+        templateId: z.number(),
+        supplierId: z.number(),
+        filledFields: z.record(z.string(), z.string()),
+        filledFieldsOrigin: z.record(z.string(), z.string()).optional(),
+        aiConfidenceScore: z.number().optional(),
+        extractionRunId: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const contractId = await db.generateContractFromTemplate({
+          templateId: input.templateId,
+          supplierId: input.supplierId,
+          filledFields: input.filledFields,
+          filledFieldsOrigin: input.filledFieldsOrigin || {},
+          aiConfidenceScore: input.aiConfidenceScore,
+          extractionRunId: input.extractionRunId,
+          createdById: ctx.user?.id,
+        });
+        return { contractId };
+      }),
+
+    // ==================== EXTRA\u00c7\u00c3O POR IA VIA PDF PARA PREENCHIMENTO ====================
+    extractFromPdf: protectedProcedure
+      .input(z.object({
+        fileBase64: z.string(),
+        fileName: z.string(),
+        mimeType: z.string(),
+        templateId: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const buffer = Buffer.from(input.fileBase64, "base64");
+        const ext = input.fileName.split(".").pop()?.toLowerCase() || "bin";
+        const fileKey = `extraction-runs/${Date.now()}-${input.fileName}`;
+        const { url: fileUrl } = await storagePut(fileKey, buffer, input.mimeType);
+        const runId = await db.createExtractionRun({
+          sourceFileUrl: fileUrl,
+          sourceFileKey: fileKey,
+          sourceFileName: input.fileName,
+          sourceFileMimeType: input.mimeType,
+          purpose: "both",
+          templateId: input.templateId || null,
+          status: "processing",
+          createdById: ctx.user?.id,
+        });
+        if (!runId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Falha ao criar extraction run" });
+        const startTime = Date.now();
+        try {
+          const text = await extractTextFromBuffer(buffer, ext);
+          if (!text || text.trim().length < 10) {
+            await db.updateExtractionRun(runId, { status: "failed", errorMessage: "Nao foi possivel extrair texto do documento." });
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Nao foi possivel extrair texto do documento. Tente um arquivo PDF ou TXT." });
+          }
+          let templateFieldsInfo = "";
+          if (input.templateId) {
+            const fields = await db.getTemplateFields(input.templateId);
+            if (fields.length > 0) {
+              templateFieldsInfo = `\n\nCAMPOS DO TEMPLATE PARA PREENCHIMENTO:\n${fields.map(f => `- ${f.fieldKey}: ${f.label} (${f.fieldType}, ${f.isRequired ? "obrigatorio" : "opcional"})`).join("\n")}`;
+            }
+          }
+          const response = await invokeLLM({
+            messages: [
+              {
+                role: "system",
+                content: `Voce e um especialista em analise de documentos contratuais e cadastrais brasileiros. Extraia TODOS os dados relevantes do documento fornecido. RETORNE APENAS dados que existem no documento. NUNCA invente informacoes. Para cada campo extraido, atribua um score de confianca: "high" (>90%), "medium" (60-90%), "low" (<60%). Categorize cada campo como: "supplier" (dados do fornecedor), "contract" (dados contratuais), "financial" (valores/pagamentos), "legal" (clausulas/prazos), "other".${templateFieldsInfo}`,
+              },
+              {
+                role: "user",
+                content: `Extraia todos os dados relevantes do seguinte documento:\n\n${text.substring(0, 12000)}`,
+              },
+            ],
+            response_format: {
+              type: "json_schema",
+              json_schema: {
+                name: "contract_extraction",
+                strict: true,
+                schema: {
+                  type: "object",
+                  properties: {
+                    fields: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          fieldKey: { type: "string", description: "Chave do campo em snake_case" },
+                          fieldLabel: { type: "string", description: "Label legivel em portugues" },
+                          value: { type: "string", description: "Valor extraido" },
+                          confidence: { type: "string", enum: ["high", "medium", "low"] },
+                          category: { type: "string", enum: ["supplier", "contract", "financial", "legal", "other"] },
+                        },
+                        required: ["fieldKey", "fieldLabel", "value", "confidence", "category"],
+                        additionalProperties: false,
+                      },
+                    },
+                    overallConfidence: { type: "number", description: "Score geral de confianca 0-100" },
+                    summary: { type: "string", description: "Resumo do documento em 2-3 frases" },
+                  },
+                  required: ["fields", "overallConfidence", "summary"],
+                  additionalProperties: false,
+                },
+              },
+            },
+          });
+          const rawContent = response.choices?.[0]?.message?.content;
+          const contentStr = typeof rawContent === "string" ? rawContent : "{}";
+          let extracted: any;
+          try {
+            extracted = JSON.parse(contentStr);
+          } catch {
+            await db.updateExtractionRun(runId, { status: "failed", errorMessage: "Falha ao processar resposta da IA" });
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Falha ao processar resposta da IA" });
+          }
+          const processingTimeMs = Date.now() - startTime;
+          const confidenceMap: Record<string, number> = { high: 95, medium: 75, low: 40 };
+          const fieldsToInsert = (extracted.fields || []).map((f: any) => ({
+            extractionRunId: runId,
+            fieldKey: f.fieldKey,
+            fieldLabel: f.fieldLabel,
+            extractedValue: f.value,
+            confidence: String(confidenceMap[f.confidence] || 50),
+            source: "ai" as const,
+            category: f.category || "other",
+            needsReview: f.confidence !== "high",
+          }));
+          await db.createExtractedFields(fieldsToInsert);
+          await db.updateExtractionRun(runId, {
+            status: "completed",
+            overallConfidence: String(extracted.overallConfidence || 0),
+            rawResponse: contentStr,
+            processingTimeMs,
+          });
+          const savedFields = await db.getExtractedFieldsByRun(runId);
+          return {
+            runId,
+            fields: savedFields,
+            overallConfidence: extracted.overallConfidence,
+            summary: extracted.summary,
+            fileUrl,
+          };
+        } catch (err: any) {
+          if (err instanceof TRPCError) throw err;
+          await db.updateExtractionRun(runId, { status: "failed", errorMessage: err.message || "Erro desconhecido" });
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: err.message || "Erro na extracao" });
+        }
+      }),
+
+    // ==================== CONFIRMAR CAMPOS EXTRAIDOS ====================
+    confirmExtractedFields: protectedProcedure
+      .input(z.object({
+        extractionRunId: z.number(),
+        fields: z.array(z.object({
+          id: z.number(),
+          confirmedValue: z.string(),
+          source: z.enum(["ai_confirmed", "ai_corrected", "manual"]),
+        })),
+        reviewNotes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await db.confirmExtractedFields(input.extractionRunId, input.fields);
+        if (input.reviewNotes) {
+          await db.updateExtractionRun(input.extractionRunId, {
+            reviewedById: ctx.user?.id,
+            reviewedAt: new Date(),
+            reviewNotes: input.reviewNotes,
+          });
+        }
+        return { success: true };
+      }),
+
+    // ==================== OBTER EXTRACTION RUN ====================
+    getExtractionRun: protectedProcedure
+      .input(z.object({ runId: z.number() }))
+      .query(async ({ input }) => {
+        const run = await db.getExtractionRun(input.runId);
+        if (!run) throw new TRPCError({ code: "NOT_FOUND", message: "Extraction run nao encontrada" });
+        const fields = await db.getExtractedFieldsByRun(input.runId);
+        return { ...run, fields };
+      }),
+
+    // ==================== CONTAR TEMPLATES + CONTRATOS POR UNIDADE ====================
+    countByBusinessUnit: protectedProcedure
+      .input(z.object({ businessUnitId: z.number() }))
+      .query(async ({ input }) => {
+        const templatesCount = await db.countTemplates();
+        const contractsCount = await db.countContractsByBusinessUnit(input.businessUnitId);
+        return { templates: templatesCount, contracts: contractsCount };
+      }),
   }),
   // ==================== EXPORT ====================
   export: router({

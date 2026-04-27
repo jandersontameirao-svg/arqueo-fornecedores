@@ -30,6 +30,7 @@ import ContractTemplates from "./pages/ContractTemplates";
 import SupplierLink from "./pages/SupplierLink";
 import AddSupplierAI from "./pages/AddSupplierAI";
 import UnitSuppliers from "./pages/UnitSuppliers";
+import GenerateContract from "./pages/GenerateContract";
 
 function Router() {
   return (
@@ -148,6 +149,11 @@ function Router() {
       <Route path="/contract-templates">
         <TopbarLayout>
           <ContractTemplates />
+        </TopbarLayout>
+      </Route>
+      <Route path="/generate-contract">
+        <TopbarLayout>
+          <GenerateContract />
         </TopbarLayout>
       </Route>
       <Route path="/404" component={NotFound} />

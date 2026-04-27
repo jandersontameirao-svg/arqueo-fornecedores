@@ -121,6 +121,7 @@ function Breadcrumbs() {
       "/contract-templates": "Templates",
       "/select-company": "Selecionar Empresa",
       "/unit-suppliers": "Fornecedores da Unidade",
+      "/generate-contract": "Gerar Contrato",
     };
 
     if (location !== "/") {
@@ -513,6 +514,7 @@ export default function TopbarLayout({ children }: { children: React.ReactNode }
     "/approvals",
     "/compliance",
     "/evaluations",
+    "/generate-contract",
   ];
   const isUnitRoute =
     UNIT_ROUTES.includes(location) ||

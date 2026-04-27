@@ -293,6 +293,12 @@ export const contracts = mysqlTable("contracts", {
   status: mysqlEnum("status", ["draft", "review", "active", "suspended", "expired", "terminated"]).default("draft").notNull(),
   // Creation mode tracking
   creationMode: mysqlEnum("creationMode", ["manual", "template", "duplicate", "ai"]).default("manual"),
+  // Template de origem (quando gerado a partir de template)
+  templateId: int("templateId").references(() => contractTemplates.id),
+  // Extração por IA
+  extractionRunId: int("extractionRunId"),
+  aiConfidenceScore: decimal("aiConfidenceScore", { precision: 5, scale: 2 }),
+  filledFieldsOrigin: json("filledFieldsOrigin"), // { campo: "ai" | "manual" | "supplier_data" }
   // Financial
   totalValue: decimal("totalValue", { precision: 15, scale: 2 }),
   currency: varchar("currency", { length: 3 }).default("BRL"),
@@ -363,6 +369,80 @@ export const contractTemplates = mysqlTable("contract_templates", {
 
 export type ContractTemplate = typeof contractTemplates.$inferSelect;
 export type InsertContractTemplate = typeof contractTemplates.$inferInsert;
+
+// ==================== TEMPLATE FIELDS (PLACEHOLDERS DE TEMPLATE) ====================
+// Campos variáveis definidos em cada template, usados para preenchimento manual ou por IA.
+export const templateFields = mysqlTable("template_fields", {
+  id: int("id").autoincrement().primaryKey(),
+  templateId: int("templateId").notNull().references(() => contractTemplates.id, { onDelete: "cascade" }),
+  fieldKey: varchar("fieldKey", { length: 100 }).notNull(), // ex: {{razao_social}}, {{cnpj}}
+  label: varchar("label", { length: 255 }).notNull(), // ex: "Razão Social"
+  fieldType: mysqlEnum("fieldType", ["text", "number", "date", "currency", "textarea", "select"]).default("text").notNull(),
+  isRequired: boolean("isRequired").default(true).notNull(),
+  defaultValue: text("defaultValue"),
+  description: text("description"),
+  selectOptions: json("selectOptions"), // para fieldType=select: ["opção1", "opção2"]
+  sortOrder: int("sortOrder").default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TemplateField = typeof templateFields.$inferSelect;
+export type InsertTemplateField = typeof templateFields.$inferInsert;
+
+// ==================== EXTRACTION RUNS (EXECUÇÕES DE EXTRAÇÃO POR IA) ====================
+// Cada vez que um PDF é enviado para extração por IA, uma run é criada.
+export const extractionRuns = mysqlTable("extraction_runs", {
+  id: int("id").autoincrement().primaryKey(),
+  // Arquivo fonte
+  sourceFileUrl: varchar("sourceFileUrl", { length: 1000 }).notNull(),
+  sourceFileKey: varchar("sourceFileKey", { length: 500 }),
+  sourceFileName: varchar("sourceFileName", { length: 255 }).notNull(),
+  sourceFileMimeType: varchar("sourceFileMimeType", { length: 100 }),
+  // Contexto
+  purpose: mysqlEnum("purpose", ["contract_fill", "supplier_fill", "both"]).default("both").notNull(),
+  templateId: int("templateId").references(() => contractTemplates.id),
+  supplierId: int("supplierId").references(() => suppliers.id),
+  contractId: int("contractId").references(() => contracts.id),
+  // Status
+  status: mysqlEnum("status", ["pending", "processing", "completed", "failed", "reviewed"]).default("pending").notNull(),
+  overallConfidence: decimal("overallConfidence", { precision: 5, scale: 2 }), // 0-100
+  // IA response
+  rawResponse: longtext("rawResponse"),
+  errorMessage: text("errorMessage"),
+  processingTimeMs: int("processingTimeMs"),
+  // Revisão humana
+  reviewedById: int("reviewedById").references(() => users.id),
+  reviewedAt: timestamp("reviewedAt"),
+  reviewNotes: text("reviewNotes"),
+  // Metadata
+  createdById: int("createdById").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ExtractionRun = typeof extractionRuns.$inferSelect;
+export type InsertExtractionRun = typeof extractionRuns.$inferInsert;
+
+// ==================== EXTRACTED FIELDS (CAMPOS EXTRAÍDOS POR IA) ====================
+// Cada campo individual extraído de um PDF durante uma extraction run.
+export const extractedFields = mysqlTable("extracted_fields", {
+  id: int("id").autoincrement().primaryKey(),
+  extractionRunId: int("extractionRunId").notNull().references(() => extractionRuns.id, { onDelete: "cascade" }),
+  fieldKey: varchar("fieldKey", { length: 100 }).notNull(), // ex: "cnpj", "razao_social"
+  fieldLabel: varchar("fieldLabel", { length: 255 }).notNull(),
+  extractedValue: text("extractedValue"),
+  confirmedValue: text("confirmedValue"), // valor após revisão humana
+  confidence: decimal("confidence", { precision: 5, scale: 2 }), // 0-100
+  source: mysqlEnum("source", ["ai", "manual", "ai_confirmed", "ai_corrected"]).default("ai").notNull(),
+  category: mysqlEnum("category", ["supplier", "contract", "financial", "legal", "other"]).default("other").notNull(),
+  needsReview: boolean("needsReview").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ExtractedField = typeof extractedFields.$inferSelect;
+export type InsertExtractedField = typeof extractedFields.$inferInsert;
 
 // ==================== CONTRACT AMENDMENTS (ADITIVOS) ====================
 export const contractAmendments = mysqlTable("contract_amendments", {

@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Users,
   ArrowRight,
+  FileText,
 } from "lucide-react";
 import { useBusinessUnitContext } from "@/contexts/BusinessUnitContext";
 import { useSelectedCompany, type SelectedCompany } from "@/contexts/SelectedCompanyContext";
@@ -260,7 +261,7 @@ export default function SelectCompany() {
 
       {/* ── Vista: menu principal (dois cards grandes) ── */}
       {view === "menu" && (
-        <div className="grid gap-6 md:grid-cols-2 max-w-2xl">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 max-w-4xl">
           {/* Card Empresas */}
           <button
             onClick={() => setView("empresas")}
@@ -307,6 +308,31 @@ export default function SelectCompany() {
                   {totalSuppliers ?? "—"} fornecedor{totalSuppliers !== 1 ? "es" : ""}
                 </span>
                 <ArrowRight size={18} className="text-arqueo-bordo group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+          </button>
+
+          {/* Card Templates e Contratos */}
+          <button
+            onClick={() => setLocation("/contract-templates")}
+            className="group text-left bg-white rounded-2xl shadow-warm hover:shadow-warm-lg border border-white/60 transition-all duration-300 hover:-translate-y-1 overflow-hidden"
+          >
+            <div className="h-1.5 w-full bg-arqueo-ouro" />
+            <div className="p-6 flex flex-col gap-4">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm" style={{ backgroundColor: '#D4A01718', color: '#D4A017' }}>
+                <FileText size={26} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold font-heading text-foreground">Templates e Contratos</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Gerencie modelos contratuais e gere contratos vinculados automaticamente aos fornecedores
+                </p>
+              </div>
+              <div className="flex items-center justify-between mt-auto pt-2 border-t border-border/30">
+                <span className="text-sm font-semibold" style={{ color: '#D4A017' }}>
+                  Templates e Geração
+                </span>
+                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" style={{ color: '#D4A017' }} />
               </div>
             </div>
           </button>

@@ -1,4 +1,4 @@
-import { eq, desc, and, or, like, gte, lte, sql, isNull } from "drizzle-orm";
+import { eq, desc, asc, and, or, like, gte, lte, sql, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users,
@@ -26,6 +26,9 @@ import {
   contractVersions, InsertContractVersion,
   contractSigners, InsertContractSigner,
   contractClicksignEvents, InsertContractClicksignEvent,
+  templateFields, InsertTemplateField,
+  extractionRuns, InsertExtractionRun,
+  extractedFields, InsertExtractedField,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -2026,5 +2029,192 @@ export async function countAuditLogs(): Promise<number> {
   const db = await getDb();
   if (!db) return 0;
   const result = await db.select({ count: sql<number>`count(*)` }).from(auditLogs);
+  return Number(result[0]?.count ?? 0);
+}
+
+
+// ==================== TEMPLATE FIELDS ====================
+
+export async function getTemplateFields(templateId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(templateFields).where(eq(templateFields.templateId, templateId)).orderBy(asc(templateFields.sortOrder));
+}
+
+export async function createTemplateField(data: InsertTemplateField) {
+  const db = await getDb();
+  if (!db) return null;
+  const [result] = await db.insert(templateFields).values(data);
+  return result.insertId;
+}
+
+export async function updateTemplateField(id: number, data: Partial<InsertTemplateField>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(templateFields).set(data).where(eq(templateFields.id, id));
+}
+
+export async function deleteTemplateField(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(templateFields).where(eq(templateFields.id, id));
+}
+
+export async function deleteTemplateFieldsByTemplateId(templateId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(templateFields).where(eq(templateFields.templateId, templateId));
+}
+
+// ==================== EXTRACTION RUNS ====================
+
+export async function createExtractionRun(data: InsertExtractionRun) {
+  const db = await getDb();
+  if (!db) return null;
+  const [result] = await db.insert(extractionRuns).values(data);
+  return result.insertId;
+}
+
+export async function getExtractionRun(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(extractionRuns).where(eq(extractionRuns.id, id));
+  return rows[0] ?? null;
+}
+
+export async function updateExtractionRun(id: number, data: Partial<InsertExtractionRun>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(extractionRuns).set(data).where(eq(extractionRuns.id, id));
+}
+
+export async function getExtractionRunsByContract(contractId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(extractionRuns).where(eq(extractionRuns.contractId, contractId)).orderBy(desc(extractionRuns.createdAt));
+}
+
+// ==================== EXTRACTED FIELDS ====================
+
+export async function createExtractedFields(data: InsertExtractedField[]) {
+  const db = await getDb();
+  if (!db) return;
+  if (data.length === 0) return;
+  await db.insert(extractedFields).values(data);
+}
+
+export async function getExtractedFieldsByRun(extractionRunId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(extractedFields).where(eq(extractedFields.extractionRunId, extractionRunId)).orderBy(asc(extractedFields.id));
+}
+
+export async function updateExtractedField(id: number, data: Partial<InsertExtractedField>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(extractedFields).set(data).where(eq(extractedFields.id, id));
+}
+
+export async function confirmExtractedFields(extractionRunId: number, confirmedData: { id: number; confirmedValue: string; source: "ai_confirmed" | "ai_corrected" | "manual" }[]) {
+  const db = await getDb();
+  if (!db) return;
+  for (const field of confirmedData) {
+    await db.update(extractedFields).set({
+      confirmedValue: field.confirmedValue,
+      source: field.source,
+      needsReview: false,
+    }).where(eq(extractedFields.id, field.id));
+  }
+  // Mark the run as reviewed
+  await db.update(extractionRuns).set({ status: "reviewed" }).where(eq(extractionRuns.id, extractionRunId));
+}
+
+// ==================== GENERATE CONTRACT FROM TEMPLATE ====================
+
+export async function generateContractFromTemplate(params: {
+  templateId: number;
+  supplierId: number;
+  filledFields: Record<string, string>;
+  filledFieldsOrigin: Record<string, string>;
+  aiConfidenceScore?: number;
+  extractionRunId?: number;
+  createdById?: number;
+  groupId?: number;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+
+  // Get the template
+  const [template] = await db.select().from(contractTemplates).where(eq(contractTemplates.id, params.templateId));
+  if (!template) throw new Error("Template não encontrado");
+
+  // Get the supplier
+  const [supplier] = await db.select().from(suppliers).where(eq(suppliers.id, params.supplierId));
+  if (!supplier) throw new Error("Fornecedor não encontrado");
+
+  // Replace placeholders in template content
+  let content = template.content;
+  for (const [key, value] of Object.entries(params.filledFields)) {
+    const regex = new RegExp(`\\{\\{${key}\\}\\}`, "g");
+    content = content.replace(regex, value);
+  }
+
+  // Generate contract number
+  const countResult = await db.select({ count: sql<number>`count(*)` }).from(contracts).where(eq(contracts.supplierId, params.supplierId));
+  const count = Number(countResult[0]?.count ?? 0) + 1;
+  const contractNumber = `CTR-${supplier.cnpj?.replace(/\D/g, "").slice(0, 8) ?? "0000"}-${String(count).padStart(3, "0")}`;
+
+  // Create the contract
+  const [result] = await db.insert(contracts).values({
+    supplierId: params.supplierId,
+    number: contractNumber,
+    title: params.filledFields["titulo"] || params.filledFields["title"] || `Contrato - ${supplier.companyName}`,
+    object: params.filledFields["objeto"] || params.filledFields["object"] || template.description || "",
+    contractType: template.contractType ?? "service",
+    status: "draft",
+    creationMode: "template",
+    templateId: params.templateId,
+    extractionRunId: params.extractionRunId ?? null,
+    aiConfidenceScore: params.aiConfidenceScore ? String(params.aiConfidenceScore) : null,
+    filledFieldsOrigin: params.filledFieldsOrigin,
+    totalValue: params.filledFields["valor_total"] || params.filledFields["total_value"] || null,
+    content: content,
+    contractorName: params.filledFields["contratante_nome"] || params.filledFields["contractor_name"] || "",
+    contractorCnpj: params.filledFields["contratante_cnpj"] || params.filledFields["contractor_cnpj"] || "",
+    startDate: params.filledFields["data_inicio"] ? new Date(params.filledFields["data_inicio"]) : null,
+    endDate: params.filledFields["data_fim"] ? new Date(params.filledFields["data_fim"]) : null,
+    createdById: params.createdById,
+  });
+
+  // Create initial version
+  await db.insert(contractVersions).values({
+    contractId: result.insertId,
+    versionNumber: 1,
+    content: content,
+    changeDescription: `Contrato gerado a partir do template "${template.name}"`,
+    title: params.filledFields["titulo"] || params.filledFields["title"] || `Contrato - ${supplier.companyName}`,
+    totalValue: params.filledFields["valor_total"] || params.filledFields["total_value"] || null,
+    createdById: params.createdById,
+  });
+
+  return result.insertId;
+}
+
+// ==================== COUNT TEMPLATES & CONTRACTS FOR UNIT STATS ====================
+
+export async function countContractsByBusinessUnit(businessUnitId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select({ count: sql<number>`count(*)` }).from(contracts)
+    .innerJoin(suppliers, eq(contracts.supplierId, suppliers.id))
+    .where(eq(suppliers.groupId, businessUnitId));
+  return Number(result[0]?.count ?? 0);
+}
+
+
+export async function countTemplates() {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select({ count: sql<number>`count(*)` }).from(contractTemplates);
   return Number(result[0]?.count ?? 0);
 }

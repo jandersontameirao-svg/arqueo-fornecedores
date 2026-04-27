@@ -141,6 +141,13 @@
       "when": 1777145645884,
       "tag": "0019_public_crystal",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1777301113720,
+      "tag": "0020_closed_dagger",
+      "breakpoints": true
     }
   ]
 }
