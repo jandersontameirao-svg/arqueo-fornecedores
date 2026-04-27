@@ -8,7 +8,23 @@ import App from "./App";
 import { getLoginUrl } from "./const";
 import "./index.css";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) => {
+        // Don't retry on auth errors (401/UNAUTHORIZED)
+        if (error instanceof TRPCClientError) {
+          const code = error.data?.code;
+          if (code === "UNAUTHORIZED" || code === "FORBIDDEN") return false;
+        }
+        // Retry up to 2 times for network errors (Failed to fetch)
+        return failureCount < 2;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+      staleTime: 30_000, // 30s — avoid redundant refetches on tab focus
+    },
+  },
+});
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;

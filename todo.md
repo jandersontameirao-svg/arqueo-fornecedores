@@ -762,3 +762,8 @@
 
 ## v7.10 — Fix substituição de placeholders no contrato gerado
 - [x] Corrigir lógica de substituição de placeholders em generateContractFromTemplate: dados do fornecedor e filledFields devem substituir os placeholders reais no conteúdo do template
+
+## v7.11 — Auditoria: documentos NUNCA devem ser apagados programaticamente
+- [x] Auditar todo o código backend (db.ts, routers.ts) para verificar se alguma operação deleta documentos (supplier_documents, S3)
+- [x] Auditar código frontend para verificar se há chamadas de delete em documentos
+- [x] Garantir regra absoluta: documentos só podem ser apagados manualmente pelo usuário, NUNCA por código automático
