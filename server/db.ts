@@ -1999,3 +1999,32 @@ export async function countSuppliersByCompanyStringId(companyId: string): Promis
     .where(eq(suppliers.companyId, companyId));
   return Number(result[0]?.count ?? 0);
 }
+
+// Contagem para home da central de fornecedores
+export async function countCategories(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select({ count: sql<number>`count(*)` }).from(supplierCategories);
+  return Number(result[0]?.count ?? 0);
+}
+
+export async function countContractTemplates(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select({ count: sql<number>`count(*)` }).from(contractTemplates);
+  return Number(result[0]?.count ?? 0);
+}
+
+export async function countUsers(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select({ count: sql<number>`count(*)` }).from(users);
+  return Number(result[0]?.count ?? 0);
+}
+
+export async function countAuditLogs(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select({ count: sql<number>`count(*)` }).from(auditLogs);
+  return Number(result[0]?.count ?? 0);
+}

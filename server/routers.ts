@@ -2823,6 +2823,20 @@ REGRAS CRÍTICAS:
         return db.countSuppliersByCompanyStringId(input.companyId);
       }),
 
+    // Stats consolidados para home da central de fornecedores
+    unitStats: protectedProcedure
+      .input(z.object({ businessUnitId: z.number() }))
+      .query(async ({ input }) => {
+        const [suppliers, categories, templates, usersCount, auditCount] = await Promise.all([
+          db.countSuppliersByBusinessUnit(input.businessUnitId),
+          db.countCategories(),
+          db.countContractTemplates(),
+          db.countUsers(),
+          db.countAuditLogs(),
+        ]);
+        return { suppliers, categories, templates, users: usersCount, audit: auditCount };
+      }),
+
     // Criar vínculo
     create: managerProcedure
       .input(z.object({
