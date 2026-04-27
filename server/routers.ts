@@ -2578,8 +2578,10 @@ Estruture o contrato com:
 
         await writeFile(htmlPath, html, "utf8");
 
+        // Use clean env to avoid PYTHONPATH conflicts from the Node.js process
+        const cleanEnv = { HOME: "/home/ubuntu", PATH: "/usr/bin:/usr/local/bin:/bin" };
         await new Promise<void>((resolve, reject) => {
-          execFile("/usr/bin/python3.11", ["-m", "weasyprint", htmlPath, pdfPath], { timeout: 30000 }, (err) => {
+          execFile("/usr/bin/python3.11", ["-m", "weasyprint", htmlPath, pdfPath], { timeout: 30000, env: cleanEnv }, (err) => {
             if (err) reject(new Error(`WeasyPrint error: ${err.message}`));
             else resolve();
           });
