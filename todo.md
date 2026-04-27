@@ -746,3 +746,7 @@
 - [x] Vínculo contrato → fornecedor visível no cadastro do fornecedor
 - [x] Contrato visível na lista geral de contratos
 - [x] Rastreabilidade: templateId, templateName, createdBy, creationMode
+
+## v7.6 — Remover sidebar lateral definitivamente
+- [x] Remover DashboardLayout (sidebar fixo) de todas as páginas
+- [x] Garantir que apenas TopbarLayout (navegação superior) permanece

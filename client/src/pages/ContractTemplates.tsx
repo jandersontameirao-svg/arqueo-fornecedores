@@ -1,7 +1,6 @@
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { useLocation } from "wouter";
-import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -498,8 +497,7 @@ export default function ContractTemplatesPage() {
   const handleSuccess = () => utils.templates.listAll.invalidate();
 
   return (
-    <DashboardLayout>
-      <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -655,7 +653,6 @@ export default function ContractTemplatesPage() {
             )}
           </div>
         )}
-      </div>
 
       {/* Dialogs */}
       <TemplateFormDialog
@@ -711,6 +708,6 @@ export default function ContractTemplatesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </DashboardLayout>
+    </div>
   );
 }
