@@ -122,6 +122,8 @@ function Breadcrumbs() {
       "/select-company": "Selecionar Empresa",
       "/unit-suppliers": "Fornecedores da Unidade",
       "/generate-contract": "Gerar Contrato",
+      "/suppliers/add-ai": "Cadastrar via I.A.",
+      "/suppliers/new-ai": "Cadastrar via I.A.",
     };
 
     if (location !== "/") {
@@ -137,7 +139,7 @@ function Breadcrumbs() {
         }
       } else if (pathMap[location]) {
         // If it's a supplier sub-page, add Fornecedores parent
-        if (["/approvals", "/compliance", "/evaluations", "/suppliers/link"].includes(location)) {
+        if (["/approvals", "/compliance", "/evaluations", "/suppliers/link", "/suppliers/add-ai", "/suppliers/new-ai"].includes(location)) {
           parts.push({ label: "Fornecedores", path: "/suppliers" });
         }
         parts.push({ label: pathMap[location] });

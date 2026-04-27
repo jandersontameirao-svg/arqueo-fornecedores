@@ -29,6 +29,7 @@ import {
   templateFields, InsertTemplateField,
   extractionRuns, InsertExtractionRun,
   extractedFields, InsertExtractedField,
+  supplierDocumentLinks, InsertSupplierDocumentLink,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -2217,4 +2218,55 @@ export async function countTemplates() {
   if (!db) return 0;
   const result = await db.select({ count: sql<number>`count(*)` }).from(contractTemplates);
   return Number(result[0]?.count ?? 0);
+}
+
+
+// ==================== SUPPLIER DOCUMENT LINKS (DOCUMENTOS VIA IA) ====================
+
+export async function createSupplierDocumentLink(data: InsertSupplierDocumentLink): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(supplierDocumentLinks).values(data);
+  return Number(result[0].insertId);
+}
+
+export async function getSupplierDocumentLinks(supplierId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(supplierDocumentLinks).where(eq(supplierDocumentLinks.supplierId, supplierId)).orderBy(desc(supplierDocumentLinks.createdAt));
+}
+
+// ==================== SUPPLIER AI EXTRACTION HELPERS ====================
+
+export async function createSupplierExtractionRun(data: InsertExtractionRun): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(extractionRuns).values(data);
+  return Number(result[0].insertId);
+}
+
+export async function updateExtractionRunStatus(id: number, status: string, extra?: Partial<InsertExtractionRun>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(extractionRuns).set({ status: status as any, ...extra }).where(eq(extractionRuns.id, id));
+}
+
+export async function createExtractedFieldsBatch(fields: InsertExtractedField[]): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  if (fields.length === 0) return;
+  await db.insert(extractedFields).values(fields);
+}
+
+export async function getExtractionRunById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(extractionRuns).where(eq(extractionRuns.id, id)).limit(1);
+  return rows[0] || null;
+}
+
+export async function getExtractedFieldsByRunId(runId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(extractedFields).where(eq(extractedFields.extractionRunId, runId));
 }

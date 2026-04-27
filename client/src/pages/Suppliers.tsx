@@ -54,6 +54,7 @@ import {
   Clock,
   XCircle,
   Pause,
+  Sparkles,
 } from "lucide-react";
 
 const statusLabels: Record<string, string> = {
@@ -152,10 +153,20 @@ export default function Suppliers() {
             Exportar
           </Button>
           {canCreate && (
-            <Button onClick={() => setLocation("/suppliers/new")} className="shadow-sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Fornecedor
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setLocation("/suppliers/new-ai")}
+                className="shadow-sm border-violet-300 text-violet-700 hover:bg-violet-50 hover:text-violet-800"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Cadastrar via I.A.
+              </Button>
+              <Button onClick={() => setLocation("/suppliers/new")} className="shadow-sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Fornecedor
+              </Button>
+            </>
           )}
         </div>
       </div>

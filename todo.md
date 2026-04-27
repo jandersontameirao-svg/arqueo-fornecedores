@@ -713,3 +713,15 @@
 - [x] Botão "Gerar via Template" no SupplierContracts (aba Contratos do fornecedor)
 - [x] Rota /generate-contract integrada no App.tsx e UNIT_ROUTES
 - [x] Breadcrumb "Gerar Contrato" no TopbarLayout
+
+## v7.1 — Cadastrar Fornecedor via I.A.
+- [x] Schema: supplier_extraction_runs, supplier_extracted_fields, supplier_document_links + expandir suppliers com registrationOrigin
+- [x] Backend: procedures uploadDocsForExtraction, extractSupplierFromDocs, saveSupplierViaAI
+- [x] Frontend: botão "Cadastrar via I.A." na listagem de fornecedores (ao lado de Novo Fornecedor)
+- [x] Wizard: upload de documentos → extração por IA → revisão no formulário existente → salvamento
+- [x] Score de confiança visual por campo (alta/média/baixa/não encontrado)
+- [x] Reconhecimento de tipo de documento (CNPJ, CNH, comprovante, currículo, etc.)
+- [x] Vinculação de documentos ao fornecedor após salvamento
+- [x] Rastreabilidade: origem IA, data, usuário, score, campos revisados
+- [x] Tratamento de erros: PDF vazio, ilegível, timeout, conflitos
+- [x] Compatibilidade total com fluxo manual existente

@@ -74,6 +74,8 @@ export const suppliers = mysqlTable("suppliers", {
   status: mysqlEnum("status", ["pending", "approved", "rejected", "suspended", "inactive"]).default("pending").notNull(),
   approvedAt: timestamp("approvedAt"),
   approvedById: int("approvedById").references(() => users.id),
+  // Origem do cadastro
+  registrationOrigin: mysqlEnum("registrationOrigin", ["manual", "ai"]).default("manual").notNull(),
   // Metadata
   notes: text("notes"),
   createdById: int("createdById").references(() => users.id),
@@ -650,3 +652,30 @@ export const contractClicksignEvents = mysqlTable("contract_clicksign_events", {
 
 export type ContractClicksignEvent = typeof contractClicksignEvents.$inferSelect;
 export type InsertContractClicksignEvent = typeof contractClicksignEvents.$inferInsert;
+
+// ==================== SUPPLIER DOCUMENT LINKS (DOCUMENTOS VINCULADOS VIA IA) ====================
+// Vincula documentos usados na extração por IA ao fornecedor criado.
+export const supplierDocumentLinks = mysqlTable("supplier_document_links", {
+  id: int("id").autoincrement().primaryKey(),
+  supplierId: int("supplierId").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
+  extractionRunId: int("extractionRunId").references(() => extractionRuns.id, { onDelete: "set null" }),
+  // Arquivo vinculado
+  fileUrl: varchar("fileUrl", { length: 1000 }).notNull(),
+  fileKey: varchar("fileKey", { length: 500 }),
+  fileName: varchar("fileName", { length: 255 }).notNull(),
+  fileSize: int("fileSize"),
+  mimeType: varchar("mimeType", { length: 100 }),
+  // Tipo de documento reconhecido pela IA
+  documentType: mysqlEnum("documentType", [
+    "cnpj_card", "registration_form", "personal_id", "address_proof",
+    "resume", "diploma", "certificate", "cnh", "contract", "invoice", "other"
+  ]).default("other").notNull(),
+  documentTypeConfidence: decimal("documentTypeConfidence", { precision: 5, scale: 2 }),
+  // Metadata
+  linkedById: int("linkedById").references(() => users.id),
+  linkedAt: timestamp("linkedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SupplierDocumentLink = typeof supplierDocumentLinks.$inferSelect;
+export type InsertSupplierDocumentLink = typeof supplierDocumentLinks.$inferInsert;

@@ -77,6 +77,11 @@ function Router() {
           <AddSupplierAI />
         </TopbarLayout>
       </Route>
+      <Route path="/suppliers/new-ai">
+        <TopbarLayout>
+          <AddSupplierAI />
+        </TopbarLayout>
+      </Route>
       <Route path="/suppliers/link">
         <TopbarLayout>
           <SupplierLink />

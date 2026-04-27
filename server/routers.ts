@@ -47,6 +47,161 @@ const managerProcedure = protectedProcedure.use(({ ctx, next }) => {
   return next({ ctx });
 });
 
+// ==================== SUPPLIER AI EXTRACTION CONSTANTS ====================
+
+const SUPPLIER_EXTRACTION_SYSTEM_PROMPT = `Voc\u00ea \u00e9 um especialista em an\u00e1lise de documentos empresariais brasileiros. Sua tarefa \u00e9 extrair dados cadastrais de fornecedores a partir de documentos enviados (cart\u00e3o CNPJ, contratos sociais, formul\u00e1rios de cadastro, comprovantes, CNH, curr\u00edculos, certid\u00f5es, etc.).
+
+REGRAS CR\u00cdTICAS:
+- Extraia APENAS dados presentes nos documentos. NUNCA invente informa\u00e7\u00f5es.
+- Se um campo n\u00e3o estiver claramente no documento, retorne string vazia "" e confidence "not_found".
+- N\u00e3o invente CNPJs, valores, nomes ou endere\u00e7os.
+- Cruze informa\u00e7\u00f5es de m\u00faltiplos documentos para maior precis\u00e3o.
+- Priorize dados mais claros e consistentes.
+- Identifique o tipo de cada documento enviado.
+- Seja conservador: prefira deixar vazio a inventar.`;
+
+const SUPPLIER_EXTRACTION_USER_PROMPT = `Analise os documentos enviados e extraia os dados cadastrais do fornecedor. Retorne JSON com a estrutura abaixo:
+{
+  "documents_identified": [
+    { "fileName": "nome do arquivo", "type": "cnpj_card|registration_form|personal_id|address_proof|resume|diploma|certificate|cnh|contract|invoice|other", "typeConfidence": 95 }
+  ],
+  "fields": {
+    "companyName": { "value": "", "confidence": "high|medium|low|not_found", "source": "nome do arquivo" },
+    "tradeName": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "cnpj": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "stateRegistration": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "municipalRegistration": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "email": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "phone": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "website": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "street": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "number": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "complement": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "neighborhood": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "city": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "state": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "zipCode": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "legalRepresentativeName": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "legalRepresentativeCpf": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "legalRepresentativeRole": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "bankName": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "bankAgency": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "bankAccount": { "value": "", "confidence": "high|medium|low|not_found", "source": "" },
+    "notes": { "value": "", "confidence": "high|medium|low|not_found", "source": "" }
+  },
+  "summary": "Resumo do que foi encontrado nos documentos",
+  "conflicts": ["lista de conflitos entre documentos, se houver"],
+  "missingCritical": ["campos cr\u00edticos n\u00e3o encontrados"]
+}`;
+
+const SUPPLIER_EXTRACTION_RESPONSE_FORMAT = {
+  type: "json_schema" as const,
+  json_schema: {
+    name: "supplier_extraction",
+    strict: true,
+    schema: {
+      type: "object",
+      properties: {
+        documents_identified: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              fileName: { type: "string" },
+              type: { type: "string" },
+              typeConfidence: { type: "number" },
+            },
+            required: ["fileName", "type", "typeConfidence"],
+            additionalProperties: false,
+          },
+        },
+        fields: {
+          type: "object",
+          properties: {
+            companyName: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            tradeName: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            cnpj: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            stateRegistration: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            municipalRegistration: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            email: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            phone: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            website: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            street: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            number: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            complement: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            neighborhood: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            city: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            state: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            zipCode: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            legalRepresentativeName: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            legalRepresentativeCpf: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            legalRepresentativeRole: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            bankName: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            bankAgency: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            bankAccount: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+            notes: { type: "object", properties: { value: { type: "string" }, confidence: { type: "string" }, source: { type: "string" } }, required: ["value", "confidence", "source"], additionalProperties: false },
+          },
+          required: ["companyName", "tradeName", "cnpj", "stateRegistration", "municipalRegistration", "email", "phone", "website", "street", "number", "complement", "neighborhood", "city", "state", "zipCode", "legalRepresentativeName", "legalRepresentativeCpf", "legalRepresentativeRole", "bankName", "bankAgency", "bankAccount", "notes"],
+          additionalProperties: false,
+        },
+        summary: { type: "string" },
+        conflicts: { type: "array", items: { type: "string" } },
+        missingCritical: { type: "array", items: { type: "string" } },
+      },
+      required: ["documents_identified", "fields", "summary", "conflicts", "missingCritical"],
+      additionalProperties: false,
+    },
+  },
+};
+
+const CONFIDENCE_MAP: Record<string, number> = { high: 95, medium: 70, low: 35, not_found: 0 };
+
+const FIELD_LABELS: Record<string, string> = {
+  companyName: "Raz\u00e3o Social",
+  tradeName: "Nome Fantasia",
+  cnpj: "CNPJ",
+  stateRegistration: "Inscri\u00e7\u00e3o Estadual",
+  municipalRegistration: "Inscri\u00e7\u00e3o Municipal",
+  email: "E-mail",
+  phone: "Telefone",
+  website: "Website",
+  street: "Logradouro",
+  number: "N\u00famero",
+  complement: "Complemento",
+  neighborhood: "Bairro",
+  city: "Cidade",
+  state: "Estado",
+  zipCode: "CEP",
+  legalRepresentativeName: "Nome do Representante Legal",
+  legalRepresentativeCpf: "CPF do Representante",
+  legalRepresentativeRole: "Cargo/Fun\u00e7\u00e3o",
+  bankName: "Banco",
+  bankAgency: "Ag\u00eancia",
+  bankAccount: "Conta",
+  notes: "Observa\u00e7\u00f5es",
+};
+
+function buildExtractedFields(runId: number, parsed: any) {
+  const fields: any[] = [];
+  if (!parsed?.fields) return fields;
+  for (const [key, val] of Object.entries(parsed.fields)) {
+    const v = val as any;
+    if (!v) continue;
+    const confStr = v.confidence || "not_found";
+    fields.push({
+      extractionRunId: runId,
+      fieldKey: key,
+      fieldLabel: FIELD_LABELS[key] || key,
+      extractedValue: v.value || "",
+      confidence: String(CONFIDENCE_MAP[confStr] ?? 0),
+      source: "ai",
+      category: "supplier",
+      needsReview: confStr !== "high",
+    });
+  }
+  return fields;
+}
+
 // ==================== SCHEMAS ====================
 const supplierSchema = z.object({
   companyName: z.string().min(1, "Nome da empresa é obrigatório"),
@@ -472,6 +627,296 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         await db.deleteSupplierContact(input.id);
         return { success: true };
+      }),
+
+    // ==================== CADASTRO VIA I.A. ====================
+
+    uploadDocsForExtraction: managerProcedure
+      .input(z.object({
+        files: z.array(z.object({
+          base64: z.string(),
+          fileName: z.string(),
+          mimeType: z.string(),
+          fileSize: z.number(),
+        })),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const uploadedFiles: Array<{ fileUrl: string; fileKey: string; fileName: string; fileSize: number; mimeType: string }> = [];
+        for (const file of input.files) {
+          const buffer = Buffer.from(file.base64, "base64");
+          const safeName = file.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+          const fileKey = `suppliers/ai-extraction/${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${safeName}`;
+          const { url: fileUrl } = await storagePut(fileKey, buffer, file.mimeType);
+          uploadedFiles.push({ fileUrl, fileKey, fileName: file.fileName, fileSize: file.fileSize, mimeType: file.mimeType });
+        }
+        return { uploadedFiles };
+      }),
+
+    extractFromDocs: managerProcedure
+      .input(z.object({
+        files: z.array(z.object({
+          base64: z.string(),
+          fileName: z.string(),
+          mimeType: z.string(),
+          fileUrl: z.string().optional().default(""),
+          fileKey: z.string().optional().default(""),
+        })),
+        groupId: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const startTime = Date.now();
+
+        // Upload files to S3 if not already uploaded
+        const filesWithUrls = [];
+        for (const file of input.files) {
+          if (file.fileUrl && file.fileKey) {
+            filesWithUrls.push(file);
+          } else {
+            const buffer = Buffer.from(file.base64, "base64");
+            const safeName = file.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+            const fileKey = `suppliers/ai-extraction/${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${safeName}`;
+            const { url: fileUrl } = await storagePut(fileKey, buffer, file.mimeType);
+            filesWithUrls.push({ ...file, fileUrl, fileKey });
+          }
+        }
+
+        // Create extraction run
+        const runId = await db.createSupplierExtractionRun({
+          sourceFileUrl: filesWithUrls[0].fileUrl,
+          sourceFileKey: filesWithUrls[0].fileKey,
+          sourceFileName: filesWithUrls.map(f => f.fileName).join(", "),
+          sourceFileMimeType: filesWithUrls[0].mimeType,
+          purpose: "supplier_fill",
+          status: "processing",
+          createdById: ctx.user.id,
+        });
+
+        try {
+          // Extract text from all files
+          const fileTexts: string[] = [];
+          for (const file of filesWithUrls) {
+            const buffer = Buffer.from(file.base64, "base64");
+            const ext = file.fileName.split(".").pop()?.toLowerCase() || "bin";
+            const text = await extractTextFromBuffer(buffer, ext);
+            if (text) {
+              fileTexts.push(`--- DOCUMENTO: ${file.fileName} ---\n${text}`);
+            }
+          }
+
+          if (fileTexts.length === 0) {
+            // Try with LLM file_url for PDFs
+            const fileContents: any[] = [];
+            for (const file of filesWithUrls) {
+              if (file.mimeType === "application/pdf") {
+                fileContents.push({
+                  type: "file_url" as const,
+                  file_url: { url: file.fileUrl, mime_type: "application/pdf" as const },
+                });
+              }
+            }
+            if (fileContents.length === 0) {
+              await db.updateExtractionRunStatus(runId, "failed", {
+                errorMessage: "N\u00e3o foi poss\u00edvel extrair texto dos documentos enviados. Verifique se os arquivos s\u00e3o leg\u00edveis.",
+                processingTimeMs: Date.now() - startTime,
+              });
+              throw new TRPCError({ code: "BAD_REQUEST", message: "N\u00e3o foi poss\u00edvel extrair texto dos documentos enviados." });
+            }
+            // Use multimodal approach
+            const response = await invokeLLM({
+              messages: [
+                {
+                  role: "system",
+                  content: SUPPLIER_EXTRACTION_SYSTEM_PROMPT,
+                },
+                {
+                  role: "user",
+                  content: [
+                    { type: "text" as const, text: SUPPLIER_EXTRACTION_USER_PROMPT },
+                    ...fileContents,
+                  ],
+                },
+              ],
+              response_format: SUPPLIER_EXTRACTION_RESPONSE_FORMAT,
+            });
+
+            const rawContent = response.choices[0]?.message?.content || "{}";
+            const contentStr = typeof rawContent === "string" ? rawContent : "{}";
+            const parsed = JSON.parse(contentStr);
+            const processingTimeMs = Date.now() - startTime;
+
+            // Save extracted fields
+            const extractedFieldsList = buildExtractedFields(runId, parsed);
+            await db.createExtractedFieldsBatch(extractedFieldsList);
+
+            // Calculate overall confidence
+            const avgConfidence = extractedFieldsList.length > 0
+              ? extractedFieldsList.reduce((sum, f) => sum + Number(f.confidence || 0), 0) / extractedFieldsList.length
+              : 0;
+
+            await db.updateExtractionRunStatus(runId, "completed", {
+              overallConfidence: String(avgConfidence) as any,
+              rawResponse: contentStr,
+              processingTimeMs,
+            });
+
+            return {
+              runId,
+              extracted: parsed,
+              fields: extractedFieldsList,
+              overallConfidence: avgConfidence,
+              processingTimeMs,
+              uploadedFiles: filesWithUrls.map(f => ({ fileUrl: f.fileUrl, fileKey: f.fileKey, fileName: f.fileName, fileSize: 0, mimeType: f.mimeType })),
+            };
+          }
+
+          // Text-based extraction
+          const combinedText = fileTexts.join("\n\n");
+          const response = await invokeLLM({
+            messages: [
+              {
+                role: "system",
+                content: SUPPLIER_EXTRACTION_SYSTEM_PROMPT,
+              },
+              {
+                role: "user",
+                content: SUPPLIER_EXTRACTION_USER_PROMPT + "\n\n" + combinedText,
+              },
+            ],
+            response_format: SUPPLIER_EXTRACTION_RESPONSE_FORMAT,
+          });
+
+          const rawContent = response.choices[0]?.message?.content || "{}";
+          const contentStr = typeof rawContent === "string" ? rawContent : "{}";
+          const parsed = JSON.parse(contentStr);
+          const processingTimeMs = Date.now() - startTime;
+
+          // Save extracted fields
+          const extractedFieldsList = buildExtractedFields(runId, parsed);
+          await db.createExtractedFieldsBatch(extractedFieldsList);
+
+          // Calculate overall confidence
+          const avgConfidence = extractedFieldsList.length > 0
+            ? extractedFieldsList.reduce((sum, f) => sum + Number(f.confidence || 0), 0) / extractedFieldsList.length
+            : 0;
+
+          await db.updateExtractionRunStatus(runId, "completed", {
+            overallConfidence: String(avgConfidence) as any,
+            rawResponse: contentStr,
+            processingTimeMs,
+          });
+
+          return {
+            runId,
+            extracted: parsed,
+            fields: extractedFieldsList,
+            overallConfidence: avgConfidence,
+            processingTimeMs,
+            uploadedFiles: filesWithUrls.map(f => ({ fileUrl: f.fileUrl, fileKey: f.fileKey, fileName: f.fileName, fileSize: 0, mimeType: f.mimeType })),
+          };
+        } catch (err: any) {
+          if (err instanceof TRPCError) throw err;
+          await db.updateExtractionRunStatus(runId, "failed", {
+            errorMessage: err?.message || "Erro desconhecido na extra\u00e7\u00e3o",
+            processingTimeMs: Date.now() - startTime,
+          });
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: err?.message || "Erro na extra\u00e7\u00e3o por IA" });
+        }
+      }),
+
+    saveViaAI: managerProcedure
+      .input(z.object({
+        supplierData: supplierSchema,
+        extractionRunId: z.number(),
+        uploadedFiles: z.array(z.object({
+          fileUrl: z.string(),
+          fileKey: z.string(),
+          fileName: z.string(),
+          fileSize: z.number(),
+          mimeType: z.string(),
+          documentType: z.string().optional(),
+          documentTypeConfidence: z.number().optional(),
+        })),
+        reviewedFields: z.array(z.object({
+          fieldKey: z.string(),
+          wasReviewed: z.boolean(),
+          confirmedValue: z.string().optional(),
+        })).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Sanitizar CNPJ
+        const sanitizedCnpj = input.supplierData.cnpj.replace(/[.\/-]/g, "");
+
+        // Create supplier with registrationOrigin = 'ai'
+        const supplierId = await db.createSupplier({
+          ...input.supplierData,
+          cnpj: sanitizedCnpj,
+          registrationOrigin: "ai" as any,
+          createdById: ctx.user.id,
+        });
+
+        // Create approval workflow
+        const workflowId = await db.createWorkflow({
+          supplierId,
+          totalSteps: 2,
+          createdById: ctx.user.id,
+        });
+        await db.createWorkflowStep({ workflowId, stepNumber: 1, stepName: "Verifica\u00e7\u00e3o de Documentos" });
+        await db.createWorkflowStep({ workflowId, stepNumber: 2, stepName: "Aprova\u00e7\u00e3o Final" });
+
+        // Link uploaded documents to supplier
+        for (const file of input.uploadedFiles) {
+          await db.createSupplierDocumentLink({
+            supplierId,
+            extractionRunId: input.extractionRunId,
+            fileUrl: file.fileUrl,
+            fileKey: file.fileKey,
+            fileName: file.fileName,
+            fileSize: file.fileSize,
+            mimeType: file.mimeType,
+            documentType: (file.documentType || "other") as any,
+            documentTypeConfidence: file.documentTypeConfidence ? String(file.documentTypeConfidence) as any : null,
+            linkedById: ctx.user.id,
+          });
+        }
+
+        // Update extraction run with supplier reference
+        await db.updateExtractionRunStatus(input.extractionRunId, "reviewed", {
+          supplierId,
+          reviewedById: ctx.user.id,
+          reviewedAt: new Date(),
+        });
+
+        // Update extracted fields with review info
+        if (input.reviewedFields) {
+          const existingFields = await db.getExtractedFieldsByRunId(input.extractionRunId);
+          for (const rf of input.reviewedFields) {
+            const field = existingFields.find(f => f.fieldKey === rf.fieldKey);
+            if (field) {
+              const dbConn = await db.getDb();
+              if (dbConn) {
+                const { extractedFields: ef } = await import("../drizzle/schema");
+                const { eq } = await import("drizzle-orm");
+                await dbConn.update(ef).set({
+                  confirmedValue: rf.confirmedValue || field.extractedValue,
+                  source: rf.wasReviewed ? "ai_corrected" as any : "ai_confirmed" as any,
+                  needsReview: false,
+                }).where(eq(ef.id, field.id));
+              }
+            }
+          }
+        }
+
+        // Audit log
+        await db.createAuditLog({
+          entityType: "supplier",
+          entityId: supplierId,
+          action: "create",
+          changes: { ...input.supplierData, registrationOrigin: "ai", extractionRunId: input.extractionRunId },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+
+        return { supplierId };
       }),
   }),
 
