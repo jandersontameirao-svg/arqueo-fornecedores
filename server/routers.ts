@@ -3171,11 +3171,15 @@ REGRAS CRÍTICAS:
             createdById: ctx.user?.id,
           });
         } catch (err: any) {
+          // Surface real MySQL error for debugging
+          const sqlMsg = err.cause?.sqlMessage || err.cause?.message || "";
+          const fullMsg = sqlMsg ? `${err.message} | SQL: ${sqlMsg}` : err.message;
+          console.error("[generateContract] Error:", fullMsg, err.cause);
           throw new TRPCError({
             code: err.message?.includes("não encontrado") ? "NOT_FOUND" :
                   err.message?.includes("inativo") ? "BAD_REQUEST" :
                   err.message?.includes("sem conteúdo") ? "BAD_REQUEST" : "INTERNAL_SERVER_ERROR",
-            message: err.message || "Erro ao gerar contrato.",
+            message: fullMsg || "Erro ao gerar contrato.",
           });
         }
 

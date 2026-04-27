@@ -314,8 +314,8 @@ export const contracts = mysqlTable("contracts", {
   contractorName: varchar("contractorName", { length: 1000 }),
   contractorCnpj: varchar("contractorCnpj", { length: 500 }),
   contractorRepresentative: varchar("contractorRepresentative", { length: 500 }),
-  // Content
-  content: text("content"),
+  // Content (longtext para suportar contratos grandes - text tem limite de 65535 bytes)
+  content: longtext("content"),
   notes: text("notes"),
   // S3 attachment (signed PDF)
   fileKey: varchar("fileKey", { length: 500 }),

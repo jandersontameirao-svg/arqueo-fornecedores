@@ -2230,7 +2230,7 @@ export async function generateContractFromTemplate(params: {
     templateId: params.templateId,
     templateName: template.name,
     extractionRunId: params.extractionRunId ?? null,
-    aiConfidenceScore: params.aiConfidenceScore ? String(params.aiConfidenceScore) : null,
+    aiConfidenceScore: params.aiConfidenceScore != null ? String(params.aiConfidenceScore) : null,
     filledFieldsOrigin: params.filledFieldsOrigin,
     totalValue: totalValue || null,
     paymentTerms: paymentTerms || null,

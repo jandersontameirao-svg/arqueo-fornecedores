@@ -756,3 +756,6 @@
 
 ## v7.8 — Fix missing key prop em GenerateContract
 - [x] Corrigir aviso React: Each child in a list should have a unique "key" prop em GenerateContract.tsx
+
+## v7.9 — Fix erro INSERT contracts ao gerar contrato
+- [x] Corrigir erro de INSERT na tabela contracts: contracts.content era text (65535 bytes), alterado para longtext (suporta templates de 73545+ chars). Migration 0023 aplicada.
