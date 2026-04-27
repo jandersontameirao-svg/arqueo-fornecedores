@@ -101,7 +101,8 @@ function Breadcrumbs() {
     if (activeUnit) {
       parts.push({ label: activeUnit.name, path: "/" });
     }
-    if (selectedCompany) {
+    // Em rotas de contexto de unidade, não exibir empresa ativa no breadcrumb
+    if (selectedCompany && location !== "/unit-suppliers") {
       parts.push({ label: selectedCompany.name, path: "/select-company" });
     }
 
@@ -119,6 +120,7 @@ function Breadcrumbs() {
       "/reports": "Relatórios",
       "/contract-templates": "Templates",
       "/select-company": "Selecionar Empresa",
+      "/unit-suppliers": "Fornecedores da Unidade",
     };
 
     if (location !== "/") {
@@ -498,6 +500,8 @@ export default function TopbarLayout({ children }: { children: React.ReactNode }
 
   // Rotas de seleção não exibem nav horizontal nem breadcrumbs
   const isSelectionRoute = location === "/" || location === "/select-company";
+  // Rotas de contexto de unidade (sem empresa ativa): ocultar indicador de empresa
+  const isUnitRoute = location === "/unit-suppliers";
 
   if (loading) {
     return (
@@ -569,8 +573,8 @@ export default function TopbarLayout({ children }: { children: React.ReactNode }
 
           {/* Right: Company indicator + User */}
           <div className="flex items-center gap-3">
-            {/* Company indicator */}
-            {selectedCompany && (
+            {/* Company indicator: ocultar em rotas de contexto de unidade */}
+            {selectedCompany && !isUnitRoute && (
               <button
                 onClick={() => setLocation("/select-company")}
                 className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/50 hover:bg-accent transition-colors text-sm"
