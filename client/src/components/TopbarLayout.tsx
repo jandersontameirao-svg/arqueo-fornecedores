@@ -500,8 +500,24 @@ export default function TopbarLayout({ children }: { children: React.ReactNode }
 
   // Rotas de seleção não exibem nav horizontal nem breadcrumbs
   const isSelectionRoute = location === "/" || location === "/select-company";
-  // Rotas de contexto de unidade (sem empresa ativa): ocultar indicador de empresa
-  const isUnitRoute = location === "/unit-suppliers";
+  // Rotas de contexto de unidade: ocultar menu horizontal e indicador de empresa
+  // Inclui a home da central e todas as páginas internas acessadas por ela
+  const UNIT_ROUTES = [
+    "/unit-suppliers",
+    "/suppliers",
+    "/categories",
+    "/contract-templates",
+    "/reports",
+    "/audit",
+    "/users",
+    "/approvals",
+    "/compliance",
+    "/evaluations",
+  ];
+  const isUnitRoute =
+    UNIT_ROUTES.includes(location) ||
+    location.startsWith("/suppliers/") ||
+    location.startsWith("/unit-suppliers/");
 
   if (loading) {
     return (
@@ -631,8 +647,8 @@ export default function TopbarLayout({ children }: { children: React.ReactNode }
         </div>
       </header>
 
-      {/* Horizontal navigation (desktop only) — oculta nas telas de seleção */}
-      {!isSelectionRoute && (
+      {/* Horizontal navigation (desktop only) — oculta nas telas de seleção e nas páginas internas da central */}
+      {!isSelectionRoute && !isUnitRoute && (
         <div className="hidden md:block">
           <HorizontalNav />
         </div>
