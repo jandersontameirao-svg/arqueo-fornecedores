@@ -150,8 +150,11 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
   // PDF download
   const generatePDFMutation = trpc.contracts.generatePDF.useMutation({
     onSuccess: (data) => {
-      const html = atob(data.html);
-      const blob = new Blob([html], { type: "text/html" });
+      // Decode base64 PDF and trigger browser download
+      const binaryStr = atob(data.pdf);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+      const blob = new Blob([bytes], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -160,9 +163,9 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success("Contrato exportado com sucesso");
+      toast.success("PDF gerado com sucesso");
     },
-    onError: (err) => toast.error("Erro ao gerar PDF", { description: err.message }),
+    onError: (err: any) => toast.error("Erro ao gerar PDF", { description: err.message }),
   });
 
   // Edit mode

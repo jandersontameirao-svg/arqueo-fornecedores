@@ -783,3 +783,9 @@
 - [x] Adicionar endpoint tRPC contracts.generatePDF para gerar PDF do contrato
 - [x] Adicionar botão "Baixar PDF" no ContractViewer
 - [x] Botão de download em documentos já existia (window.open fileUrl) — confirmado
+
+## v7.14 — PDF real com encoding UTF-8 correto
+- [x] WeasyPrint já instalado — usado como engine de PDF (sem puppeteer necessário)
+- [x] Corrigir encoding UTF-8: todos os campos escapados com esc() antes de inserir no HTML
+- [x] Atualizar contracts.generatePDF para retornar PDF binário (base64) com extensão .pdf
+- [x] Atualizar frontend ContractViewer para baixar .pdf real via Blob + URL.createObjectURL

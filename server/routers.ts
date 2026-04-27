@@ -2437,9 +2437,17 @@ Estruture o contrato com:
     generatePDF: protectedProcedure
       .input(z.object({ contractId: z.number() }))
       .mutation(async ({ input }) => {
+        const { execFile } = await import("child_process");
+        const { writeFile, readFile, unlink } = await import("fs/promises");
+        const { tmpdir } = await import("os");
+        const path = await import("path");
+
         const result = await db.getContractWithDetails(input.contractId);
         if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
         const { contract, items } = result;
+
+        const esc = (s: string | null | undefined) =>
+          (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
         const formatDate = (d: Date | string | null | undefined) =>
           d ? new Date(d).toLocaleDateString("pt-BR") : "—";
@@ -2457,76 +2465,135 @@ Estruture o contrato com:
         };
 
         const itemsHtml = items.length > 0
-          ? `<table style="width:100%;border-collapse:collapse;margin-top:8px">
-              <thead><tr style="background:#7c1a3a;color:#fff">
-                <th style="padding:6px 8px;text-align:left">Descrição</th>
-                <th style="padding:6px 8px;text-align:right">Qtd</th>
-                <th style="padding:6px 8px;text-align:right">Unitário</th>
-                <th style="padding:6px 8px;text-align:right">Total</th>
+          ? `<table class="items-table">
+              <thead><tr>
+                <th style="text-align:left">Descrição</th>
+                <th style="text-align:right">Qtd</th>
+                <th style="text-align:right">Unitário</th>
+                <th style="text-align:right">Total</th>
               </tr></thead>
               <tbody>${items.map((i: any, idx: number) => `
-                <tr style="background:${idx % 2 === 0 ? "#fafafa" : "#fff"}">
-                  <td style="padding:5px 8px;border-bottom:1px solid #eee">${i.description}</td>
-                  <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${i.quantity || "—"}</td>
-                  <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${formatCurrency(i.unitPrice)}</td>
-                  <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${formatCurrency(i.totalPrice)}</td>
+                <tr class="${idx % 2 === 0 ? "even" : "odd"}">
+                  <td>${esc(i.description)}</td>
+                  <td style="text-align:right">${esc(String(i.quantity || "—"))}</td>
+                  <td style="text-align:right">${formatCurrency(i.unitPrice)}</td>
+                  <td style="text-align:right">${formatCurrency(i.totalPrice)}</td>
                 </tr>`).join("")}
               </tbody></table>`
           : "";
 
         const contentHtml = contract.content
-          ? contract.content.replace(/\n/g, "<br/>")
+          ? esc(contract.content).replace(/\n/g, "<br/>")
           : "<em>Sem conteúdo registrado.</em>";
 
-        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<style>
-  body { font-family: Arial, sans-serif; font-size: 12px; color: #222; margin: 0; padding: 0; }
-  .header { background: #7c1a3a; color: #fff; padding: 24px 32px; }
-  .header h1 { margin: 0 0 4px 0; font-size: 18px; }
-  .header p { margin: 0; font-size: 11px; opacity: 0.85; }
-  .section { padding: 20px 32px; border-bottom: 1px solid #eee; }
-  .section h2 { font-size: 13px; color: #7c1a3a; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px 0; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .field label { font-size: 10px; color: #888; text-transform: uppercase; display: block; margin-bottom: 2px; }
-  .field span { font-size: 12px; font-weight: 500; }
-  .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .party { background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 12px; }
-  .party .role { font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 4px; }
-  .party .name { font-weight: 700; font-size: 13px; }
-  .party .cnpj { font-size: 11px; color: #555; }
-  .content-box { background: #fafafa; border: 1px solid #eee; border-radius: 6px; padding: 16px; line-height: 1.7; font-size: 11.5px; }
-  .footer { padding: 16px 32px; font-size: 10px; color: #aaa; text-align: center; }
-</style></head><body>
-<div class="header">
-  <h1>${contract.title}</h1>
-  <p>${contract.number ? `#${contract.number} &nbsp;|&nbsp; ` : ""}${typeLabels[contract.contractType || ""] || ""} &nbsp;|&nbsp; ${statusLabels[contract.status || ""] || contract.status || ""}</p>
-</div>
-<div class="section">
-  <h2>Identificação</h2>
-  <div class="grid">
-    <div class="field"><label>Valor Total</label><span>${formatCurrency(contract.totalValue)}</span></div>
-    <div class="field"><label>Condições de Pagamento</label><span>${contract.paymentTerms || "—"}</span></div>
-    <div class="field"><label>Início</label><span>${formatDate(contract.startDate)}</span></div>
-    <div class="field"><label>Término</label><span>${formatDate(contract.endDate)}</span></div>
+        const safeTitle = esc(contract.title);
+        const safeNumber = contract.number ? `#${esc(contract.number)} &nbsp;|&nbsp; ` : "";
+        const safeType = esc(typeLabels[contract.contractType || ""] || "");
+        const safeStatus = esc(statusLabels[contract.status || ""] || contract.status || "");
+        const safeContractorName = esc(contract.contractorName || "—");
+        const safeContractorCnpj = contract.contractorCnpj ? `CNPJ: ${esc(contract.contractorCnpj)}` : "";
+        const safeContractorRep = esc(contract.contractorRepresentative || "(Dados do fornecedor)");
+        const safeObject = contract.object ? `<div class="section"><h2>Objeto</h2><p>${esc(contract.object)}</p></div>` : "";
+        const safeNotes = contract.notes ? `<div class="section"><h2>Observações</h2><p>${esc(contract.notes)}</p></div>` : "";
+        const safeContent = contract.content ? `<div class="section"><h2>Conteúdo do Contrato</h2><div class="content-box">${contentHtml}</div></div>` : "";
+        const safeItems = items.length > 0 ? `<div class="section"><h2>Itens do Contrato</h2>${itemsHtml}</div>` : "";
+        const generatedAt = new Date().toLocaleString("pt-BR");
+
+        const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${safeTitle}</title>
+  <style>
+    @page { size: A4; margin: 20mm 18mm 20mm 18mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 11pt; color: #1a1a1a; background: #fff; }
+    .header { background: #7c1a3a; color: #fff; padding: 20pt 24pt 16pt 24pt; margin-bottom: 0; }
+    .header h1 { font-size: 16pt; font-weight: 700; margin-bottom: 4pt; letter-spacing: 0.3pt; }
+    .header .meta { font-size: 9pt; opacity: 0.85; }
+    .header .badge { display: inline-block; background: rgba(255,255,255,0.2); border-radius: 3pt; padding: 1pt 6pt; font-size: 8.5pt; font-weight: 600; }
+    .section { padding: 14pt 24pt; border-bottom: 1pt solid #e8e0e3; }
+    .section:last-child { border-bottom: none; }
+    .section h2 { font-size: 8pt; color: #7c1a3a; text-transform: uppercase; letter-spacing: 1pt; font-weight: 700; margin-bottom: 10pt; padding-bottom: 4pt; border-bottom: 1.5pt solid #e8e0e3; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10pt; }
+    .field label { font-size: 7.5pt; color: #888; text-transform: uppercase; letter-spacing: 0.5pt; display: block; margin-bottom: 2pt; }
+    .field span { font-size: 10.5pt; font-weight: 600; color: #1a1a1a; }
+    .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 12pt; }
+    .party { background: #f8f4f5; border-left: 3pt solid #7c1a3a; border-radius: 3pt; padding: 10pt 12pt; }
+    .party .role { font-size: 7.5pt; color: #7c1a3a; text-transform: uppercase; letter-spacing: 0.5pt; font-weight: 700; margin-bottom: 4pt; }
+    .party .name { font-size: 11pt; font-weight: 700; color: #1a1a1a; margin-bottom: 2pt; }
+    .party .cnpj { font-size: 9pt; color: #555; }
+    .content-box { background: #fafafa; border: 1pt solid #e8e0e3; border-radius: 3pt; padding: 12pt; line-height: 1.8; font-size: 10pt; white-space: pre-wrap; word-break: break-word; }
+    .items-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-top: 6pt; }
+    .items-table thead tr { background: #7c1a3a; color: #fff; }
+    .items-table th { padding: 5pt 8pt; font-weight: 600; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.3pt; }
+    .items-table td { padding: 5pt 8pt; border-bottom: 0.5pt solid #e8e0e3; }
+    .items-table tr.even td { background: #fafafa; }
+    .items-table tr.odd td { background: #fff; }
+    .footer { padding: 10pt 24pt; font-size: 8pt; color: #aaa; text-align: center; border-top: 1pt solid #e8e0e3; margin-top: 8pt; }
+    p { line-height: 1.7; font-size: 10.5pt; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${safeTitle}</h1>
+    <div class="meta">${safeNumber}${safeType}${safeType && safeStatus ? " &nbsp;|&nbsp; " : ""}<span class="badge">${safeStatus}</span></div>
   </div>
-</div>
-${contract.object ? `<div class="section"><h2>Objeto</h2><p>${contract.object}</p></div>` : ""}
-<div class="section">
-  <h2>Partes</h2>
-  <div class="parties">
-    <div class="party"><div class="role">Contratante</div><div class="name">${contract.contractorName || "—"}</div><div class="cnpj">${contract.contractorCnpj ? `CNPJ: ${contract.contractorCnpj}` : ""}</div></div>
-    <div class="party"><div class="role">Contratada</div><div class="name">${contract.contractorRepresentative || "(Dados do fornecedor)"}</div></div>
+  <div class="section">
+    <h2>Identificação</h2>
+    <div class="grid-2">
+      <div class="field"><label>Valor Total</label><span>${formatCurrency(contract.totalValue)}</span></div>
+      <div class="field"><label>Condições de Pagamento</label><span>${esc(contract.paymentTerms || "—")}</span></div>
+      <div class="field"><label>Início</label><span>${formatDate(contract.startDate)}</span></div>
+      <div class="field"><label>Término</label><span>${formatDate(contract.endDate)}</span></div>
+    </div>
   </div>
-</div>
-${contract.content ? `<div class="section"><h2>Conteúdo</h2><div class="content-box">${contentHtml}</div></div>` : ""}
-${items.length > 0 ? `<div class="section"><h2>Itens</h2>${itemsHtml}</div>` : ""}
-${contract.notes ? `<div class="section"><h2>Observações</h2><p>${contract.notes}</p></div>` : ""}
-<div class="footer">Gerado em ${new Date().toLocaleString("pt-BR")} — Arqueo Fornecedores</div>
-</body></html>`;
+  ${safeObject}
+  <div class="section">
+    <h2>Partes</h2>
+    <div class="parties">
+      <div class="party">
+        <div class="role">Contratante</div>
+        <div class="name">${safeContractorName}</div>
+        <div class="cnpj">${safeContractorCnpj}</div>
+      </div>
+      <div class="party">
+        <div class="role">Contratada</div>
+        <div class="name">${safeContractorRep}</div>
+      </div>
+    </div>
+  </div>
+  ${safeContent}
+  ${safeItems}
+  ${safeNotes}
+  <div class="footer">Gerado em ${generatedAt} &mdash; Arqueo Fornecedores &mdash; Documento gerado eletronicamente</div>
+</body>
+</html>`;
+
+        // Write HTML to temp file, convert with WeasyPrint, read PDF, cleanup
+        const ts = Date.now();
+        const htmlPath = path.join(tmpdir(), `contract-${ts}.html`);
+        const pdfPath = path.join(tmpdir(), `contract-${ts}.pdf`);
+
+        await writeFile(htmlPath, html, "utf8");
+
+        await new Promise<void>((resolve, reject) => {
+          execFile("/usr/local/bin/weasyprint", [htmlPath, pdfPath], { timeout: 30000 }, (err) => {
+            if (err) reject(new Error(`WeasyPrint error: ${err.message}`));
+            else resolve();
+          });
+        });
+
+        const pdfBuffer = await readFile(pdfPath);
+        await unlink(htmlPath).catch(() => {});
+        await unlink(pdfPath).catch(() => {});
+
+        const safeFilename = `contrato-${contract.number || contract.id}-${contract.title.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 40)}.pdf`;
 
         return {
-          html: Buffer.from(html).toString("base64"),
-          filename: `contrato-${contract.number || contract.id}-${contract.title.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 40)}.html`,
+          pdf: pdfBuffer.toString("base64"),
+          filename: safeFilename,
           contractTitle: contract.title,
         };
       }),
