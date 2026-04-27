@@ -176,13 +176,29 @@ export default function GenerateContract() {
     onError: (e) => toast.error("Erro na extração", { description: e.message }),
   });
 
+  const utils = trpc.useUtils();
+  const [idempotencyKey] = useState(() => `gen-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
   // Generate contract mutation
   const generateMutation = trpc.templates.generateContract.useMutation({
-    onSuccess: (data) => {
-      toast.success("Contrato gerado e salvo com sucesso!");
-      navigate(`/suppliers/${selectedSupplierId}`);
+    onSuccess: (data: { contractId: number; supplierId: number }) => {
+      toast.success("Contrato gerado e salvo com sucesso!", {
+        description: `Contrato criado com ID #${data.contractId}. Redirecionando para o fornecedor...`,
+        duration: 4000,
+      });
+      // Invalidate contracts cache so the new contract appears immediately
+      utils.contracts.listBySupplier.invalidate({ supplierId: data.supplierId });
+      utils.contracts.listAll.invalidate();
+      // Navigate to supplier contracts tab
+      navigate(`/suppliers/${data.supplierId}?tab=contratos`);
     },
-    onError: (e) => toast.error("Erro ao gerar contrato", { description: e.message }),
+    onError: (e: { message?: string }) => {
+      const msg = e.message || "Erro desconhecido ao gerar contrato";
+      toast.error("Falha ao gerar contrato", {
+        description: msg,
+        duration: 6000,
+      });
+    },
   });
 
   // Handle PDF upload
@@ -228,6 +244,7 @@ export default function GenerateContract() {
       filledFieldsOrigin: fieldOrigins,
       aiConfidenceScore,
       extractionRunId,
+      idempotencyKey,
     });
   };
 

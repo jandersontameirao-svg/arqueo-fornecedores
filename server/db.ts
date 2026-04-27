@@ -2142,63 +2142,177 @@ export async function generateContractFromTemplate(params: {
   createdById?: number;
   groupId?: number;
 }) {
-  const db = await getDb();
-  if (!db) return null;
+  const dbConn = await getDb();
+  if (!dbConn) throw new Error("Banco de dados indisponível. Tente novamente.");
 
-  // Get the template
-  const [template] = await db.select().from(contractTemplates).where(eq(contractTemplates.id, params.templateId));
-  if (!template) throw new Error("Template não encontrado");
+  // Validate template
+  const [template] = await dbConn.select().from(contractTemplates).where(eq(contractTemplates.id, params.templateId));
+  if (!template) throw new Error("Template não encontrado ou foi excluído.");
+  if (!template.isActive) throw new Error("Template inativo. Ative o template antes de gerar um contrato.");
+  if (!template.content || template.content.trim().length < 10) throw new Error("Template sem conteúdo. Adicione conteúdo ao template antes de gerar.");
 
-  // Get the supplier
-  const [supplier] = await db.select().from(suppliers).where(eq(suppliers.id, params.supplierId));
-  if (!supplier) throw new Error("Fornecedor não encontrado");
+  // Validate supplier
+  const [supplier] = await dbConn.select().from(suppliers).where(eq(suppliers.id, params.supplierId));
+  if (!supplier) throw new Error("Fornecedor não encontrado.");
 
-  // Replace placeholders in template content
-  let content = template.content;
+  // Build a comprehensive placeholder map — covers both exact keys and normalized variants
+  const fieldMap: Record<string, string> = {};
   for (const [key, value] of Object.entries(params.filledFields)) {
-    const regex = new RegExp(`\\{\\{${key}\\}\\}`, "g");
-    content = content.replace(regex, value);
+    fieldMap[key] = value;
+    fieldMap[key.toLowerCase()] = value;
+    fieldMap[key.toUpperCase()] = value;
+  }
+  // Auto-populate supplier fields if not already in filledFields
+  const autoFill: Record<string, string> = {
+    FORNECEDOR_NOME: supplier.companyName || "",
+    FORNECEDOR_RAZAO_SOCIAL: supplier.companyName || "",
+    FORNECEDOR_CNPJ: supplier.cnpj || "",
+    FORNECEDOR_EMAIL: supplier.email || "",
+    FORNECEDOR_TELEFONE: supplier.phone || "",
+    FORNECEDOR_ENDERECO: [supplier.street, supplier.number, supplier.neighborhood, supplier.city, supplier.state].filter(Boolean).join(", "),
+    FORNECEDOR_CIDADE: supplier.city || "",
+    FORNECEDOR_ESTADO: supplier.state || "",
+    FORNECEDOR_CEP: supplier.zipCode || "",
+    FORNECEDOR_BANCO: supplier.bankName || "",
+    FORNECEDOR_AGENCIA: supplier.bankAgency || "",
+    FORNECEDOR_CONTA: supplier.bankAccount || "",
+    FORNECEDOR_PIX: supplier.pixKey || "",
+    nome_empresa: supplier.companyName || "",
+    razao_social: supplier.companyName || "",
+    cnpj: supplier.cnpj || "",
+    email: supplier.email || "",
+    telefone: supplier.phone || "",
+  };
+  for (const [k, v] of Object.entries(autoFill)) {
+    if (!fieldMap[k] && v) fieldMap[k] = v;
+    if (!fieldMap[k.toLowerCase()] && v) fieldMap[k.toLowerCase()] = v;
   }
 
-  // Generate contract number
-  const countResult = await db.select({ count: sql<number>`count(*)` }).from(contracts).where(eq(contracts.supplierId, params.supplierId));
+  // Replace ALL {{placeholder}} variants (case-insensitive global)
+  let content = template.content;
+  const placeholderRegex = /\{\{([^}]+)\}\}/g;
+  content = content.replace(placeholderRegex, (match, key) => {
+    const trimmed = key.trim();
+    return fieldMap[trimmed] ?? fieldMap[trimmed.toLowerCase()] ?? fieldMap[trimmed.toUpperCase()] ?? match;
+  });
+
+  // Derive title, object, value from filledFields (multiple key variants)
+  const title = params.filledFields["titulo"] || params.filledFields["title"] || params.filledFields["TITULO"] || `Contrato - ${supplier.companyName}`;
+  const object = params.filledFields["objeto"] || params.filledFields["object"] || params.filledFields["OBJETO"] || template.description || "";
+  const totalValue = params.filledFields["valor_total"] || params.filledFields["total_value"] || params.filledFields["VALOR_TOTAL"] || params.filledFields["valor"] || params.filledFields["VALOR"] || null;
+  const paymentTerms = params.filledFields["condicoes_pagamento"] || params.filledFields["payment_terms"] || params.filledFields["CONDICOES_PAGAMENTO"] || params.filledFields["pagamento"] || null;
+  const contractorName = params.filledFields["contratante_nome"] || params.filledFields["contractor_name"] || params.filledFields["CONTRATANTE_NOME"] || "";
+  const contractorCnpj = params.filledFields["contratante_cnpj"] || params.filledFields["contractor_cnpj"] || params.filledFields["CONTRATANTE_CNPJ"] || "";
+
+  // Parse dates safely
+  const parseDate = (v?: string) => {
+    if (!v) return null;
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  };
+  const startDate = parseDate(params.filledFields["data_inicio"] || params.filledFields["start_date"] || params.filledFields["DATA_INICIO"]);
+  const endDate = parseDate(params.filledFields["data_fim"] || params.filledFields["end_date"] || params.filledFields["DATA_FIM"]);
+
+  // Generate unique contract number
+  const countResult = await dbConn.select({ count: sql<number>`count(*)` }).from(contracts).where(eq(contracts.supplierId, params.supplierId));
   const count = Number(countResult[0]?.count ?? 0) + 1;
   const contractNumber = `CTR-${supplier.cnpj?.replace(/\D/g, "").slice(0, 8) ?? "0000"}-${String(count).padStart(3, "0")}`;
 
-  // Create the contract
-  const [result] = await db.insert(contracts).values({
+  // Insert contract
+  const [result] = await dbConn.insert(contracts).values({
     supplierId: params.supplierId,
     number: contractNumber,
-    title: params.filledFields["titulo"] || params.filledFields["title"] || `Contrato - ${supplier.companyName}`,
-    object: params.filledFields["objeto"] || params.filledFields["object"] || template.description || "",
+    title,
+    object,
     contractType: template.contractType ?? "service",
     status: "draft",
     creationMode: "template",
     templateId: params.templateId,
+    templateName: template.name,
     extractionRunId: params.extractionRunId ?? null,
     aiConfidenceScore: params.aiConfidenceScore ? String(params.aiConfidenceScore) : null,
     filledFieldsOrigin: params.filledFieldsOrigin,
-    totalValue: params.filledFields["valor_total"] || params.filledFields["total_value"] || null,
-    content: content,
-    contractorName: params.filledFields["contratante_nome"] || params.filledFields["contractor_name"] || "",
-    contractorCnpj: params.filledFields["contratante_cnpj"] || params.filledFields["contractor_cnpj"] || "",
-    startDate: params.filledFields["data_inicio"] ? new Date(params.filledFields["data_inicio"]) : null,
-    endDate: params.filledFields["data_fim"] ? new Date(params.filledFields["data_fim"]) : null,
+    totalValue: totalValue || null,
+    paymentTerms: paymentTerms || null,
+    content,
+    contractorName,
+    contractorCnpj,
+    startDate,
+    endDate,
     createdById: params.createdById,
   });
 
-  // Create initial version
-  await db.insert(contractVersions).values({
-    contractId: result.insertId,
+  const contractId = Number(result.insertId);
+  if (!contractId) throw new Error("Falha ao salvar contrato no banco de dados.");
+
+  // Create initial version for audit trail
+  await dbConn.insert(contractVersions).values({
+    contractId,
     versionNumber: 1,
-    content: content,
+    content,
     changeDescription: `Contrato gerado a partir do template "${template.name}"`,
-    title: params.filledFields["titulo"] || params.filledFields["title"] || `Contrato - ${supplier.companyName}`,
-    totalValue: params.filledFields["valor_total"] || params.filledFields["total_value"] || null,
+    title,
+    totalValue: totalValue || null,
     createdById: params.createdById,
   });
 
-  return result.insertId;
+  return contractId;
+}
+
+// ==================== LIST ALL CONTRACTS (GENERAL VIEW) ====================
+
+export async function getAllContracts(params: {
+  search?: string;
+  status?: string;
+  contractType?: string;
+  supplierId?: number;
+  groupId?: number;
+  limit?: number;
+  offset?: number;
+}) {
+  const dbConn = await getDb();
+  if (!dbConn) return [];
+
+  let query = dbConn
+    .select({
+      id: contracts.id,
+      number: contracts.number,
+      title: contracts.title,
+      object: contracts.object,
+      contractType: contracts.contractType,
+      status: contracts.status,
+      creationMode: contracts.creationMode,
+      templateId: contracts.templateId,
+      templateName: contracts.templateName,
+      totalValue: contracts.totalValue,
+      currency: contracts.currency,
+      startDate: contracts.startDate,
+      endDate: contracts.endDate,
+      createdAt: contracts.createdAt,
+      supplierId: contracts.supplierId,
+      supplierName: suppliers.companyName,
+      supplierCnpj: suppliers.cnpj,
+    })
+    .from(contracts)
+    .innerJoin(suppliers, eq(contracts.supplierId, suppliers.id));
+
+  const conditions = [];
+  if (params.supplierId) conditions.push(eq(contracts.supplierId, params.supplierId));
+  if (params.status) conditions.push(eq(contracts.status, params.status as any));
+  if (params.contractType) conditions.push(eq(contracts.contractType, params.contractType as any));
+  if (params.groupId) conditions.push(eq(suppliers.groupId, params.groupId));
+  if (params.search) {
+    const like = `%${params.search}%`;
+    conditions.push(
+      sql`(${contracts.title} LIKE ${like} OR ${contracts.number} LIKE ${like} OR ${suppliers.companyName} LIKE ${like})`
+    );
+  }
+
+  if (conditions.length > 0) {
+    query = (query as any).where(conditions.length === 1 ? conditions[0] : and(...conditions));
+  }
+
+  return (query as any).orderBy(desc(contracts.createdAt)).limit(params.limit ?? 100);
 }
 
 // ==================== COUNT TEMPLATES & CONTRACTS FOR UNIT STATS ====================

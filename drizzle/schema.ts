@@ -297,6 +297,7 @@ export const contracts = mysqlTable("contracts", {
   creationMode: mysqlEnum("creationMode", ["manual", "template", "duplicate", "ai"]).default("manual"),
   // Template de origem (quando gerado a partir de template)
   templateId: int("templateId").references(() => contractTemplates.id),
+  templateName: varchar("templateName", { length: 255 }), // Nome do template no momento da geração (rastreabilidade)
   // Extração por IA
   extractionRunId: int("extractionRunId"),
   aiConfidenceScore: decimal("aiConfidenceScore", { precision: 5, scale: 2 }),

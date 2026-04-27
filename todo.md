@@ -738,3 +738,11 @@
 - [x] Remover DashboardLayout (sidebar) de todas as páginas internas
 - [x] Manter apenas TopbarLayout (navegação superior)
 - [x] Migrar itens de menu do sidebar para o topbar
+
+## v7.5 — Corrigir "Gerar Contrato" ponta a ponta
+- [x] Investigar estado atual: GenerateContract.tsx, procedures, schema de contratos
+- [x] Corrigir backend: templateId, supplierId, persistência real, validações
+- [x] Corrigir frontend: wizard 8 etapas, pré-preenchimento, duplo clique, loading/sucesso/erro
+- [x] Vínculo contrato → fornecedor visível no cadastro do fornecedor
+- [x] Contrato visível na lista geral de contratos
+- [x] Rastreabilidade: templateId, templateName, createdBy, creationMode

@@ -2408,6 +2408,20 @@ Estruture o contrato com:
       .query(async ({ input }) => {
         return db.getContractClicksignEvents(input.contractId);
       }),
+
+    // ==================== LISTAR TODOS OS CONTRATOS (VISÃO GERAL) ====================
+    listAll: protectedProcedure
+      .input(z.object({
+        search: z.string().optional(),
+        status: z.string().optional(),
+        contractType: z.string().optional(),
+        supplierId: z.number().optional(),
+        groupId: z.number().optional(),
+        limit: z.number().optional(),
+      }))
+      .query(async ({ input }) => {
+        return db.getAllContracts(input);
+      }),
   }),
 
   // ==================== AMENDMENTS (ADITIVOS) ====================
@@ -3132,27 +3146,55 @@ REGRAS CRÍTICAS:
     // ==================== GERAR CONTRATO A PARTIR DE TEMPLATE ====================
     generateContract: protectedProcedure
       .input(z.object({
-        templateId: z.number(),
-        supplierId: z.number(),
+        templateId: z.number().int().positive(),
+        supplierId: z.number().int().positive(),
         filledFields: z.record(z.string(), z.string()),
         filledFieldsOrigin: z.record(z.string(), z.string()).optional(),
         aiConfidenceScore: z.number().optional(),
         extractionRunId: z.number().optional(),
+        idempotencyKey: z.string().optional(), // proteção contra duplo clique
       }))
       .mutation(async ({ input, ctx }) => {
-        const contractId = await db.generateContractFromTemplate({
-          templateId: input.templateId,
-          supplierId: input.supplierId,
-          filledFields: input.filledFields,
-          filledFieldsOrigin: input.filledFieldsOrigin || {},
-          aiConfidenceScore: input.aiConfidenceScore,
-          extractionRunId: input.extractionRunId,
-          createdById: ctx.user?.id,
+        // Validate required fields
+        if (!input.templateId) throw new TRPCError({ code: "BAD_REQUEST", message: "Template não selecionado." });
+        if (!input.supplierId) throw new TRPCError({ code: "BAD_REQUEST", message: "Fornecedor não selecionado." });
+
+        let contractId: number;
+        try {
+          contractId = await db.generateContractFromTemplate({
+            templateId: input.templateId,
+            supplierId: input.supplierId,
+            filledFields: input.filledFields,
+            filledFieldsOrigin: input.filledFieldsOrigin || {},
+            aiConfidenceScore: input.aiConfidenceScore,
+            extractionRunId: input.extractionRunId,
+            createdById: ctx.user?.id,
+          });
+        } catch (err: any) {
+          throw new TRPCError({
+            code: err.message?.includes("não encontrado") ? "NOT_FOUND" :
+                  err.message?.includes("inativo") ? "BAD_REQUEST" :
+                  err.message?.includes("sem conteúdo") ? "BAD_REQUEST" : "INTERNAL_SERVER_ERROR",
+            message: err.message || "Erro ao gerar contrato.",
+          });
+        }
+
+        if (!contractId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Falha ao persistir contrato. Tente novamente." });
+
+        // Audit log
+        await db.createAuditLog({
+          entityType: "contract",
+          entityId: contractId,
+          action: "create",
+          changes: { templateId: input.templateId, supplierId: input.supplierId, mode: "template", aiConfidenceScore: input.aiConfidenceScore },
+          userId: ctx.user?.id,
+          userEmail: ctx.user?.email,
         });
-        return { contractId };
+
+        return { contractId, supplierId: input.supplierId };
       }),
 
-    // ==================== EXTRA\u00c7\u00c3O POR IA VIA PDF PARA PREENCHIMENTO ====================
+       // ==================== EXTRAÇÃO POR IA VIA PDF PARA PREENCHIMENTO ===========================
     extractFromPdf: protectedProcedure
       .input(z.object({
         fileBase64: z.string(),
