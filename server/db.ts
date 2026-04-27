@@ -2188,6 +2188,14 @@ export async function generateContractFromTemplate(params: {
     if (!fieldMap[k.toLowerCase()] && v) fieldMap[k.toLowerCase()] = v;
   }
 
+  // Derive title, object, value from filledFields (multiple key variants) — must be before placeholder replacement
+  const title = params.filledFields["titulo"] || params.filledFields["title"] || params.filledFields["TITULO"] || `Contrato - ${supplier.companyName}`;
+  const object = params.filledFields["objeto"] || params.filledFields["object"] || params.filledFields["OBJETO"] || template.description || "";
+  const totalValue = params.filledFields["valor_total"] || params.filledFields["total_value"] || params.filledFields["VALOR_TOTAL"] || params.filledFields["valor"] || params.filledFields["VALOR"] || null;
+  const paymentTerms = params.filledFields["condicoes_pagamento"] || params.filledFields["payment_terms"] || params.filledFields["CONDICOES_PAGAMENTO"] || params.filledFields["pagamento"] || null;
+  const contractorName = params.filledFields["contratante_nome"] || params.filledFields["contractor_name"] || params.filledFields["CONTRATANTE_NOME"] || "";
+  const contractorCnpj = params.filledFields["contratante_cnpj"] || params.filledFields["contractor_cnpj"] || params.filledFields["CONTRATANTE_CNPJ"] || "";
+
   // Replace ALL {{placeholder}} variants (case-insensitive global)
   let content = template.content;
   const placeholderRegex = /\{\{([^}]+)\}\}/g;
@@ -2196,13 +2204,46 @@ export async function generateContractFromTemplate(params: {
     return fieldMap[trimmed] ?? fieldMap[trimmed.toLowerCase()] ?? fieldMap[trimmed.toUpperCase()] ?? match;
   });
 
-  // Derive title, object, value from filledFields (multiple key variants)
-  const title = params.filledFields["titulo"] || params.filledFields["title"] || params.filledFields["TITULO"] || `Contrato - ${supplier.companyName}`;
-  const object = params.filledFields["objeto"] || params.filledFields["object"] || params.filledFields["OBJETO"] || template.description || "";
-  const totalValue = params.filledFields["valor_total"] || params.filledFields["total_value"] || params.filledFields["VALOR_TOTAL"] || params.filledFields["valor"] || params.filledFields["VALOR"] || null;
-  const paymentTerms = params.filledFields["condicoes_pagamento"] || params.filledFields["payment_terms"] || params.filledFields["CONDICOES_PAGAMENTO"] || params.filledFields["pagamento"] || null;
-  const contractorName = params.filledFields["contratante_nome"] || params.filledFields["contractor_name"] || params.filledFields["CONTRATANTE_NOME"] || "";
-  const contractorCnpj = params.filledFields["contratante_cnpj"] || params.filledFields["contractor_cnpj"] || params.filledFields["CONTRATANTE_CNPJ"] || "";
+  // Also replace [PLACEHOLDER] bracket-style placeholders used in templates
+  const bracketMap: Record<string, string> = {
+    // Contratante (empresa do grupo Arqueo)
+    "RAZÃO SOCIAL DA CONTRATANTE": contractorName || autoFill["FORNECEDOR_NOME"] || "",
+    "RAZAO SOCIAL DA CONTRATANTE": contractorName || autoFill["FORNECEDOR_NOME"] || "",
+    "CNPJ DA CONTRATANTE": contractorCnpj || "",
+    "CNPJ": contractorCnpj || supplier.cnpj || "",
+    "ENDEREÇO COMPLETO": autoFill["FORNECEDOR_ENDERECO"] || "",
+    "ENDERECO COMPLETO": autoFill["FORNECEDOR_ENDERECO"] || "",
+    "NOME DO REPRESENTANTE": params.filledFields["representante"] || params.filledFields["REPRESENTANTE"] || "",
+    "CARGO": params.filledFields["cargo"] || params.filledFields["CARGO"] || "",
+    "CPF": params.filledFields["cpf"] || params.filledFields["CPF"] || "",
+    // Contratada (fornecedor)
+    "RAZÃO SOCIAL DA CONTRATADA": supplier.companyName || "",
+    "RAZAO SOCIAL DA CONTRATADA": supplier.companyName || "",
+    "CNPJ DA CONTRATADA": supplier.cnpj || "",
+    // Datas e valores
+    "DATA DE INÍCIO": params.filledFields["data_inicio"] || params.filledFields["DATA_INICIO"] || "",
+    "DATA DE INICIO": params.filledFields["data_inicio"] || params.filledFields["DATA_INICIO"] || "",
+    "DATA DE TÉRMINO": params.filledFields["data_fim"] || params.filledFields["DATA_FIM"] || "",
+    "DATA DE TERMINO": params.filledFields["data_fim"] || params.filledFields["DATA_FIM"] || "",
+    "VALOR": totalValue || "",
+    "VALOR TOTAL": totalValue || "",
+    "CONDIÇÕES DE PAGAMENTO": paymentTerms || "",
+    "CONDICOES DE PAGAMENTO": paymentTerms || "",
+    "OBJETO": object || "",
+  };
+  // Inject all filledFields into bracketMap (key as-is, uppercased, and underscores→spaces)
+  for (const [k, v] of Object.entries(params.filledFields)) {
+    if (v) {
+      bracketMap[k] = v;
+      bracketMap[k.toUpperCase()] = v;
+      bracketMap[k.replace(/_/g, " ").toUpperCase()] = v;
+    }
+  }
+  const bracketRegex = /\[([^\]]+)\]/g;
+  content = content.replace(bracketRegex, (match, key) => {
+    const trimmed = key.trim();
+    return bracketMap[trimmed] ?? bracketMap[trimmed.toUpperCase()] ?? match;
+  });
 
   // Parse dates safely
   const parseDate = (v?: string) => {

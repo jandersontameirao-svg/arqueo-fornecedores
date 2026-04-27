@@ -759,3 +759,6 @@
 
 ## v7.9 — Fix erro INSERT contracts ao gerar contrato
 - [x] Corrigir erro de INSERT na tabela contracts: contracts.content era text (65535 bytes), alterado para longtext (suporta templates de 73545+ chars). Migration 0023 aplicada.
+
+## v7.10 — Fix substituição de placeholders no contrato gerado
+- [x] Corrigir lógica de substituição de placeholders em generateContractFromTemplate: dados do fornecedor e filledFields devem substituir os placeholders reais no conteúdo do template
