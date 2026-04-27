@@ -1621,10 +1621,14 @@ export const appRouter = router({
   // ==================== CONTRACTS ====================
   contracts: router({
     listBySupplier: protectedProcedure
-      .input(z.object({ supplierId: z.number() }))
+      .input(z.object({
+        supplierId: z.number(),
+        companySlug: z.string().optional(), // Slug da empresa selecionada (segregação por empresa)
+      }))
       .query(async ({ input }) => {
         // Retorna contratos com vigência efetiva calculada (aditivo mais recente ou original)
-        return db.getContractsBySupplierWithEffectiveEndDate(input.supplierId);
+        // Se companySlug fornecido: retorna apenas contratos dessa empresa + contratos all_group
+        return db.getContractsBySupplierWithEffectiveEndDate(input.supplierId, input.companySlug);
       }),
 
     getById: protectedProcedure
@@ -1667,6 +1671,9 @@ export const appRouter = router({
         contractorRepresentative: z.string().optional(),
         content: z.string().optional(),
         notes: z.string().optional(),
+        // Segregação por empresa
+        companyScope: z.enum(["single", "all_group"]).optional().default("single"),
+        contractCompanySlug: z.string().optional(), // Slug da empresa que registra o contrato (ex: "arqueoproject")
         items: z.array(z.object({
           description: z.string(),
           unit: z.string().optional(),
@@ -1718,6 +1725,9 @@ export const appRouter = router({
         contractorRepresentative: z.string().optional(),
         content: z.string().optional(),
         notes: z.string().optional(),
+        // Segregação por empresa
+        companyScope: z.enum(["single", "all_group"]).optional(),
+        contractCompanySlug: z.string().nullable().optional(), // Slug da empresa (ex: "arqueoproject")
         items: z.array(z.object({
           description: z.string(),
           unit: z.string().optional(),

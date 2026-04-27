@@ -330,6 +330,11 @@ export const contracts = mysqlTable("contracts", {
   lastSendAttemptAt: timestamp("lastSendAttemptAt"),
   lastSendError: text("lastSendError"),
   sendAttemptCount: int("sendAttemptCount").default(0),
+  // Company Scope (segregação por empresa)
+  // "single": contrato pertence apenas à empresa com slug = contractCompanySlug
+  // "all_group": contrato visível para todas as empresas do Grupo Arqueo Brasil
+  companyScope: mysqlEnum("companyScope", ["single", "all_group"]).default("single").notNull(),
+  contractCompanySlug: varchar("contractCompanySlug", { length: 100 }), // slug da empresa (ex: "arqueoproject")
   // Metadata
   createdById: int("createdById").references(() => users.id),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

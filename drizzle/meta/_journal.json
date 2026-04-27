@@ -169,6 +169,20 @@
       "when": 1777311987196,
       "tag": "0023_open_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "5",
+      "when": 1777314599835,
+      "tag": "0024_motionless_timeslip",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "5",
+      "when": 1777314949774,
+      "tag": "0025_steady_scarecrow",
+      "breakpoints": true
     }
   ]
 }

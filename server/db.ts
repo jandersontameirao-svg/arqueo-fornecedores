@@ -1511,11 +1511,28 @@ export async function getContractEffectiveEndDate(contractId: number): Promise<{
  * Retorna contratos com vigência efetiva calculada.
  * Usado em listagens, dashboard e alertas para garantir consistência.
  */
-export async function getContractsBySupplierWithEffectiveEndDate(supplierId: number) {
+export async function getContractsBySupplierWithEffectiveEndDate(supplierId: number, companySlug?: string) {
   const db = await getDb();
   if (!db) return [];
+
+  // Filtro de segregação por empresa:
+  // - Se companySlug fornecido: retorna contratos da empresa + contratos com scope "all_group"
+  // - Se não fornecido: retorna todos (sem contexto de empresa)
+  let whereClause: any;
+  if (companySlug) {
+    whereClause = and(
+      eq(contracts.supplierId, supplierId),
+      or(
+        eq(contracts.contractCompanySlug, companySlug),
+        eq(contracts.companyScope, "all_group")
+      )
+    );
+  } else {
+    whereClause = eq(contracts.supplierId, supplierId);
+  }
+
   const contractList = await db.select().from(contracts)
-    .where(eq(contracts.supplierId, supplierId))
+    .where(whereClause)
     .orderBy(desc(contracts.createdAt));
 
   // Para cada contrato, calcular vigência efetiva

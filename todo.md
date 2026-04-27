@@ -767,3 +767,13 @@
 - [x] Auditar todo o código backend (db.ts, routers.ts) para verificar se alguma operação deleta documentos (supplier_documents, S3)
 - [x] Auditar código frontend para verificar se há chamadas de delete em documentos
 - [x] Garantir regra absoluta: documentos só podem ser apagados manualmente pelo usuário, NUNCA por código automático
+
+## v7.12 — Segregação de contratos por empresa
+- [x] Auditar schema de contratos: verificar se há campo companyId/scope
+- [x] Adicionar campo `companyScope` em contracts: "single" (empresa específica) ou "all_group" (todas do Grupo Arqueo Brasil)
+- [x] Adicionar campo `contractCompanySlug` em contracts para registrar o slug da empresa de origem
+- [x] Migrar schema com pnpm db:push
+- [x] Atualizar getContractsBySupplierWithEffectiveEndDate para filtrar por companySlug
+- [x] Atualizar listBySupplier procedure para receber companySlug e filtrar
+- [x] Atualizar ContractEditor: seletor de escopo (empresa específica vs. todas) + banner informativo
+- [x] Exibir contratos na aba Contratos do fornecedor filtrado pela empresa selecionada (companySlug do contexto)

@@ -55,6 +55,7 @@ interface ContractEditorProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   existingContracts?: Array<{ id: number; title: string }>;
+  companySlug?: string; // Slug da empresa selecionada para segregação
 }
 
 const contractTypeLabels: Record<string, string> = {
@@ -101,6 +102,7 @@ export function ContractEditor({
   onOpenChange,
   onSuccess,
   existingContracts = [],
+  companySlug,
 }: ContractEditorProps) {
   const utils = trpc.useUtils();
 
@@ -120,6 +122,7 @@ export function ContractEditor({
   const [object, setObject] = useState("");
   const [contractType, setContractType] = useState<string>("service");
   const [status, setStatus] = useState<string>("draft");
+  const [contractScope, setContractScope] = useState<"single" | "all_group">("single");
   const [totalValue, setTotalValue] = useState("");
   const [paymentTerms, setPaymentTerms] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -211,7 +214,7 @@ export function ContractEditor({
   const createMutation = trpc.contracts.create.useMutation({
     onSuccess: () => {
       toast.success("Contrato criado com sucesso!");
-      utils.contracts.listBySupplier.invalidate({ supplierId });
+      utils.contracts.listBySupplier.invalidate({ supplierId, companySlug });
       onSuccess();
       onOpenChange(false);
       resetForm();
@@ -223,10 +226,11 @@ export function ContractEditor({
     setTitle(""); setNumber(""); setObject(""); setContractType("service");
     setStatus("draft"); setTotalValue(""); setPaymentTerms("");
     setStartDate(""); setEndDate(""); setContent(""); setNotes("");
-    setContractorName("Grupo Arqueo Participações"); setContractorCnpj("");
+    setContractorName("Grupo Arqueo Particições"); setContractorCnpj("");
     setContractorRepresentative(""); setItems([emptyItem()]);
     setAiPrompt(""); setAiGenerated(false);
     setSelectedTemplateId(""); setSelectedDuplicateId("");
+    setContractScope("single");
   };
 
   const handleSave = () => {
@@ -253,6 +257,9 @@ export function ContractEditor({
       content: content || undefined,
       notes: notes || undefined,
       items: validItems.length > 0 ? validItems : undefined,
+      // Segregação por empresa: registra qual empresa está criando o contrato
+      companyScope: contractScope,
+      contractCompanySlug: contractScope === "single" ? (companySlug || undefined) : undefined,
     });
   };
 
@@ -400,6 +407,33 @@ export function ContractEditor({
           {/* === FORM FIELDS (always visible after AI generates or for other modes) === */}
           {(mode !== "ai" || aiGenerated) && (
             <>
+              {/* Company Scope Banner */}
+              {companySlug && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 flex items-start gap-3">
+                  <div className="mt-0.5 h-4 w-4 text-blue-600 flex-shrink-0">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-800">Empresa: <span className="capitalize">{companySlug.replace(/-/g, " ")}</span></p>
+                    <p className="text-xs text-blue-600 mt-0.5">Este contrato será visível apenas nesta empresa. Para compartilhar com todas as empresas do grupo, altere o escopo abaixo.</p>
+                    <div className="mt-2">
+                      <Select
+                        value={contractScope}
+                        onValueChange={(v) => setContractScope(v as "single" | "all_group")}
+                      >
+                        <SelectTrigger className="h-8 text-xs bg-white w-64">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="single">Somente esta empresa</SelectItem>
+                          <SelectItem value="all_group">Todas as empresas do Grupo Arqueo Brasil</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Identification */}
               <div>
                 <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">

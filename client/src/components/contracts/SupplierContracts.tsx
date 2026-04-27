@@ -45,6 +45,7 @@ import { ContractCreationModal, type ContractCreationMode } from "./ContractCrea
 import { ContractEditor } from "./ContractEditor";
 import { ContractViewer } from "./ContractViewer";
 import { ContractPDFImport } from "./ContractPDFImport";
+import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
 
 interface SupplierContractsProps {
   supplierId: number;
@@ -75,6 +76,9 @@ export default function SupplierContracts({ supplierId, supplierName, supplierCn
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const canManage = user?.role === "admin" || user?.role === "manager";
+  const { selectedCompany } = useSelectedCompany();
+  // Slug da empresa selecionada: usado para filtrar contratos por empresa
+  const companySlug = selectedCompany?.id || undefined;
 
   const [creationModalOpen, setCreationModalOpen] = useState(false);
   const [selectedMode, setSelectedMode] = useState<ContractCreationMode | null>(null);
@@ -82,12 +86,12 @@ export default function SupplierContracts({ supplierId, supplierName, supplierCn
   const [viewerId, setViewerId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
-  const { data: contractRows, isLoading } = trpc.contracts.listBySupplier.useQuery({ supplierId });
+  const { data: contractRows, isLoading } = trpc.contracts.listBySupplier.useQuery({ supplierId, companySlug });
 
   const deleteMutation = trpc.contracts.delete.useMutation({
     onSuccess: () => {
       toast.success("Contrato excluído");
-      utils.contracts.listBySupplier.invalidate({ supplierId });
+      utils.contracts.listBySupplier.invalidate({ supplierId, companySlug });
       setDeleteId(null);
     },
     onError: (err) => toast.error("Erro ao excluir", { description: err.message }),
@@ -321,7 +325,8 @@ export default function SupplierContracts({ supplierId, supplierName, supplierCn
           mode={selectedMode}
           open={editorOpen}
           onOpenChange={setEditorOpen}
-          onSuccess={() => utils.contracts.listBySupplier.invalidate({ supplierId })}
+          onSuccess={() => utils.contracts.listBySupplier.invalidate({ supplierId, companySlug })}
+          companySlug={companySlug}
           existingContracts={contractRows?.map((r) => ({ id: r.contract.id, title: r.contract.title })) || []}
         />
       )}
@@ -340,7 +345,7 @@ export default function SupplierContracts({ supplierId, supplierName, supplierCn
         supplierId={supplierId}
         open={pdfImportOpen}
         onClose={() => setPdfImportOpen(false)}
-        onSuccess={() => utils.contracts.listBySupplier.invalidate({ supplierId })}
+        onSuccess={() => utils.contracts.listBySupplier.invalidate({ supplierId, companySlug })}
       />
 
       {/* Delete Confirmation */}
