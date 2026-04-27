@@ -1084,6 +1084,13 @@ export async function deleteContract(id: number): Promise<void> {
   await db.delete(contracts).where(eq(contracts.id, id));
 }
 
+export async function getContractWithDetails(id: number) {
+  const contract = await getContractById(id);
+  if (!contract) return null;
+  const items = await getContractItems(id);
+  return { contract, items };
+}
+
 export async function getContractItems(contractId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -1516,7 +1523,7 @@ export async function getContractsBySupplierWithEffectiveEndDate(supplierId: num
   if (!db) return [];
 
   // Filtro de segregação por empresa:
-  // - Se companySlug fornecido: retorna contratos da empresa + contratos com scope "all_group"
+  // - Se companySlug fornecido: retorna contratos da empresa + all_group + legados (slug NULL)
   // - Se não fornecido: retorna todos (sem contexto de empresa)
   let whereClause: any;
   if (companySlug) {
@@ -1524,7 +1531,8 @@ export async function getContractsBySupplierWithEffectiveEndDate(supplierId: num
       eq(contracts.supplierId, supplierId),
       or(
         eq(contracts.contractCompanySlug, companySlug),
-        eq(contracts.companyScope, "all_group")
+        eq(contracts.companyScope, "all_group"),
+        isNull(contracts.contractCompanySlug) // legados sem empresa definida
       )
     );
   } else {

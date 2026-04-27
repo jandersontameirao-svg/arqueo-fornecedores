@@ -2432,6 +2432,104 @@ Estruture o contrato com:
       .query(async ({ input }) => {
         return db.getAllContracts(input);
       }),
+
+    // ==================== GERAR PDF DO CONTRATO ====================
+    generatePDF: protectedProcedure
+      .input(z.object({ contractId: z.number() }))
+      .mutation(async ({ input }) => {
+        const result = await db.getContractWithDetails(input.contractId);
+        if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        const { contract, items } = result;
+
+        const formatDate = (d: Date | string | null | undefined) =>
+          d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+        const formatCurrency = (v: string | null | undefined) =>
+          v ? `R$ ${parseFloat(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—";
+
+        const statusLabels: Record<string, string> = {
+          draft: "Rascunho", review: "Em Revisão", active: "Ativo",
+          suspended: "Suspenso", expired: "Expirado", terminated: "Encerrado",
+        };
+        const typeLabels: Record<string, string> = {
+          service: "Prestação de Serviços", supply: "Fornecimento",
+          lease: "Locação", consulting: "Consultoria",
+          maintenance: "Manutenção", other: "Outro",
+        };
+
+        const itemsHtml = items.length > 0
+          ? `<table style="width:100%;border-collapse:collapse;margin-top:8px">
+              <thead><tr style="background:#7c1a3a;color:#fff">
+                <th style="padding:6px 8px;text-align:left">Descrição</th>
+                <th style="padding:6px 8px;text-align:right">Qtd</th>
+                <th style="padding:6px 8px;text-align:right">Unitário</th>
+                <th style="padding:6px 8px;text-align:right">Total</th>
+              </tr></thead>
+              <tbody>${items.map((i: any, idx: number) => `
+                <tr style="background:${idx % 2 === 0 ? "#fafafa" : "#fff"}">
+                  <td style="padding:5px 8px;border-bottom:1px solid #eee">${i.description}</td>
+                  <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${i.quantity || "—"}</td>
+                  <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${formatCurrency(i.unitPrice)}</td>
+                  <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${formatCurrency(i.totalPrice)}</td>
+                </tr>`).join("")}
+              </tbody></table>`
+          : "";
+
+        const contentHtml = contract.content
+          ? contract.content.replace(/\n/g, "<br/>")
+          : "<em>Sem conteúdo registrado.</em>";
+
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #222; margin: 0; padding: 0; }
+  .header { background: #7c1a3a; color: #fff; padding: 24px 32px; }
+  .header h1 { margin: 0 0 4px 0; font-size: 18px; }
+  .header p { margin: 0; font-size: 11px; opacity: 0.85; }
+  .section { padding: 20px 32px; border-bottom: 1px solid #eee; }
+  .section h2 { font-size: 13px; color: #7c1a3a; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px 0; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field label { font-size: 10px; color: #888; text-transform: uppercase; display: block; margin-bottom: 2px; }
+  .field span { font-size: 12px; font-weight: 500; }
+  .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .party { background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 12px; }
+  .party .role { font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 4px; }
+  .party .name { font-weight: 700; font-size: 13px; }
+  .party .cnpj { font-size: 11px; color: #555; }
+  .content-box { background: #fafafa; border: 1px solid #eee; border-radius: 6px; padding: 16px; line-height: 1.7; font-size: 11.5px; }
+  .footer { padding: 16px 32px; font-size: 10px; color: #aaa; text-align: center; }
+</style></head><body>
+<div class="header">
+  <h1>${contract.title}</h1>
+  <p>${contract.number ? `#${contract.number} &nbsp;|&nbsp; ` : ""}${typeLabels[contract.contractType || ""] || ""} &nbsp;|&nbsp; ${statusLabels[contract.status || ""] || contract.status || ""}</p>
+</div>
+<div class="section">
+  <h2>Identificação</h2>
+  <div class="grid">
+    <div class="field"><label>Valor Total</label><span>${formatCurrency(contract.totalValue)}</span></div>
+    <div class="field"><label>Condições de Pagamento</label><span>${contract.paymentTerms || "—"}</span></div>
+    <div class="field"><label>Início</label><span>${formatDate(contract.startDate)}</span></div>
+    <div class="field"><label>Término</label><span>${formatDate(contract.endDate)}</span></div>
+  </div>
+</div>
+${contract.object ? `<div class="section"><h2>Objeto</h2><p>${contract.object}</p></div>` : ""}
+<div class="section">
+  <h2>Partes</h2>
+  <div class="parties">
+    <div class="party"><div class="role">Contratante</div><div class="name">${contract.contractorName || "—"}</div><div class="cnpj">${contract.contractorCnpj ? `CNPJ: ${contract.contractorCnpj}` : ""}</div></div>
+    <div class="party"><div class="role">Contratada</div><div class="name">${contract.contractorRepresentative || "(Dados do fornecedor)"}</div></div>
+  </div>
+</div>
+${contract.content ? `<div class="section"><h2>Conteúdo</h2><div class="content-box">${contentHtml}</div></div>` : ""}
+${items.length > 0 ? `<div class="section"><h2>Itens</h2>${itemsHtml}</div>` : ""}
+${contract.notes ? `<div class="section"><h2>Observações</h2><p>${contract.notes}</p></div>` : ""}
+<div class="footer">Gerado em ${new Date().toLocaleString("pt-BR")} — Arqueo Fornecedores</div>
+</body></html>`;
+
+        return {
+          html: Buffer.from(html).toString("base64"),
+          filename: `contrato-${contract.number || contract.id}-${contract.title.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 40)}.html`,
+          contractTitle: contract.title,
+        };
+      }),
   }),
 
   // ==================== AMENDMENTS (ADITIVOS) ====================
@@ -3373,6 +3471,7 @@ REGRAS CRÍTICAS:
         const contractsCount = await db.countContractsByBusinessUnit(input.businessUnitId);
         return { templates: templatesCount, contracts: contractsCount };
       }),
+
   }),
   // ==================== EXPORT ====================
   export: router({

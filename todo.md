@@ -777,3 +777,9 @@
 - [x] Atualizar listBySupplier procedure para receber companySlug e filtrar
 - [x] Atualizar ContractEditor: seletor de escopo (empresa específica vs. todas) + banner informativo
 - [x] Exibir contratos na aba Contratos do fornecedor filtrado pela empresa selecionada (companySlug do contexto)
+
+## v7.13 — Correção de contratos + Download PDF
+- [x] Corrigir filtro companySlug: contratos com slug NULL devem aparecer para qualquer empresa
+- [x] Adicionar endpoint tRPC contracts.generatePDF para gerar PDF do contrato
+- [x] Adicionar botão "Baixar PDF" no ContractViewer
+- [x] Botão de download em documentos já existia (window.open fileUrl) — confirmado

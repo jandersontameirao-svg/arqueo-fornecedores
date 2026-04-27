@@ -63,6 +63,7 @@ import {
   CheckCircle2,
   XCircle,
   Mail,
+  Download,
 } from "lucide-react";
 
 interface ContractViewerProps {
@@ -145,6 +146,24 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
     signOrder: 1,
   });
   const [deleteSignerId, setDeleteSignerId] = useState<number | null>(null);
+
+  // PDF download
+  const generatePDFMutation = trpc.contracts.generatePDF.useMutation({
+    onSuccess: (data) => {
+      const html = atob(data.html);
+      const blob = new Blob([html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = data.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Contrato exportado com sucesso");
+    },
+    onError: (err) => toast.error("Erro ao gerar PDF", { description: err.message }),
+  });
 
   // Edit mode
   const [isEditing, setIsEditing] = useState(false);
@@ -326,12 +345,24 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
                         IA
                       </Badge>
                     )}
-                    {canManage && !isEditing && (
-                      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs ml-auto" onClick={startEditing}>
-                        <Edit className="h-3 w-3 mr-1" />
-                        Editar
+                    <div className="flex items-center gap-1 ml-auto">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => generatePDFMutation.mutate({ contractId })}
+                        disabled={generatePDFMutation.isPending}
+                      >
+                        <Download className="h-3 w-3 mr-1" />
+                        {generatePDFMutation.isPending ? "Gerando..." : "Baixar PDF"}
                       </Button>
-                    )}
+                      {canManage && !isEditing && (
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={startEditing}>
+                          <Edit className="h-3 w-3 mr-1" />
+                          Editar
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
