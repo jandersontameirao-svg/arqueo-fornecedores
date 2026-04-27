@@ -725,3 +725,8 @@
 - [x] Rastreabilidade: origem IA, data, usuário, score, campos revisados
 - [x] Tratamento de erros: PDF vazio, ilegível, timeout, conflitos
 - [x] Compatibilidade total com fluxo manual existente
+
+## v7.2 — Correção Arqueocean + opção "Ambas as 4 empresas"
+- [x] Investigar tabela companies no banco para verificar status da Arqueocean
+- [x] Garantir que Arqueocean aparece no dropdown de empresas do wizard Cadastrar via I.A.
+- [x] Adicionar opção "Ambas as 4 empresas" exclusiva para cadastros na Grupo Arqueo Brasil

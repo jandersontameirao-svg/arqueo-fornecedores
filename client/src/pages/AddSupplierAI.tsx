@@ -194,6 +194,19 @@ export default function AddSupplierAI() {
   const saveMutation = trpc.suppliers.saveViaAI.useMutation({
     onSuccess: (result: any) => {
       toast.success("Fornecedor cadastrado via I.A. com sucesso!");
+      // If "all companies" was selected, link to all companies of Grupo Arqueo Brasil
+      if (selectedCompanyId === "all_grupo_arqueo_brasil" && result.supplierId) {
+        // Link to remaining companies (first one is already set as primary)
+        for (const company of grupoArqueoBrasilCompanies.slice(1)) {
+          linkMutation.mutate({
+            supplierId: result.supplierId,
+            companyId: company.id,
+            criticality: criticality as "low" | "medium" | "high" | "critical",
+            serviceScope: serviceScope || undefined,
+            internalNotes: internalNotes || undefined,
+          });
+        }
+      }
       setLocation(`/suppliers/${result.supplierId}`);
     },
     onError: (error: any) => {
@@ -224,15 +237,37 @@ export default function AddSupplierAI() {
     },
   });
 
+  // Companies that belong to Grupo Arqueo Brasil (businessUnitId=1)
+  const grupoArqueoBrasilCompanies = useMemo(() => {
+    if (!companies) return [];
+    return companies.filter((c: any) => c.businessUnitId === 1);
+  }, [companies]);
+
+  const isGrupoArqueoBrasil = selectedCompany?.groupId === 1;
+
   const linkToCompany = (supplierId: number) => {
     if (!selectedCompanyId) return;
-    linkMutation.mutate({
-      supplierId,
-      companyId: parseInt(selectedCompanyId, 10),
-      criticality: criticality as "low" | "medium" | "high" | "critical",
-      serviceScope: serviceScope || undefined,
-      internalNotes: internalNotes || undefined,
-    });
+
+    if (selectedCompanyId === "all_grupo_arqueo_brasil") {
+      // Link to all 4 companies of Grupo Arqueo Brasil
+      for (const company of grupoArqueoBrasilCompanies) {
+        linkMutation.mutate({
+          supplierId,
+          companyId: company.id,
+          criticality: criticality as "low" | "medium" | "high" | "critical",
+          serviceScope: serviceScope || undefined,
+          internalNotes: internalNotes || undefined,
+        });
+      }
+    } else {
+      linkMutation.mutate({
+        supplierId,
+        companyId: parseInt(selectedCompanyId, 10),
+        criticality: criticality as "low" | "medium" | "high" | "critical",
+        serviceScope: serviceScope || undefined,
+        internalNotes: internalNotes || undefined,
+      });
+    }
   };
 
   // File handling
@@ -352,7 +387,9 @@ export default function AddSupplierAI() {
           bankAccount: formData.bankAccount || "",
           notes: formData.notes || "",
           criticality: criticality as "low" | "medium" | "high" | "critical",
-          companyId: selectedCompanyId || selectedCompany?.id || "grupo-arqueo",
+          companyId: selectedCompanyId === "all_grupo_arqueo_brasil"
+            ? String(grupoArqueoBrasilCompanies[0]?.id || "")
+            : (selectedCompanyId || selectedCompany?.id || "grupo-arqueo"),
           groupId: selectedCompany?.groupId || 1,
         },
         extractionRunId: extractionResult.runId,
@@ -388,7 +425,9 @@ export default function AddSupplierAI() {
         bankAgency: formData.bankAgency || "",
         bankAccount: formData.bankAccount || "",
         criticality: criticality as "low" | "medium" | "high" | "critical",
-        companyId: selectedCompanyId || selectedCompany?.id || "grupo-arqueo",
+        companyId: selectedCompanyId === "all_grupo_arqueo_brasil"
+          ? String(grupoArqueoBrasilCompanies[0]?.id || "")
+          : (selectedCompanyId || selectedCompany?.id || "grupo-arqueo"),
         groupId: selectedCompany?.groupId || 1,
       });
     }
@@ -841,9 +880,14 @@ export default function AddSupplierAI() {
                         <SelectValue placeholder="Selecione a empresa (opcional)" />
                       </SelectTrigger>
                       <SelectContent>
+                        {isGrupoArqueoBrasil && grupoArqueoBrasilCompanies.length > 1 && (
+                          <SelectItem value="all_grupo_arqueo_brasil" className="font-semibold text-violet-700">
+                            Ambas as {grupoArqueoBrasilCompanies.length} empresas
+                          </SelectItem>
+                        )}
                         {companies?.map((company: any) => (
                           <SelectItem key={company.id} value={String(company.id)}>
-                            {company.name || company.legalName}
+                            {company.tradeName || company.legalName}
                           </SelectItem>
                         ))}
                       </SelectContent>
