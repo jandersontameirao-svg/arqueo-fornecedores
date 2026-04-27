@@ -90,7 +90,8 @@ export default function GenerateContract() {
   const selectedTemplate = useMemo(() => templates?.find((t: any) => t.id === selectedTemplateId), [templates, selectedTemplateId]);
   const selectedSupplier = useMemo(() => {
     if (!selectedSupplierId || !suppliers) return null;
-    return (suppliers as any[]).find((s: any) => s.id === selectedSupplierId);
+    const row = (suppliers as any[]).find((s: any) => (s.supplier?.id ?? s.id) === selectedSupplierId);
+    return row ? (row.supplier ?? row) : null;
   }, [suppliers, selectedSupplierId]);
 
   // Filtered lists
@@ -104,7 +105,7 @@ export default function GenerateContract() {
 
   const filteredSuppliers = useMemo(() => {
     if (!suppliers) return [];
-    return (suppliers as any[]).filter((s: any) =>
+    return (suppliers as any[]).map((s: any) => s.supplier ?? s).filter((s: any) =>
       (s.companyName || "").toLowerCase().includes(searchSupplier.toLowerCase()) ||
       (s.cnpj || "").includes(searchSupplier) ||
       (s.email || "").toLowerCase().includes(searchSupplier.toLowerCase())
@@ -466,7 +467,7 @@ export default function GenerateContract() {
                   const isAutoSupplier = origin === "auto_supplier";
 
                   return (
-                    <div key={field.id} className={`rounded-lg border p-3 ${
+                    <div key={field.fieldKey || field.id} className={`rounded-lg border p-3 ${
                       isAi && aiConf !== null && aiConf < 60 ? "border-amber-300 bg-amber-50/50" : ""
                     }`}>
                       <div className="flex items-center gap-2 mb-1.5">
@@ -491,8 +492,8 @@ export default function GenerateContract() {
                         <Select value={filledFields[field.fieldKey] || ""} onValueChange={v => updateField(field.fieldKey, v)}>
                           <SelectTrigger><SelectValue placeholder={`Selecione ${(field.label || "").toLowerCase()}`} /></SelectTrigger>
                           <SelectContent>
-                            {(Array.isArray(field.selectOptions) ? field.selectOptions : []).map((opt: string) => (
-                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            {(Array.isArray(field.selectOptions) ? field.selectOptions : []).map((opt: string, oi: number) => (
+                              <SelectItem key={`${field.fieldKey}-${opt}-${oi}`} value={opt}>{opt}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -563,7 +564,7 @@ export default function GenerateContract() {
                 </div>
                 <div className="divide-y">
                   {templateFields.map((field: any) => (
-                    <div key={field.id} className="p-3 flex items-center justify-between">
+                    <div key={field.fieldKey || field.id} className="p-3 flex items-center justify-between">
                       <div>
                         <span className="text-sm font-medium">{field.label}</span>
                         {field.isRequired && <span className="text-destructive text-xs ml-1">*</span>}

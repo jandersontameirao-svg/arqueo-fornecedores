@@ -753,3 +753,6 @@
 
 ## v7.7 — Fix TypeError toLowerCase em GenerateContract
 - [x] Corrigir TypeError: Cannot read properties of undefined (reading 'toLowerCase') em GenerateContract.tsx
+
+## v7.8 — Fix missing key prop em GenerateContract
+- [x] Corrigir aviso React: Each child in a list should have a unique "key" prop em GenerateContract.tsx
