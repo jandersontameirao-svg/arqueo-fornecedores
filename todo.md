@@ -733,3 +733,8 @@
 
 ## v7.3 — Opção "Ambas as 4 empresas" no cadastro manual
 - [x] Implementar opção "Ambas as 4 empresas" no formulário de cadastro manual de fornecedores
+
+## v7.4 — Remover sidebar lateral
+- [x] Remover DashboardLayout (sidebar) de todas as páginas internas
+- [x] Manter apenas TopbarLayout (navegação superior)
+- [x] Migrar itens de menu do sidebar para o topbar

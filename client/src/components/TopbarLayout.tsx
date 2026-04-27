@@ -12,11 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
@@ -37,8 +33,7 @@ import {
   Home,
   Link2,
   Search,
-  Menu,
-  X,
+
   FileText,
   Briefcase,
 } from "lucide-react";
@@ -415,83 +410,7 @@ function HorizontalNav() {
   );
 }
 
-// ==================== MOBILE MENU ====================
 
-function MobileMenu() {
-  const [open, setOpen] = useState(false);
-  const [location, setLocation] = useLocation();
-  const { user, logout } = useAuth();
-  const { activeUnitId } = useBusinessUnitContext();
-
-  const filteredNav = primaryNav.filter((item) => {
-    if (item.adminOnly && user?.role !== "admin") return false;
-    if (item.requiresUnit && !activeUnitId) return false;
-    return true;
-  });
-
-  return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden">
-          <Menu className="h-5 w-5" />
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0">
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-2">
-            <img src="/logo-arqueo.svg" alt="Grupo Arqueo" className="h-8 w-8" />
-            <span className="font-semibold">Arqueo</span>
-          </div>
-          <Button variant="ghost" size="icon" onClick={() => setOpen(false)}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        <nav className="p-2">
-          {filteredNav.map((item) => {
-            const Icon = item.icon;
-            const active = location === item.path || location.startsWith(item.path + "/");
-            return (
-              <button
-                key={item.path}
-                onClick={() => {
-                  setLocation(item.path);
-                  setOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                  active
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
-          <div className="flex items-center gap-3 mb-3">
-            <Avatar className="h-9 w-9 border bg-primary/10">
-              <AvatarFallback className="text-xs font-medium text-primary bg-primary/10">
-                {user?.name?.charAt(0).toUpperCase() || "U"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate">{user?.name}</p>
-              <Badge variant="secondary" className={`text-[10px] ${roleColors[user?.role || "reader"]}`}>
-                {roleLabels[user?.role || "reader"]}
-              </Badge>
-            </div>
-          </div>
-          <Button variant="outline" size="sm" className="w-full" onClick={logout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sair
-          </Button>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-}
 
 // ==================== MAIN LAYOUT ====================
 
@@ -569,9 +488,8 @@ export default function TopbarLayout({ children }: { children: React.ReactNode }
       {/* Topbar */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border/40">
         <div className="flex items-center justify-between h-14 px-4 md:px-6">
-          {/* Left: Logo + Mobile menu */}
+          {/* Left: Logo */}
           <div className="flex items-center gap-3">
-            <MobileMenu />
             <button
               onClick={() => {
                 clearSelectedCompany();
@@ -651,11 +569,9 @@ export default function TopbarLayout({ children }: { children: React.ReactNode }
         </div>
       </header>
 
-      {/* Horizontal navigation (desktop only) — oculta nas telas de seleção e nas páginas internas da central */}
+      {/* Horizontal navigation — oculta nas telas de seleção e nas páginas internas da central */}
       {!isSelectionRoute && !isUnitRoute && (
-        <div className="hidden md:block">
-          <HorizontalNav />
-        </div>
+        <HorizontalNav />
       )}
 
       {/* Breadcrumbs — ocultos nas telas de seleção */}
