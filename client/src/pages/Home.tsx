@@ -1,4 +1,17 @@
 import { trpc } from "@/lib/trpc";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,8 +30,13 @@ import {
   ArrowRight,
   Globe,
   Activity,
+  LayoutTemplate,
+  ChevronDown,
+  Search,
+  Loader2,
 } from "lucide-react";
 import { useLocation } from "wouter";
+import { useState } from "react";
 import { useBusinessUnitContext } from "@/contexts/BusinessUnitContext";
 import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
 import {
@@ -97,6 +115,19 @@ export default function Home() {
   const { data: alerts } = trpc.compliance.getAlerts.useQuery({ companyId, groupId });
   const { data: pendingWorkflows } = trpc.workflows.getPending.useQuery({ companyId });
 
+  // --- Template modal state ---
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templateSearch, setTemplateSearch] = useState("");
+  const { data: templates, isLoading: templatesLoading } = trpc.templates.listAll.useQuery(
+    undefined,
+    { enabled: showTemplateModal }
+  );
+  const filteredTemplates = (templates || []).filter((t) =>
+    !templateSearch ||
+    t.name.toLowerCase().includes(templateSearch.toLowerCase()) ||
+    (t.description || "").toLowerCase().includes(templateSearch.toLowerCase())
+  );
+
   // Preparar dados para o gráfico de pizza (categorias)
   const categoryChartData = (byCategory as Array<{ categoryName: string | null; count: number; categoryColor: string | null }> | undefined)?.map((cat, idx) => ({
     name: cat.categoryName || "Sem categoria",
@@ -139,6 +170,28 @@ export default function Home() {
             <Plus className="h-4 w-4" />
             Novo Fornecedor
           </Button>
+
+          {/* Usar Template dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <LayoutTemplate className="h-4 w-4" />
+                Usar Template
+                <ChevronDown className="h-3.5 w-3.5 ml-0.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={() => setLocation("/contract-templates")}>
+                <Plus className="h-4 w-4 mr-2 text-primary" />
+                Adicionar novo template
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setTemplateSearch(""); setShowTemplateModal(true); }}>
+                <LayoutTemplate className="h-4 w-4 mr-2 text-primary" />
+                Selecionar template
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button onClick={() => setLocation("/suppliers/link")} variant="outline" size="sm" className="gap-1.5">
             <Link2 className="h-4 w-4" />
             Vincular
@@ -436,6 +489,85 @@ export default function Home() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal: Selecionar Template */}
+      <Dialog open={showTemplateModal} onOpenChange={setShowTemplateModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LayoutTemplate className="h-5 w-5 text-primary" />
+              Selecionar Template
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              placeholder="Buscar templates..."
+              value={templateSearch}
+              onChange={(e) => setTemplateSearch(e.target.value)}
+            />
+          </div>
+
+          {/* Template list */}
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+            {templatesLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredTemplates.length === 0 ? (
+              <div className="text-center py-12">
+                <LayoutTemplate className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  {templateSearch ? "Nenhum template encontrado" : "Nenhum template cadastrado"}
+                </p>
+                {!templateSearch && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => { setShowTemplateModal(false); setLocation("/contract-templates"); }}
+                  >
+                    <Plus className="h-4 w-4 mr-1.5" />
+                    Criar primeiro template
+                  </Button>
+                )}
+              </div>
+            ) : (
+              filteredTemplates.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border bg-card p-3 hover:shadow-sm transition-shadow"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <FileText className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{t.name}</p>
+                      {t.description && (
+                        <p className="text-xs text-muted-foreground truncate">{t.description}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => {
+                      setShowTemplateModal(false);
+                      setLocation(`/generate-contract?templateId=${t.id}`);
+                    }}
+                  >
+                    Usar
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -803,3 +803,9 @@
 - [x] Adicionar aba "Templates" no SupplierDetail (junto das abas Contratos, Documentos etc.)
 - [x] Botão "Gerar Contrato" navega para /generate-contract?supplierId=X
 - [x] Botão "Usar Template" navega para /generate-contract?supplierId=X&templateId=Y
+
+## v7.17 — Botão "Usar Template" no Dashboard ao lado de "Novo Fornecedor"
+- [x] Remover item "Templates" do menu de navegação superior (TopbarLayout)
+- [x] Adicionar botão "Usar Template" com dropdown no Dashboard ao lado de "Novo Fornecedor"
+- [x] Dropdown opção 1: "Adicionar novo template" → navega para /contract-templates
+- [x] Dropdown opção 2: "Selecionar template" → abre modal com lista de templates para usar
