@@ -48,6 +48,7 @@ import {
   ScrollText,
   Link2,
   History,
+  LayoutTemplate,
 } from "lucide-react";
 
 // Sub-components
@@ -59,6 +60,7 @@ import SupplierWorkflow from "@/components/supplier/SupplierWorkflow";
 import SupplierContracts from "@/components/contracts/SupplierContracts";
 import SupplierLinks from "@/components/supplier/SupplierLinks";
 import SupplierHistory from "@/components/supplier/SupplierHistory";
+import SupplierTemplates from "@/components/supplier/SupplierTemplates";
 
 interface SupplierDetailProps {
   id: number;
@@ -407,6 +409,10 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
           <TabsTrigger value="contratos" className="flex items-center gap-2 py-2.5">
             <ScrollText className="h-4 w-4" />
             <span className="hidden lg:inline">Contratos</span>
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="flex items-center gap-2 py-2.5">
+            <LayoutTemplate className="h-4 w-4" />
+            <span className="hidden lg:inline">Templates</span>
           </TabsTrigger>
           <TabsTrigger value="financeiro" className="flex items-center gap-2 py-2.5">
             <CreditCard className="h-4 w-4" />
@@ -874,6 +880,14 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
             supplierId={id}
             supplierName={supplier.companyName}
             supplierCnpj={supplier.cnpj}
+          />
+        </TabsContent>
+
+        {/* Templates Tab */}
+        <TabsContent value="templates">
+          <SupplierTemplates
+            supplierId={id}
+            supplierName={supplier.companyName}
           />
         </TabsContent>
 

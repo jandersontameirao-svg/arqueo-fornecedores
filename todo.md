@@ -796,3 +796,10 @@
 - [x] Contratos com contractCompanySlug definido só aparecem na empresa correspondente
 - [x] ContractPDFImport agora recebe e passa companySlug ao criar contrato via PDF
 - [x] Filtro de fornecedores já estava correto (companyId + supplierLinks)
+
+## v7.16 — Mover Templates e Contratos para dentro do fornecedor
+- [x] Remover card "Templates e Contratos" da tela SelectUnit (seleção de área de negócio)
+- [x] Criar componente SupplierTemplates com CRUD completo de templates + IA + Upload Word
+- [x] Adicionar aba "Templates" no SupplierDetail (junto das abas Contratos, Documentos etc.)
+- [x] Botão "Gerar Contrato" navega para /generate-contract?supplierId=X
+- [x] Botão "Usar Template" navega para /generate-contract?supplierId=X&templateId=Y
