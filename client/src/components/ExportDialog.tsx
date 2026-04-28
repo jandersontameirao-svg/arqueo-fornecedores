@@ -46,9 +46,9 @@ const availableFields = [
 
 export function ExportDialog({ open, onOpenChange, categories }: ExportDialogProps) {
   const [format, setFormat] = useState<"excel" | "pdf">("excel");
-  const [categoryId, setCategoryId] = useState<string>("");
-  const [status, setStatus] = useState<string>("");
-  const [criticality, setCriticality] = useState<string>("");
+  const [categoryId, setCategoryId] = useState<string>("__all__");
+  const [status, setStatus] = useState<string>("__all__");
+  const [criticality, setCriticality] = useState<string>("__all__");
   const [selectedFields, setSelectedFields] = useState<string[]>(
     availableFields.filter((f) => f.default).map((f) => f.id)
   );
@@ -90,9 +90,9 @@ export function ExportDialog({ open, onOpenChange, categories }: ExportDialogPro
     exportMutation.mutate({
       format,
       filters: {
-        categoryId: categoryId ? parseInt(categoryId) : undefined,
-        status: status || undefined,
-        criticality: criticality || undefined,
+        categoryId: (categoryId && categoryId !== "__all__") ? parseInt(categoryId) : undefined,
+        status: (status && status !== "__all__") ? status : undefined,
+        criticality: (criticality && criticality !== "__all__") ? criticality : undefined,
       },
       fields: selectedFields.length > 0 ? selectedFields : undefined,
     });
@@ -170,7 +170,7 @@ export function ExportDialog({ open, onOpenChange, categories }: ExportDialogPro
                     <SelectValue placeholder="Todas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas</SelectItem>
+                    <SelectItem value="__all__">Todas</SelectItem>
                     {categories?.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id.toString()}>
                         {cat.name}
@@ -187,7 +187,7 @@ export function ExportDialog({ open, onOpenChange, categories }: ExportDialogPro
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos</SelectItem>
+                    <SelectItem value="__all__">Todos</SelectItem>
                     <SelectItem value="pending">Pendente</SelectItem>
                     <SelectItem value="approved">Aprovado</SelectItem>
                     <SelectItem value="rejected">Rejeitado</SelectItem>
@@ -204,7 +204,7 @@ export function ExportDialog({ open, onOpenChange, categories }: ExportDialogPro
                     <SelectValue placeholder="Todas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas</SelectItem>
+                    <SelectItem value="__all__">Todas</SelectItem>
                     <SelectItem value="low">Baixa</SelectItem>
                     <SelectItem value="medium">Média</SelectItem>
                     <SelectItem value="high">Alta</SelectItem>
