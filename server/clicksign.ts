@@ -210,19 +210,20 @@ function formatDocumentation(raw: string): string | undefined {
 
 /**
  * Validate signer name format for Clicksign API
- * Clicksign requires names to have at least 3 characters and contain at least one letter
+ * Clicksign requires full name (first + last name), minimum 2 words, each with at least 2 characters
  */
 function validateSignerName(name: string): { valid: boolean; error?: string } {
   const trimmed = name.trim();
   
-  // Minimum 3 characters
-  if (trimmed.length < 3) {
-    return { valid: false, error: "Nome deve ter pelo menos 3 caracteres" };
-  }
-  
-  // Must contain at least one letter (not just numbers/symbols)
+  // Must contain at least one letter
   if (!/[a-zA-ZáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]/i.test(trimmed)) {
     return { valid: false, error: "Nome deve conter pelo menos uma letra" };
+  }
+
+  // Clicksign requires full name: at least 2 words, each with at least 2 characters
+  const words = trimmed.split(/\s+/).filter(w => w.length >= 2);
+  if (words.length < 2) {
+    return { valid: false, error: "Informe o nome completo (nome e sobrenome)" };
   }
   
   return { valid: true };

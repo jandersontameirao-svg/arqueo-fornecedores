@@ -186,8 +186,8 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
   // Validate signer name
   const isValidSignerName = (name: string): boolean => {
     const trimmed = name.trim();
-    if (trimmed.length < 3) return false;
-    return /[a-zA-ZáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]/i.test(trimmed);
+    const words = trimmed.split(/\s+/).filter(w => w.length >= 2);
+    return words.length >= 2;
   };
 
   // Mutations
@@ -648,13 +648,16 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
                     <CardContent className="pt-4 space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label className="text-xs">Nome *</Label>
+                          <Label className="text-xs">Nome completo *</Label>
                           <Input
                             value={signerForm.name}
                             onChange={(e) => setSignerForm(f => ({ ...f, name: e.target.value }))}
-                            placeholder="Nome completo"
-                            className="mt-1"
+                            placeholder="Ex: João Silva"
+                            className={`mt-1 ${signerForm.name && !isValidSignerName(signerForm.name) ? "border-destructive" : ""}`}
                           />
+                          {signerForm.name && !isValidSignerName(signerForm.name) && (
+                            <p className="text-xs text-destructive mt-1">Informe o nome completo (nome e sobrenome)</p>
+                          )}
                         </div>
                         <div>
                           <Label className="text-xs">E-mail *</Label>
@@ -695,7 +698,7 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
                           size="sm"
                           onClick={() => addSignerMutation.mutate({ contractId, ...signerForm })}
                           disabled={!isValidSignerName(signerForm.name) || !signerForm.email || addSignerMutation.isPending}
-                          title={!isValidSignerName(signerForm.name) ? "Nome deve ter pelo menos 3 caracteres e conter uma letra" : ""}
+                          title={!isValidSignerName(signerForm.name) ? "Informe o nome completo (nome e sobrenome)" : ""}
                         >
                           {addSignerMutation.isPending ? "Adicionando..." : "Adicionar"}
                         </Button>

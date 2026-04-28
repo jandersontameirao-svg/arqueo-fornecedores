@@ -817,3 +817,8 @@
 - [x] Frontend: função isValidSignerName() em ContractViewer.tsx
 - [x] Frontend: botão "Adicionar" desabilitado se nome inválido + tooltip explicativo
 - [x] Erro do Clicksign "name não está em um formato válido" agora bloqueado antes do envio
+
+## v7.19 — Clicksign exige nome completo (nome + sobrenome)
+- [x] Backend clicksign.ts: validateSignerName() exigir pelo menos 2 palavras (nome + sobrenome)
+- [x] Backend routers.ts: addSigner Zod refine() exigir nome completo
+- [x] Frontend ContractViewer.tsx: isValidSignerName() exigir nome completo + mensagem de erro inline
