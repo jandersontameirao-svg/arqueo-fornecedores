@@ -809,3 +809,11 @@
 - [x] Adicionar botão "Usar Template" com dropdown no Dashboard ao lado de "Novo Fornecedor"
 - [x] Dropdown opção 1: "Adicionar novo template" → navega para /contract-templates
 - [x] Dropdown opção 2: "Selecionar template" → abre modal com lista de templates para usar
+
+## v7.18 — Validação de Nome de Signatário no Clicksign
+- [x] Backend: função validateSignerName() em clicksign.ts (mín. 3 caracteres, contém letra)
+- [x] Backend: validação no addSignerToEnvelope() antes de enviar ao Clicksign
+- [x] Backend: validação no routers.ts addSigner procedure com Zod refine()
+- [x] Frontend: função isValidSignerName() em ContractViewer.tsx
+- [x] Frontend: botão "Adicionar" desabilitado se nome inválido + tooltip explicativo
+- [x] Erro do Clicksign "name não está em um formato válido" agora bloqueado antes do envio

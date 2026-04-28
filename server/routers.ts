@@ -1951,7 +1951,10 @@ Estruture o contrato com:
     addSigner: managerProcedure
       .input(z.object({
         contractId: z.number(),
-        name: z.string().min(1),
+        name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres").refine(
+          (name) => /[a-zA-ZáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]/i.test(name),
+          "Nome deve conter pelo menos uma letra"
+        ),
         email: z.string().email(),
         cpfCnpj: z.string().optional(),
         role: z.enum(["contractor", "contracted", "witness", "guarantor"]),

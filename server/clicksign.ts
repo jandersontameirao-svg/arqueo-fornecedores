@@ -208,6 +208,26 @@ function formatDocumentation(raw: string): string | undefined {
   return undefined; // invalid length — omit field
 }
 
+/**
+ * Validate signer name format for Clicksign API
+ * Clicksign requires names to have at least 3 characters and contain at least one letter
+ */
+function validateSignerName(name: string): { valid: boolean; error?: string } {
+  const trimmed = name.trim();
+  
+  // Minimum 3 characters
+  if (trimmed.length < 3) {
+    return { valid: false, error: "Nome deve ter pelo menos 3 caracteres" };
+  }
+  
+  // Must contain at least one letter (not just numbers/symbols)
+  if (!/[a-zA-ZáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]/i.test(trimmed)) {
+    return { valid: false, error: "Nome deve conter pelo menos uma letra" };
+  }
+  
+  return { valid: true };
+}
+
 export async function addSignerToEnvelope(
   envelopeId: string,
   signer: {
@@ -218,6 +238,16 @@ export async function addSignerToEnvelope(
     refusable?: boolean;
   },
 ): Promise<ClicksignApiResponse<ClicksignSigner>> {
+  // Validate signer name before sending to Clicksign
+  const nameValidation = validateSignerName(signer.name);
+  if (!nameValidation.valid) {
+    return {
+      success: false,
+      error: { message: nameValidation.error || "Nome invalido", status: 400 },
+      requestId: undefined,
+    };
+  }
+
   // Format documentation with mask (Clicksign API requires masked CPF/CNPJ)
   const formattedDoc = signer.documentation
     ? formatDocumentation(signer.documentation)

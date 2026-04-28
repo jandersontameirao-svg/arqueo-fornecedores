@@ -183,6 +183,13 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
   const [versionDesc, setVersionDesc] = useState("");
   const [showVersionDialog, setShowVersionDialog] = useState(false);
 
+  // Validate signer name
+  const isValidSignerName = (name: string): boolean => {
+    const trimmed = name.trim();
+    if (trimmed.length < 3) return false;
+    return /[a-zA-ZáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]/i.test(trimmed);
+  };
+
   // Mutations
   const addSignerMutation = trpc.contracts.addSigner.useMutation({
     onSuccess: () => {
@@ -687,7 +694,8 @@ export function ContractViewer({ contractId, open, onOpenChange }: ContractViewe
                         <Button
                           size="sm"
                           onClick={() => addSignerMutation.mutate({ contractId, ...signerForm })}
-                          disabled={!signerForm.name || !signerForm.email || addSignerMutation.isPending}
+                          disabled={!isValidSignerName(signerForm.name) || !signerForm.email || addSignerMutation.isPending}
+                          title={!isValidSignerName(signerForm.name) ? "Nome deve ter pelo menos 3 caracteres e conter uma letra" : ""}
                         >
                           {addSignerMutation.isPending ? "Adicionando..." : "Adicionar"}
                         </Button>
