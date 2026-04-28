@@ -822,3 +822,11 @@
 - [x] Backend clicksign.ts: validateSignerName() exigir pelo menos 2 palavras (nome + sobrenome)
 - [x] Backend routers.ts: addSigner Zod refine() exigir nome completo
 - [x] Frontend ContractViewer.tsx: isValidSignerName() exigir nome completo + mensagem de erro inline
+
+## v7.20 — Retry e timeout na conexão com Clicksign
+- [x] CLICKSIGN_API_KEY configurado como secret de produção
+- [x] clicksignRequest() com retry automático (3 tentativas, backoff 1s/2s)
+- [x] AbortSignal.timeout(30s) para evitar hang indefinido
+- [x] Mensagem de erro melhorada com número de tentativas
+- [x] Teste de conectividade Clicksign adicionado (clicksign.test.ts)
+- [x] Testes: 159 passando

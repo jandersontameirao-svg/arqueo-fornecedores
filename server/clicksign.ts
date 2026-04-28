@@ -75,6 +75,7 @@ async function clicksignRequest<T>(
   method: string,
   path: string,
   body?: any,
+  retries = 2,
 ): Promise<ClicksignApiResponse<T>> {
   const config = getConfig();
   
@@ -95,64 +96,80 @@ async function clicksignRequest<T>(
     "Accept": "application/vnd.api+json",
   };
 
-  try {
-    const fetchOptions: RequestInit = {
-      method,
-      headers,
-    };
+  let lastError: string = "fetch failed";
 
-    if (body && (method === "POST" || method === "PATCH" || method === "PUT")) {
-      fetchOptions.body = JSON.stringify(body);
-    }
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const fetchOptions: RequestInit = {
+        method,
+        headers,
+        // 30s timeout via AbortController
+        signal: AbortSignal.timeout(30_000),
+      };
 
-    console.log(`[Clicksign] ${method} ${url}`);
-    
-    const response = await fetch(url, fetchOptions);
-    const requestId = response.headers.get("x-request-id") || undefined;
-
-    if (!response.ok) {
-      let errorBody: any = {};
-      try {
-        errorBody = await response.json();
-      } catch {
-        errorBody = { message: await response.text() };
+      if (body && (method === "POST" || method === "PATCH" || method === "PUT")) {
+        fetchOptions.body = JSON.stringify(body);
       }
 
-      console.error(`[Clicksign] Error ${response.status}: ${JSON.stringify(errorBody)}`);
+      if (attempt > 0) {
+        console.log(`[Clicksign] Retry ${attempt}/${retries}: ${method} ${url}`);
+        await new Promise((r) => setTimeout(r, 1000 * attempt));
+      } else {
+        console.log(`[Clicksign] ${method} ${url}`);
+      }
+    
+      const response = await fetch(url, fetchOptions);
+      const requestId = response.headers.get("x-request-id") || undefined;
 
-      return {
-        success: false,
-        error: {
-          status: response.status,
-          message: errorBody?.errors?.[0]?.detail || errorBody?.message || `HTTP ${response.status}`,
-          errors: errorBody?.errors,
+      if (!response.ok) {
+        let errorBody: any = {};
+        try {
+          errorBody = await response.json();
+        } catch {
+          errorBody = { message: await response.text() };
+        }
+
+        console.error(`[Clicksign] Error ${response.status}: ${JSON.stringify(errorBody)}`);
+
+        // Non-transient errors: return immediately without retry
+        return {
+          success: false,
+          error: {
+            status: response.status,
+            message: errorBody?.errors?.[0]?.detail || errorBody?.message || `HTTP ${response.status}`,
+            errors: errorBody?.errors,
+            requestId,
+          },
           requestId,
-        },
+        };
+      }
+
+      // Some endpoints return 204 No Content
+      if (response.status === 204) {
+        return { success: true, requestId };
+      }
+
+      const responseData = await response.json();
+      return {
+        success: true,
+        data: responseData?.data as T,
         requestId,
       };
+    } catch (err: any) {
+      lastError = err.message || "fetch failed";
+      console.error(`[Clicksign] Network error (attempt ${attempt + 1}/${retries + 1}): ${lastError}`);
+      // Continue to next retry iteration
     }
-
-    // Some endpoints return 204 No Content
-    if (response.status === 204) {
-      return { success: true, requestId };
-    }
-
-    const responseData = await response.json();
-    return {
-      success: true,
-      data: responseData?.data as T,
-      requestId,
-    };
-  } catch (err: any) {
-    console.error(`[Clicksign] Network error: ${err.message}`);
-    return {
-      success: false,
-      error: {
-        status: 0,
-        message: `Erro de conexão com Clicksign: ${err.message}`,
-      },
-    };
   }
+
+  // All retries exhausted
+  return {
+    success: false,
+    error: {
+      status: 0,
+      message: `Erro de conexão com Clicksign após ${retries + 1} tentativas: ${lastError}`,
+    },
+  };
 }
 
 // ==================== API METHODS ====================
