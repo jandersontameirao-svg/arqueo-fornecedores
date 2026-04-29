@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
+import { useBusinessUnitContext } from "@/contexts/BusinessUnitContext";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,6 +100,7 @@ export default function Suppliers() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { selectedCompany } = useSelectedCompany();
+  const { activeUnit } = useBusinessUnitContext();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -112,15 +114,21 @@ export default function Suppliers() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  const companyId = selectedCompany?.id || undefined;
+  const groupId = !selectedCompany?.id && selectedCompany?.groupId ? selectedCompany.groupId : undefined;
+
+  // ISOLAMENTO: só busca dados se há empresa selecionada ou groupId definido
+  const hasScope = !!(companyId || groupId);
+
   const { data: categories } = trpc.categories.list.useQuery();
   const { data: suppliers, isLoading } = trpc.suppliers.list.useQuery({
     search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
     categoryId: categoryFilter !== "all" ? parseInt(categoryFilter) : undefined,
     criticality: criticalityFilter !== "all" ? criticalityFilter : undefined,
-    companyId: selectedCompany?.id || undefined,
-    groupId: !selectedCompany?.id && selectedCompany?.groupId ? selectedCompany.groupId : undefined,
-  });
+    companyId,
+    groupId,
+  }, { enabled: hasScope });
 
   const canCreate = user?.role === "admin" || user?.role === "manager";
   const canEdit = user?.role === "admin" || user?.role === "manager";
@@ -132,6 +140,30 @@ export default function Suppliers() {
     pending: suppliers?.filter(s => s.supplier.status === "pending").length || 0,
     critical: suppliers?.filter(s => s.supplier.criticality === "critical" || s.supplier.criticality === "high").length || 0,
   };
+
+  // ESTADO VAZIO: área selecionada mas sem empresa vinculada
+  if (activeUnit && !selectedCompany) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Cadastro de Fornecedores</h1>
+          <p className="text-muted-foreground">{activeUnit.name}</p>
+        </div>
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+            <Building2 className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-semibold mb-2">Não há empresas registradas</h2>
+          <p className="text-muted-foreground max-w-sm mb-6">
+            Esta área ainda não possui empresas cadastradas. Selecione uma área com empresas para gerenciar fornecedores.
+          </p>
+          <Button onClick={() => setLocation("/")} variant="outline" className="gap-2">
+            Voltar para Áreas de Negócio
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

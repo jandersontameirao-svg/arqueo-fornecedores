@@ -40,6 +40,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { hasCompanySelection } from "@/pages/SelectCompany";
+import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
 
 // ─── Unit Card Component (isolates per-unit hook) ────────────────────
 function UnitCard({
@@ -228,6 +229,7 @@ export default function SelectBusinessUnit() {
   const { user } = useAuth();
   const { units, isLoading, setActiveUnitId } = useBusinessUnitContext();
   const { isAdmin } = useCompanyContext();
+  const { clearSelectedCompany } = useSelectedCompany();
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
 
@@ -298,12 +300,16 @@ export default function SelectBusinessUnit() {
   };
 
   const handleSelectUnit = (unitId: number) => {
+    // ISOLAMENTO: limpar empresa selecionada anteriormente ao trocar de área
+    // Isso evita que dados de uma área contaminem outra área
+    clearSelectedCompany();
     setActiveUnitId(unitId);
     // Se o grupo tem tela intermediária de empresas, redireciona para ela
     const unit = units.find((u) => u.id === unitId);
     if (unit && hasCompanySelection(unit.name)) {
       setLocation("/select-company");
     } else {
+      // Área sem empresas (ex: Grupo Arqueo Africa): vai para dashboard sem empresa selecionada
       setLocation("/dashboard");
     }
   };

@@ -830,3 +830,18 @@
 - [x] Mensagem de erro melhorada com número de tentativas
 - [x] Teste de conectividade Clicksign adicionado (clicksign.test.ts)
 - [x] Testes: 159 passando
+
+## v7.21 — Isolamento de Escopo: Área / Empresa / Fornecedor
+- [x] INVESTIGAÇÃO: schema businessAreas, companies, suppliers — verificar FKs e filtros
+- [x] INVESTIGAÇÃO: rotas frontend — verificar uso de ID vs slug/nome
+- [x] INVESTIGAÇÃO: queries backend — verificar se filtram por areaId/companyId
+- [x] INVESTIGAÇÃO: estado global — verificar se há contaminação de contexto anterior
+- [x] CORREÇÃO backend: listCompanies filtrar por businessAreaId obrigatório
+- [x] CORREÇÃO backend: listSuppliers filtrar por companyId obrigatório
+- [x] CORREÇÃO backend: contadores/stats respeitar companyId
+- [x] CORREÇÃO frontend: rota /business-areas/:id não redirecionar para empresa de outra área
+- [x] CORREÇÃO frontend: estado vazio correto quando área não tem empresas
+- [x] CORREÇÃO frontend: breadcrumbs refletir contexto real
+- [x] CORREÇÃO frontend: não reaproveitar estado anterior de outra empresa
+- [x] TESTES: isolamento por área e empresa (17 testes — scope-isolation.test.ts)
+- [x] VALIDAÇÃO manual completa — 176 testes passando

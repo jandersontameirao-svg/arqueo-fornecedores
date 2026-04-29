@@ -109,11 +109,31 @@ export default function Home() {
   const { selectedCompany } = useSelectedCompany();
   const companyId = selectedCompany?.id || undefined;
   const groupId = !selectedCompany?.id && selectedCompany?.groupId ? selectedCompany.groupId : undefined;
-  const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery({ companyId, groupId });
-  const { data: byCategory, isLoading: categoryLoading } = trpc.dashboard.suppliersByCategory.useQuery({ companyId, groupId });
-  const { data: byCriticality, isLoading: criticalityLoading } = trpc.dashboard.suppliersByCriticality.useQuery({ companyId, groupId });
-  const { data: alerts } = trpc.compliance.getAlerts.useQuery({ companyId, groupId });
-  const { data: pendingWorkflows } = trpc.workflows.getPending.useQuery({ companyId });
+
+  // ISOLAMENTO: só busca dados se há empresa selecionada ou groupId definido
+  // Áreas sem empresa (ex: Grupo Arqueo Africa) NÃO devem buscar dados globais
+  const hasScope = !!(companyId || groupId);
+
+  const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery(
+    { companyId, groupId },
+    { enabled: hasScope }
+  );
+  const { data: byCategory, isLoading: categoryLoading } = trpc.dashboard.suppliersByCategory.useQuery(
+    { companyId, groupId },
+    { enabled: hasScope }
+  );
+  const { data: byCriticality, isLoading: criticalityLoading } = trpc.dashboard.suppliersByCriticality.useQuery(
+    { companyId, groupId },
+    { enabled: hasScope }
+  );
+  const { data: alerts } = trpc.compliance.getAlerts.useQuery(
+    { companyId, groupId },
+    { enabled: hasScope }
+  );
+  const { data: pendingWorkflows } = trpc.workflows.getPending.useQuery(
+    { companyId },
+    { enabled: hasScope }
+  );
 
   // --- Template modal state ---
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -142,6 +162,42 @@ export default function Home() {
     color: CRITICALITY_COLORS[(crit.criticality || "medium") as keyof typeof CRITICALITY_COLORS] || "#6B7280",
     key: crit.criticality,
   })) || [];
+
+  // ESTADO VAZIO: área selecionada mas sem empresa vinculada (ex: Grupo Arqueo Africa)
+  // Exibe estado vazio correto sem dados de outra área/empresa
+  if (activeUnit && !selectedCompany) {
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+              <Badge variant="outline" className="font-medium">
+                <Globe className="h-3 w-3 mr-1" />
+                {activeUnit.name}
+              </Badge>
+            </div>
+            <p className="text-muted-foreground mt-1">Área de negócio selecionada</p>
+          </div>
+        </div>
+
+        {/* Empty state: área sem empresas */}
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+            <Building2 className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-semibold mb-2">Não há empresas registradas</h2>
+          <p className="text-muted-foreground max-w-sm mb-6">
+            Esta área ainda não possui empresas cadastradas. Acesse a tela de seleção para cadastrar uma nova empresa.
+          </p>
+          <Button onClick={() => setLocation("/")} variant="outline" className="gap-2">
+            <ArrowRight className="h-4 w-4" />
+            Voltar para Áreas de Negócio
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
