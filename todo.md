@@ -854,3 +854,10 @@
 - [x] Fallback seguro: n/a — SupplierDetail usa estado interno (useState), não lê tab da URL
 - [x] Ajustar espaçamento da barra de abas após remoção (flex-wrap nativo, sem buracos)
 - [x] Preservar todas as funcionalidades internas (TabsContent mantidos, apenas TabsTrigger removidos)
+
+## v7.23 — Correção Cirúrgica: Estado Vazio Incorreto no Grupo Arqueo Brasil
+- [x] Diagnosticar lógica hasScope em Suppliers.tsx que bloqueia Grupo Arqueo Brasil
+- [x] Corrigir: estado vazio apenas quando área realmente não tem empresas (não quando selectedCompany é null)
+- [x] Visão por área (sem empresa selecionada): buscar fornecedores agregados por groupId/areaId
+- [x] Visão por empresa: buscar fornecedores por companyId
+- [x] Ajustar testes mínimos de regressão (182 testes passando, 6 novos testes v7.23)

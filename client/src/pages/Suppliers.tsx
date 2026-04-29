@@ -3,6 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
 import { useBusinessUnitContext } from "@/contexts/BusinessUnitContext";
+import { getCompaniesForGroup } from "@/pages/SelectCompany";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,10 +116,17 @@ export default function Suppliers() {
   }, [search]);
 
   const companyId = selectedCompany?.id || undefined;
-  const groupId = !selectedCompany?.id && selectedCompany?.groupId ? selectedCompany.groupId : undefined;
+  // groupId via selectedCompany (empresa selecionada) OU via activeUnit (visão por área)
+  const groupId = selectedCompany?.groupId
+    ? selectedCompany.groupId
+    : activeUnit?.id || undefined;
 
-  // ISOLAMENTO: só busca dados se há empresa selecionada ou groupId definido
-  const hasScope = !!(companyId || groupId);
+  // Verifica se a área tem empresas registradas (para distinguir área vazia de visão geral)
+  const areaCompanies = activeUnit ? getCompaniesForGroup(activeUnit.name) : [];
+  const areaHasCompanies = areaCompanies.length > 0;
+
+  // ISOLAMENTO: só busca dados se há empresa selecionada ou área com empresas
+  const hasScope = !!(companyId || (activeUnit && areaHasCompanies));
 
   const { data: categories } = trpc.categories.list.useQuery();
   const { data: suppliers, isLoading } = trpc.suppliers.list.useQuery({
@@ -141,8 +149,8 @@ export default function Suppliers() {
     critical: suppliers?.filter(s => s.supplier.criticality === "critical" || s.supplier.criticality === "high").length || 0,
   };
 
-  // ESTADO VAZIO: área selecionada mas sem empresa vinculada
-  if (activeUnit && !selectedCompany) {
+  // ESTADO VAZIO: apenas quando a área realmente não tem empresas cadastradas
+  if (activeUnit && !areaHasCompanies) {
     return (
       <div className="space-y-6">
         <div>

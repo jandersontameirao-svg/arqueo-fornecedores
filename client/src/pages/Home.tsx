@@ -39,6 +39,7 @@ import { useLocation } from "wouter";
 import { useState } from "react";
 import { useBusinessUnitContext } from "@/contexts/BusinessUnitContext";
 import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
+import { getCompaniesForGroup } from "@/pages/SelectCompany";
 import {
   PieChart,
   Pie,
@@ -108,11 +109,17 @@ export default function Home() {
   const { activeUnit } = useBusinessUnitContext();
   const { selectedCompany } = useSelectedCompany();
   const companyId = selectedCompany?.id || undefined;
-  const groupId = !selectedCompany?.id && selectedCompany?.groupId ? selectedCompany.groupId : undefined;
+  // groupId via selectedCompany OU via activeUnit (visão por área)
+  const groupId = selectedCompany?.groupId
+    ? selectedCompany.groupId
+    : activeUnit?.id || undefined;
 
-  // ISOLAMENTO: só busca dados se há empresa selecionada ou groupId definido
-  // Áreas sem empresa (ex: Grupo Arqueo Africa) NÃO devem buscar dados globais
-  const hasScope = !!(companyId || groupId);
+  // Verifica se a área tem empresas registradas
+  const areaCompanies = activeUnit ? getCompaniesForGroup(activeUnit.name) : [];
+  const areaHasCompanies = areaCompanies.length > 0;
+
+  // ISOLAMENTO: só busca dados se há empresa selecionada ou área com empresas
+  const hasScope = !!(companyId || (activeUnit && areaHasCompanies));
 
   const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery(
     { companyId, groupId },
@@ -163,9 +170,8 @@ export default function Home() {
     key: crit.criticality,
   })) || [];
 
-  // ESTADO VAZIO: área selecionada mas sem empresa vinculada (ex: Grupo Arqueo Africa)
-  // Exibe estado vazio correto sem dados de outra área/empresa
-  if (activeUnit && !selectedCompany) {
+  // ESTADO VAZIO: apenas quando a área realmente não tem empresas cadastradas
+  if (activeUnit && !areaHasCompanies) {
     return (
       <div className="space-y-6 max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

@@ -1,5 +1,5 @@
 /**
- * Testes de Isolamento de Escopo — v7.21
+ * Testes de Isolamento de Escopo — v7.23
  *
  * Garante que:
  * 1. Grupo Arqueo Africa (sem empresas) não exibe dados de outra área
@@ -63,7 +63,7 @@ function simulateGetDashboardStats(companyId?: string, groupId?: number) {
   };
 }
 
-// ─── hasCompanySelection (lógica copiada do frontend) ─────────────────────────
+// ─── hasCompanySelection + getCompaniesForGroup (lógica copiada do frontend) ───
 
 const COMPANIES_BY_GROUP: Record<string, string[]> = {
   "Grupo Arqueo Brasil": ["arqueogis-preventiva", "arqueoproject", "arqueogis-geoprocessamento", "arqueocean"],
@@ -75,6 +75,26 @@ function hasCompanySelection(groupName: string): boolean {
   return GROUPS_WITH_COMPANY_SELECTION.some(
     (g) => groupName.toLowerCase().includes(g.toLowerCase()) || g.toLowerCase().includes(groupName.toLowerCase())
   );
+}
+
+function getCompaniesForGroup(groupName: string): string[] {
+  const key = GROUPS_WITH_COMPANY_SELECTION.find(
+    (g) => groupName.toLowerCase().includes(g.toLowerCase()) || g.toLowerCase().includes(groupName.toLowerCase())
+  );
+  return key ? COMPANIES_BY_GROUP[key] : [];
+}
+
+// Simula a lógica de hasScope e areaHasCompanies do frontend
+function simulateHasScope(companyId?: string, activeUnitName?: string): boolean {
+  const areaCompanies = activeUnitName ? getCompaniesForGroup(activeUnitName) : [];
+  const areaHasCompanies = areaCompanies.length > 0;
+  return !!(companyId || (activeUnitName && areaHasCompanies));
+}
+
+function simulateShouldShowEmptyState(activeUnitName?: string): boolean {
+  if (!activeUnitName) return false;
+  const areaCompanies = getCompaniesForGroup(activeUnitName);
+  return areaCompanies.length === 0;
 }
 
 // ─── TESTES ───────────────────────────────────────────────────────────────────
@@ -161,6 +181,32 @@ describe("Isolamento de Escopo — Filtros respeitam companyId", () => {
     const result = simulateGetAllSuppliers({ companyId: "arqueogis-preventiva", criticality: "high" });
     expect(result.every(s => s.companyId === "arqueogis-preventiva")).toBe(true);
     expect(result.every(s => s.criticality === "high")).toBe(true);
+  });
+});
+
+describe("v7.23 — Estado Vazio por Área", () => {
+  it("Grupo Arqueo Brasil NÃO deve mostrar estado vazio (tem empresas)", () => {
+    expect(simulateShouldShowEmptyState("Grupo Arqueo Brasil")).toBe(false);
+  });
+
+  it("Grupo Arqueo Africa DEVE mostrar estado vazio (sem empresas)", () => {
+    expect(simulateShouldShowEmptyState("Grupo Arqueo Africa")).toBe(true);
+  });
+
+  it("Foods and Drinks NÃO deve mostrar estado vazio (tem empresas)", () => {
+    expect(simulateShouldShowEmptyState("Foods and Drinks")).toBe(false);
+  });
+
+  it("Grupo Arqueo Brasil com selectedCompany=null DEVE ter hasScope=true (visão por área)", () => {
+    expect(simulateHasScope(undefined, "Grupo Arqueo Brasil")).toBe(true);
+  });
+
+  it("Grupo Arqueo Africa com selectedCompany=null DEVE ter hasScope=false (sem empresas)", () => {
+    expect(simulateHasScope(undefined, "Grupo Arqueo Africa")).toBe(false);
+  });
+
+  it("Grupo Arqueo Brasil com empresa selecionada DEVE ter hasScope=true", () => {
+    expect(simulateHasScope("arqueogis-preventiva", "Grupo Arqueo Brasil")).toBe(true);
   });
 });
 
