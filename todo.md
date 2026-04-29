@@ -861,3 +861,18 @@
 - [x] Visão por área (sem empresa selecionada): buscar fornecedores agregados por groupId/areaId
 - [x] Visão por empresa: buscar fornecedores por companyId
 - [x] Ajustar testes mínimos de regressão (182 testes passando, 6 novos testes v7.23)
+
+## v7.24 — Limpeza de Dados: DELETE em suppliers
+- [x] Verificar FKs que referenciam suppliers antes de executar DELETE
+- [x] Executar DELETE FROM suppliers (somente tabela de cadastro de fornecedores) — 14 registros removidos
+- [x] Confirmar contagem zerada após exclusão — suppliers: 0 registros
+
+## v7.25 — Limpeza de Dados: DELETE em documents
+- [x] Identificar tabela de documentos no schema
+- [x] Executar DELETE FROM documents e tabelas relacionadas — 135 registros removidos
+- [x] Confirmar contagem zerada após exclusão — documents: 0 registros
+
+## v7.26 — Inspeção Profunda: Correções Identificadas
+- [x] SupplierDetail.tsx: card "Interações" (linha 344) clica em setActiveTab("interactions") — aba sem TabsTrigger → corrigido: removido cursor-pointer e onClick
+- [x] SupplierDetail.tsx: botão "Ver todas" em Últimas Interações (linha 630) → corrigido: navega para /interactions
+- [x] clicksign.ts: AbortSignal.timeout reutilizado entre tentativas de retry causando "Body already read" → corrigido: AbortSignal criado dentro do loop por tentativa

@@ -100,10 +100,10 @@ async function clicksignRequest<T>(
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
+      // AbortSignal must be created fresh per attempt — it cannot be reused after abort
       const fetchOptions: RequestInit = {
         method,
         headers,
-        // 30s timeout via AbortController
         signal: AbortSignal.timeout(30_000),
       };
 

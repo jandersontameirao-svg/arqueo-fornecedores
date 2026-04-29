@@ -341,7 +341,7 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab("interactions")}>
+        <Card className="hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -627,7 +627,7 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
                       <Calendar className="h-4 w-4 text-[oklch(0.50_0.12_350)]" />
                       Últimas Interações
                     </CardTitle>
-                    <Button variant="ghost" size="sm" onClick={() => setActiveTab("interactions")}>
+                    <Button variant="ghost" size="sm" onClick={() => setLocation("/interactions")}>
                       Ver todas
                     </Button>
                   </div>
