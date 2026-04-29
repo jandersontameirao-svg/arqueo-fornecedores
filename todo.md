@@ -845,3 +845,12 @@
 - [x] CORREÇÃO frontend: não reaproveitar estado anterior de outra empresa
 - [x] TESTES: isolamento por área e empresa (17 testes — scope-isolation.test.ts)
 - [x] VALIDAÇÃO manual completa — 176 testes passando
+
+## v7.22 — Página de Detalhe do Fornecedor: Botão Contrato + Abas
+- [x] Corrigir botão "Adicionar contrato" no cabeçalho para ativar aba "Contratos" na mesma página
+- [x] Remover aba "Interações" da barra de abas do SupplierDetail
+- [x] Remover aba "Vínculos" da barra de abas do SupplierDetail
+- [x] Remover aba "Templates" da barra de abas do SupplierDetail
+- [x] Fallback seguro: n/a — SupplierDetail usa estado interno (useState), não lê tab da URL
+- [x] Ajustar espaçamento da barra de abas após remoção (flex-wrap nativo, sem buracos)
+- [x] Preservar todas as funcionalidades internas (TabsContent mantidos, apenas TabsTrigger removidos)

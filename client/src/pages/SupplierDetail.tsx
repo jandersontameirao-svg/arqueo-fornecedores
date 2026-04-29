@@ -263,7 +263,7 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
               <Button
                 variant="secondary"
                 className="bg-white/20 hover:bg-white/30 text-white border-0"
-                onClick={() => setActiveTab("financeiro")}
+                onClick={() => setActiveTab("contratos")}
               >
                 <FilePlus className="h-4 w-4 mr-2" />
                 Adicionar contrato
@@ -398,10 +398,6 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
             <Users className="h-4 w-4" />
             <span className="hidden lg:inline">Contatos</span>
           </TabsTrigger>
-          <TabsTrigger value="interactions" className="flex items-center gap-2 py-2.5">
-            <MessageSquare className="h-4 w-4" />
-            <span className="hidden lg:inline">Interações</span>
-          </TabsTrigger>
           <TabsTrigger value="evaluations" className="flex items-center gap-2 py-2.5">
             <BarChart3 className="h-4 w-4" />
             <span className="hidden lg:inline">Avaliações</span>
@@ -410,10 +406,6 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
             <ScrollText className="h-4 w-4" />
             <span className="hidden lg:inline">Contratos</span>
           </TabsTrigger>
-          <TabsTrigger value="templates" className="flex items-center gap-2 py-2.5">
-            <LayoutTemplate className="h-4 w-4" />
-            <span className="hidden lg:inline">Templates</span>
-          </TabsTrigger>
           <TabsTrigger value="financeiro" className="flex items-center gap-2 py-2.5">
             <CreditCard className="h-4 w-4" />
             <span className="hidden lg:inline">Financeiro</span>
@@ -421,10 +413,6 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
           <TabsTrigger value="workflow" className="flex items-center gap-2 py-2.5">
             <Shield className="h-4 w-4" />
             <span className="hidden lg:inline">Aprovação</span>
-          </TabsTrigger>
-          <TabsTrigger value="vinculos" className="flex items-center gap-2 py-2.5">
-            <Link2 className="h-4 w-4" />
-            <span className="hidden lg:inline">Vínculos</span>
           </TabsTrigger>
           <TabsTrigger value="historico" className="flex items-center gap-2 py-2.5">
             <History className="h-4 w-4" />
