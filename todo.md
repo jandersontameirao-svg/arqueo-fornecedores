@@ -881,3 +881,7 @@
 - [x] Backend db.ts: getSupplierById retornar null (não undefined) quando não encontrado
 - [x] Backend routers.ts: suppliers.getById lançar TRPCError NOT_FOUND quando null
 - [x] Frontend SupplierDetail.tsx: tratar estado not-found com mensagem e botão de retorno (isError || !data)
+
+## v7.28 — Suprimir log NOT_FOUND
+- [x] SupplierDetail.tsx: onError na query getById não logar erros NOT_FOUND
+- [x] Error reporter global: não registrar erros NOT_FOUND como falhas (main.tsx queryCache + mutationCache)

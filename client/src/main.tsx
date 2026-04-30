@@ -39,16 +39,20 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
 queryClient.getQueryCache().subscribe(event => {
   if (event.type === "updated" && event.action.type === "error") {
-    const error = event.query.state.error;
+    const error = event.query.state.error as any;
     redirectToLoginIfUnauthorized(error);
+    // Suprimir NOT_FOUND — comportamento esperado (ex: fornecedor excluído)
+    if (error?.data?.code === "NOT_FOUND") return;
     console.error("[API Query Error]", error);
   }
 });
 
 queryClient.getMutationCache().subscribe(event => {
   if (event.type === "updated" && event.action.type === "error") {
-    const error = event.mutation.state.error;
+    const error = event.mutation.state.error as any;
     redirectToLoginIfUnauthorized(error);
+    // Suprimir NOT_FOUND — comportamento esperado
+    if (error?.data?.code === "NOT_FOUND") return;
     console.error("[API Mutation Error]", error);
   }
 });
