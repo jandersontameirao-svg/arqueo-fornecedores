@@ -476,7 +476,9 @@ export const appRouter = router({
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
-        return db.getSupplierById(input.id);
+        const supplier = await db.getSupplierById(input.id);
+        if (!supplier) throw new TRPCError({ code: "NOT_FOUND", message: "Fornecedor n\u00e3o encontrado" });
+        return supplier;
       }),
 
     create: managerProcedure

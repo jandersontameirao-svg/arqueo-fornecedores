@@ -374,7 +374,7 @@ export async function getAllSuppliers(filters?: {
 
 export async function getSupplierById(id: number) {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) return null;
 
   const result = await db.select({
     supplier: suppliers,
@@ -385,7 +385,7 @@ export async function getSupplierById(id: number) {
     .where(eq(suppliers.id, id))
     .limit(1);
 
-  return result.length > 0 ? result[0] : undefined;
+  return result.length > 0 ? result[0] : null;
 }
 
 export async function createSupplier(data: InsertSupplier) {

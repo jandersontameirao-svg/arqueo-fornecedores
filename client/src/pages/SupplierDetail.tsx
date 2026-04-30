@@ -102,7 +102,10 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
   const { user } = useAuth();
   const utils = trpc.useUtils();
 
-  const { data, isLoading } = trpc.suppliers.getById.useQuery({ id });
+  const { data, isLoading, isError } = trpc.suppliers.getById.useQuery(
+    { id },
+    { retry: false }
+  );
   const { data: documentsData } = trpc.documents.list.useQuery({ supplierId: id });
   const { data: evaluationsData } = trpc.evaluations.list.useQuery({ supplierId: id });
   const { data: interactionsData } = trpc.interactions.list.useQuery({ supplierId: id });
@@ -177,11 +180,12 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
     );
   }
 
-  if (!data) {
+  if (isError || !data) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
         <h3 className="text-lg font-medium">Fornecedor não encontrado</h3>
+        <p className="text-sm text-muted-foreground mt-1">Este fornecedor não existe ou foi removido do sistema.</p>
         <Button className="mt-4" onClick={() => setLocation("/suppliers")}>
           Voltar para lista
         </Button>

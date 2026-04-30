@@ -876,3 +876,8 @@
 - [x] SupplierDetail.tsx: card "Interações" (linha 344) clica em setActiveTab("interactions") — aba sem TabsTrigger → corrigido: removido cursor-pointer e onClick
 - [x] SupplierDetail.tsx: botão "Ver todas" em Últimas Interações (linha 630) → corrigido: navega para /interactions
 - [x] clicksign.ts: AbortSignal.timeout reutilizado entre tentativas de retry causando "Body already read" → corrigido: AbortSignal criado dentro do loop por tentativa
+
+## v7.27 — Fix suppliers.getById undefined
+- [x] Backend db.ts: getSupplierById retornar null (não undefined) quando não encontrado
+- [x] Backend routers.ts: suppliers.getById lançar TRPCError NOT_FOUND quando null
+- [x] Frontend SupplierDetail.tsx: tratar estado not-found com mensagem e botão de retorno (isError || !data)
