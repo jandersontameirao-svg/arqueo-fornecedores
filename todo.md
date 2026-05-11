@@ -885,3 +885,15 @@
 ## v7.28 — Suprimir log NOT_FOUND
 - [x] SupplierDetail.tsx: onError na query getById não logar erros NOT_FOUND
 - [x] Error reporter global: não registrar erros NOT_FOUND como falhas (main.tsx queryCache + mutationCache)
+
+## v7.29 — Inspeção Profunda de Erros
+- [ ] notifications.ts: 2 TODO items — envio de email para fornecedor em notificações (linhas 44, 78)
+- [ ] SupplierDetail.tsx: 4 instâncias de `any` type — documentos, avaliações, interações (linhas 147, 151, 162, 642)
+- [ ] routers.ts: 109 instâncias de `any` — revisar e tipificar adequadamente
+- [ ] Verificar cobertura de try-catch em procedures async/await (27 blocos catch identificados)
+
+
+## v7.30 — Fix "Body Already Read" Error
+- [x] clicksign.ts: ler response body uma única vez como text antes de processar
+- [x] clicksign.ts: reutilizar bodyText para JSON parsing em erro e sucesso
+- [x] Testes: 182 passando, Clicksign connectivity OK

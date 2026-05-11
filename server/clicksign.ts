@@ -121,12 +121,15 @@ async function clicksignRequest<T>(
       const response = await fetch(url, fetchOptions);
       const requestId = response.headers.get("x-request-id") || undefined;
 
+      // Read body once as text to avoid "Body already read" error on retry
+      const bodyText = await response.text();
+
       if (!response.ok) {
         let errorBody: any = {};
         try {
-          errorBody = await response.json();
+          errorBody = bodyText ? JSON.parse(bodyText) : {};
         } catch {
-          errorBody = { message: await response.text() };
+          errorBody = { message: bodyText || `HTTP ${response.status}` };
         }
 
         console.error(`[Clicksign] Error ${response.status}: ${JSON.stringify(errorBody)}`);
@@ -149,7 +152,7 @@ async function clicksignRequest<T>(
         return { success: true, requestId };
       }
 
-      const responseData = await response.json();
+      const responseData = bodyText ? JSON.parse(bodyText) : {}
       return {
         success: true,
         data: responseData?.data as T,
