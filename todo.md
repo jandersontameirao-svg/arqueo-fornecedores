@@ -897,3 +897,9 @@
 - [x] clicksign.ts: ler response body uma única vez como text antes de processar
 - [x] clicksign.ts: reutilizar bodyText para JSON parsing em erro e sucesso
 - [x] Testes: 182 passando, Clicksign connectivity OK
+
+## v7.31 — Fix HTML Error Response from Clicksign
+- [x] clicksign.ts: detectar respostas HTML (erro 500/503) e fornecer mensagem clara
+- [x] clicksign.ts: log dos primeiros 200 caracteres de resposta HTML para debug
+- [x] Mensagem de erro melhorada: "Verifique: (1) URL da API, (2) Chave de API, (3) Status do Clicksign"
+- [x] Teste de detecção de resposta HTML adicionado (183 testes passando)

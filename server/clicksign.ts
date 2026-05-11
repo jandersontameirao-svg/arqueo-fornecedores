@@ -126,20 +126,39 @@ async function clicksignRequest<T>(
 
       if (!response.ok) {
         let errorBody: any = {};
+        let isHtmlResponse = false;
+        
         try {
           errorBody = bodyText ? JSON.parse(bodyText) : {};
         } catch {
-          errorBody = { message: bodyText || `HTTP ${response.status}` };
+          // Check if response is HTML (error page)
+          if (bodyText && bodyText.trim().startsWith('<')) {
+            isHtmlResponse = true;
+            errorBody = { 
+              message: `Clicksign retornou erro ${response.status} (página HTML). Verifique: (1) URL da API, (2) Chave de API, (3) Status do Clicksign.`,
+              htmlResponse: true,
+              statusCode: response.status,
+            };
+          } else {
+            errorBody = { message: bodyText || `HTTP ${response.status}` };
+          }
         }
 
-        console.error(`[Clicksign] Error ${response.status}: ${JSON.stringify(errorBody)}`);
+        const errorMsg = isHtmlResponse 
+          ? errorBody.message 
+          : (errorBody?.errors?.[0]?.detail || errorBody?.message || `HTTP ${response.status}`);
+        
+        console.error(`[Clicksign] Error ${response.status}: ${errorMsg}`);
+        if (isHtmlResponse) {
+          console.error(`[Clicksign] HTML Response detected (first 200 chars): ${bodyText.substring(0, 200)}`);
+        }
 
         // Non-transient errors: return immediately without retry
         return {
           success: false,
           error: {
             status: response.status,
-            message: errorBody?.errors?.[0]?.detail || errorBody?.message || `HTTP ${response.status}`,
+            message: errorMsg,
             errors: errorBody?.errors,
             requestId,
           },

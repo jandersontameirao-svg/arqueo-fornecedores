@@ -1,5 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { isClicksignConfigured } from "./clicksign";
+
+// Mock fetch for HTML error response test
+const originalFetch = global.fetch;
 
 describe("Clicksign Integration", () => {
   it("should have CLICKSIGN_API_KEY configured", () => {
@@ -24,5 +27,34 @@ describe("Clicksign Integration", () => {
 
     // 200 = authenticated, 401 = bad key, 403 = forbidden
     expect(response.status).toBe(200);
+  });
+
+  it("should detect HTML error responses from Clicksign", async () => {
+    // Mock fetch to return HTML error page (simulating 500/503)
+    const htmlErrorPage = `<!DOCTYPE html>
+<html>
+<head><title>Clicksign</title></head>
+<body><h1>Error 500</h1></body>
+</html>`;
+
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      headers: new Map(),
+      text: async () => htmlErrorPage,
+    } as any);
+
+    // Import the function to test
+    const { createEnvelope } = await import("./clicksign");
+    const result = await createEnvelope("Test Envelope");
+
+    // Should detect HTML response and provide clear error message
+    expect(result.success).toBe(false);
+    expect(result.error?.message).toContain("Clicksign retornou erro");
+    expect(result.error?.message).toContain("página HTML");
+    expect(result.error?.message).toContain("Verifique");
+
+    // Restore original fetch
+    global.fetch = originalFetch;
   });
 });
