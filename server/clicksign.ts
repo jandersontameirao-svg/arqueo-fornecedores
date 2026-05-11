@@ -394,7 +394,9 @@ export async function activateEnvelope(envelopeId: string): Promise<ClicksignApi
 }
 
 /**
- * Step 6: Send notification to all signers
+ * Step 6a: Send notification to all signers of an envelope
+ * Correct Clicksign API v3 endpoint: POST /envelopes/{envelope_id}/notifications
+ * (NOT /notifications — that endpoint does not exist in v3)
  */
 export async function sendNotification(
   envelopeId: string,
@@ -403,19 +405,34 @@ export async function sendNotification(
   const body: any = {
     data: {
       type: "notifications",
-      relationships: {
-        envelope: {
-          data: { type: "envelopes", id: envelopeId },
-        },
+      attributes: {
+        message: message || null,
       },
     },
   };
 
-  if (message) {
-    body.data.attributes = { message };
-  }
+  return clicksignRequest<any>("POST", `/envelopes/${envelopeId}/notifications`, body);
+}
 
-  return clicksignRequest<any>("POST", "/notifications", body);
+/**
+ * Step 6b: Send notification to a specific signer
+ * Correct Clicksign API v3 endpoint: POST /envelopes/{envelope_id}/signers/{signer_id}/notifications
+ */
+export async function sendNotificationToSigner(
+  envelopeId: string,
+  signerId: string,
+  message?: string,
+): Promise<ClicksignApiResponse<any>> {
+  const body: any = {
+    data: {
+      type: "notifications",
+      attributes: {
+        message: message || null,
+      },
+    },
+  };
+
+  return clicksignRequest<any>("POST", `/envelopes/${envelopeId}/signers/${signerId}/notifications`, body);
 }
 
 /**

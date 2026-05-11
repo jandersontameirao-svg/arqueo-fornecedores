@@ -903,3 +903,10 @@
 - [x] clicksign.ts: log dos primeiros 200 caracteres de resposta HTML para debug
 - [x] Mensagem de erro melhorada: "Verifique: (1) URL da API, (2) Chave de API, (3) Status do Clicksign"
 - [x] Teste de detecção de resposta HTML adicionado (183 testes passando)
+
+## v7.32 — Fix Endpoint de Notificação Clicksign (404)
+- [x] Causa raiz: endpoint `/notifications` não existe na API v3 do Clicksign
+- [x] sendNotification: corrigido para POST `/envelopes/{id}/notifications`
+- [x] sendNotificationToSigner: novo helper para POST `/envelopes/{id}/signers/{signer_id}/notifications`
+- [x] Body simplificado: apenas `{ data: { type, attributes: { message } } }` (sem relationships)
+- [x] 183 testes passando, 0 erros TypeScript
