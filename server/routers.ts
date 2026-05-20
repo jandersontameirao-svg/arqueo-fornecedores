@@ -743,7 +743,11 @@ export const appRouter = router({
 
             const rawContent = response.choices[0]?.message?.content || "{}";
             const contentStr = typeof rawContent === "string" ? rawContent : "{}";
-            const parsed = JSON.parse(contentStr);
+            let parsed: any = {};
+            try { parsed = JSON.parse(contentStr); } catch {
+              await db.updateExtractionRunStatus(runId, "failed", { errorMessage: "IA retornou resposta inválida (não é JSON). Tente novamente.", processingTimeMs: Date.now() - startTime });
+              throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "IA retornou resposta inválida. Tente novamente." });
+            }
             const processingTimeMs = Date.now() - startTime;
 
             // Save extracted fields
@@ -789,7 +793,11 @@ export const appRouter = router({
 
           const rawContent = response.choices[0]?.message?.content || "{}";
           const contentStr = typeof rawContent === "string" ? rawContent : "{}";
-          const parsed = JSON.parse(contentStr);
+          let parsed: any = {};
+          try { parsed = JSON.parse(contentStr); } catch {
+            await db.updateExtractionRunStatus(runId, "failed", { errorMessage: "IA retornou resposta inválida (não é JSON). Tente novamente.", processingTimeMs: Date.now() - startTime });
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "IA retornou resposta inválida. Tente novamente." });
+          }
           const processingTimeMs = Date.now() - startTime;
 
           // Save extracted fields
@@ -1818,20 +1826,22 @@ Estruture o contrato com:
 8. Foro
 9. Assinaturas`;
 
-        const response = await invokeLLM({
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-        });
-
+        let response;
+        try {
+          response = await invokeLLM({
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+          });
+        } catch (e: any) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Falha ao gerar contrato com IA: ${e?.message || "Erro desconhecido"}` });
+        }
         const rawContent = response.choices[0]?.message?.content || "";
         const content = typeof rawContent === "string" ? rawContent : "";
-
         // Extract a title from the first line or prompt
         const firstLine = content.split("\n").find((l: string) => l.trim().length > 0) || "";
         const title = firstLine.length > 100 ? firstLine.substring(0, 100) : firstLine || `Contrato - ${supplier?.companyName || "Fornecedor"}`;
-
         return { content, suggestedTitle: title.replace(/^#+\s*/, "").trim() };
       }),
 
@@ -2905,22 +2915,24 @@ Estruture o contrato com:
           maintenance: "Manutenção",
           other: "Outro",
         };
-        const response = await invokeLLM({
-          messages: [
-            {
-              role: "system",
-              content: `Você é um especialista jurídico brasileiro. Crie um template de contrato reutilizável do tipo "${typeLabels[input.contractType]}". 
-Use marcadores como [NOME_EMPRESA], [CNPJ], [VALOR], [DATA_INICIO], [DATA_FIM], [OBJETO] para campos variáveis.
-O template deve ser completo, com todas as cláusulas padrão para este tipo de contrato.
-Retorne APENAS o texto do template, sem comentários.`,
-            },
-            {
-              role: "user",
-              content: `Crie um template de contrato de ${typeLabels[input.contractType]}:\n${input.description}`,
-            },
-          ],
-        });
-        const rawContent = response.choices[0]?.message?.content || "";
+        let genResponse;
+        try {
+          genResponse = await invokeLLM({
+            messages: [
+              {
+                role: "system",
+                content: `Você é um especialista jurídico brasileiro. Crie um template de contrato reutilizável do tipo "${typeLabels[input.contractType]}". \nUse marcadores como [NOME_EMPRESA], [CNPJ], [VALOR], [DATA_INICIO], [DATA_FIM], [OBJETO] para campos variáveis.\nO template deve ser completo, com todas as cláusulas padrão para este tipo de contrato.\nRetorne APENAS o texto do template, sem comentários.`,
+              },
+              {
+                role: "user",
+                content: `Crie um template de contrato de ${typeLabels[input.contractType]}:\n${input.description}`,
+              },
+            ],
+          });
+        } catch (e: any) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Falha ao gerar template com IA: ${e?.message || "Erro desconhecido"}` });
+        }
+        const rawContent = genResponse.choices[0]?.message?.content || "";
         const content = typeof rawContent === "string" ? rawContent : "";
         const id = await db.createContractTemplate({
           name: input.name,

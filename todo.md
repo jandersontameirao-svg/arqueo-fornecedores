@@ -910,3 +910,15 @@
 - [x] sendNotificationToSigner: novo helper para POST `/envelopes/{id}/signers/{signer_id}/notifications`
 - [x] Body simplificado: apenas `{ data: { type, attributes: { message } } }` (sem relationships)
 - [x] 183 testes passando, 0 erros TypeScript
+
+## v7.33 — Inspeção Profunda e Correção das Integrações com IA
+
+- [x] llm.ts: adicionado tipo `FileUrlContent` para suporte a `file_url` (Manus Forge / Gemini multimodal)
+- [x] llm.ts: `normalizeContentPart` agora trata `type: "file_url"` sem lançar "Unsupported message content part"
+- [x] llm.ts: `InvokeResult.choices[].message.content` tipado para incluir `FileUrlContent`
+- [x] routers.ts: `extractFromDocs` (path multimodal) — `JSON.parse` envolvido com try/catch + status "failed" no run
+- [x] routers.ts: `extractFromDocs` (path text-based) — `JSON.parse` envolvido com try/catch + status "failed" no run
+- [x] routers.ts: `contracts.generateWithAI` — `invokeLLM` envolvido com try/catch, erro propagado como TRPCError
+- [x] routers.ts: `contracts.generateTemplate` — `invokeLLM` envolvido com try/catch, erro propagado como TRPCError
+- [x] TypeScript: 0 erros de compilação
+- [x] Testes: 183 passando (14 arquivos)
