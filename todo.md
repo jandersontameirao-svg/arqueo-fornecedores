@@ -933,3 +933,18 @@
 - [x] Clicksign: isClicksignConfigured, URL válida, todas as 11 funções exportadas verificadas
 - [x] Módulos auxiliares: notifications, reports (5 funções), export (2 funções), storage, llm — todos verificados
 - [x] Total: 327 testes passando (16 arquivos), 0 falhas
+
+## v7.35 — Criar Usuários Internos com Login Email/Senha + RBAC
+
+- [x] Adicionar coluna passwordHash à tabela users
+- [x] Instalar bcryptjs para hash de senhas
+- [x] Criar endpoint de login por email/senha (POST /api/auth/login)
+- [x] Criar seed idempotente para os 2 usuários (gentegestao@grupoarqueo.com.br = manager, fernanda@arqueoproject.com.br = admin)
+- [x] Aplicar hash bcrypt nas senhas (salt rounds = 12)
+- [x] Validar RBAC no backend (manager bloqueado em adminProcedure, admin acesso total)
+- [x] Frontend: página /login com formulário email/senha + botão OAuth
+- [x] Redirect de sessão expirada agora vai para /login
+- [x] TopbarLayout e DashboardLayout atualizados para redirecionar a /login
+- [x] Executar seed e validar login dos 2 novos usuários (OK)
+- [x] Validar que o usuário OAuth existente continua funcionando (OK)
+- [x] Testes automatizados para login e RBAC (337 testes passando)

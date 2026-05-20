@@ -469,7 +469,7 @@ export default function TopbarLayout({ children }: { children: React.ReactNode }
           </div>
           <Button
             onClick={() => {
-              window.location.href = getLoginUrl();
+              window.location.href = "/login";
             }}
             size="lg"
             className="w-full shadow-lg hover:shadow-xl transition-all"

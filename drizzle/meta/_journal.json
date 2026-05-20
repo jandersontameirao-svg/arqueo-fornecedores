@@ -183,6 +183,13 @@
       "when": 1777314949774,
       "tag": "0025_steady_scarecrow",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1779306056408,
+      "tag": "0026_volatile_snowbird",
+      "breakpoints": true
     }
   ]
 }

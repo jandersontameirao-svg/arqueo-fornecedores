@@ -4,6 +4,7 @@ import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
+import { registerInternalAuthRoutes } from "../internalAuth";
 import { registerClicksignWebhookRoute } from "../clicksignWebhook";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
@@ -36,6 +37,8 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+  // Internal auth login (email/password)
+  registerInternalAuthRoutes(app);
   // Clicksign webhook endpoint
   registerClicksignWebhookRoute(app);
   // tRPC API

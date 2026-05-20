@@ -31,11 +31,13 @@ import SupplierLink from "./pages/SupplierLink";
 import AddSupplierAI from "./pages/AddSupplierAI";
 import UnitSuppliers from "./pages/UnitSuppliers";
 import GenerateContract from "./pages/GenerateContract";
+import InternalLogin from "./pages/InternalLogin";
 
 function Router() {
   return (
     <Switch>
-      {/* Public onboarding route */}
+      {/* Public routes */}
+      <Route path="/login" component={InternalLogin} />
       <Route path="/onboarding" component={Onboarding} />
       
       {/* SelectBusinessUnit as landing page */}
