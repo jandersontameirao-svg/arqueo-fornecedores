@@ -922,3 +922,14 @@
 - [x] routers.ts: `contracts.generateTemplate` — `invokeLLM` envolvido com try/catch, erro propagado como TRPCError
 - [x] TypeScript: 0 erros de compilação
 - [x] Testes: 183 passando (14 arquivos)
+
+## v7.34 — Teste Completo de Todas as Entradas de API
+
+- [x] Variáveis de ambiente: DATABASE_URL, JWT_SECRET, FORGE_API_URL/KEY, OAUTH_SERVER_URL, CLICKSIGN_API_URL/KEY/WEBHOOK_SECRET — todas verificadas
+- [x] LLM (Manus Forge): invokeLLM texto, JSON estruturado (json_schema strict), FileUrlContent, modelo+tokens — 4/4 passando
+- [x] S3 Storage: storagePut e storageGet — 2/2 passando
+- [x] Database: getAllSuppliers, getAllCategories, getAllUsers, getDashboardStats, listBusinessUnits, listAllCompanies, getAllContracts, getAllContractTemplates, getAuditLogs, getActiveAlerts — 10/10 passando
+- [x] tRPC procedures: 80+ procedures críticas verificadas (auth, suppliers, documents, workflows, interactions, evaluations, compliance, audit, dashboard, notifications, contracts, amendments, milestones, templates, businessUnits, companies, supplierLinks, baseGeral, globalSearch, aiExtraction, users, onboarding, reports, export)
+- [x] Clicksign: isClicksignConfigured, URL válida, todas as 11 funções exportadas verificadas
+- [x] Módulos auxiliares: notifications, reports (5 funções), export (2 funções), storage, llm — todos verificados
+- [x] Total: 327 testes passando (16 arquivos), 0 falhas
