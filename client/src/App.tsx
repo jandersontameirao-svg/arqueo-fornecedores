@@ -32,6 +32,8 @@ import AddSupplierAI from "./pages/AddSupplierAI";
 import UnitSuppliers from "./pages/UnitSuppliers";
 import GenerateContract from "./pages/GenerateContract";
 import InternalLogin from "./pages/InternalLogin";
+import AccessDenied from "./pages/AccessDenied";
+import AdminRoute from "./components/AdminRoute";
 
 /** Routes that require authentication — wrapped with data providers */
 function ProtectedRoutes() {
@@ -140,12 +142,16 @@ function ProtectedRoutes() {
             </Route>
             <Route path="/audit">
               <TopbarLayout>
-                <Audit />
+                <AdminRoute>
+                  <Audit />
+                </AdminRoute>
               </TopbarLayout>
             </Route>
             <Route path="/users">
               <TopbarLayout>
-                <Users />
+                <AdminRoute>
+                  <Users />
+                </AdminRoute>
               </TopbarLayout>
             </Route>
             <Route path="/reports">
@@ -178,6 +184,7 @@ function Router() {
       {/* Public routes — NO data providers, NO auth queries */}
       <Route path="/login" component={InternalLogin} />
       <Route path="/onboarding" component={Onboarding} />
+      <Route path="/403" component={AccessDenied} />
 
       {/* All other routes go through protected wrapper */}
       <Route>

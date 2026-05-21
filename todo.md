@@ -999,3 +999,16 @@
 - [x] Fundo escuro com gradientes radiais multicoloridos (azul, laranja, bordô) em todas as telas de entrada
 - [x] Barra decorativa de 4 cores Arqueo abaixo do CTA nas telas de landing
 - [x] Efeito de glow laranja/amarelo ao redor da logo nas telas de entrada
+
+## Melhorias Visuais de Entrada (v7.41)
+- [x] Tipografia 3xl bold na tela de login (InternalLogin.tsx) — alinhada ao padrão das telas de landing
+- [x] Logo aumentada para w-24 h-24 no InternalLogin
+- [x] Animações fade-in e slide-up com delays escalonados em InternalLogin.tsx
+- [x] Animações fade-in e slide-up com delays escalonados em DashboardLayout.tsx (tela não autenticada)
+- [x] Animações fade-in e slide-up com delays escalonados em TopbarLayout.tsx (tela não autenticada)
+- [x] Keyframes @keyframes arqueoFadeIn e arqueoSlideUp adicionados ao index.css
+- [x] Classes utilitárias animate-arqueo-* adicionadas ao index.css
+- [x] Página AccessDenied.tsx (403) criada com identidade visual Arqueo completa
+- [x] Componente AdminRoute.tsx criado para proteger rotas admin-only
+- [x] Rotas /audit e /users protegidas com AdminRoute (exibe 403 para não-admins)
+- [x] Rota /403 registrada no Router público

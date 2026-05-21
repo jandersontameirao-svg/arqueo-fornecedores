@@ -130,7 +130,7 @@ export default function DashboardLayout({
   if (!user) {
     return (
       <div
-        className="flex items-center justify-center min-h-screen p-4"
+        className="flex items-center justify-center min-h-screen p-4 animate-arqueo-fade-in"
         style={{
           background:
             "radial-gradient(ellipse at 15% 25%, #1A3A5C 0%, transparent 50%), radial-gradient(ellipse at 85% 15%, #E85D04 0%, transparent 40%), radial-gradient(ellipse at 65% 85%, #8B1538 0%, transparent 55%), linear-gradient(135deg, #0f1c2e 0%, #1e0a14 50%, #0f1c2e 100%)",
@@ -139,7 +139,7 @@ export default function DashboardLayout({
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
           {/* Logo + Brand */}
           <div className="flex flex-col items-center gap-4">
-            <div className="relative">
+            <div className="relative animate-arqueo-slide-up">
               <div
                 className="absolute inset-0 rounded-full blur-2xl opacity-40"
                 style={{ background: "radial-gradient(circle, #E85D04 0%, #F5A623 60%, transparent 100%)", transform: "scale(1.8)" }}
@@ -150,11 +150,11 @@ export default function DashboardLayout({
                 className="relative w-24 h-24 object-contain drop-shadow-2xl"
               />
             </div>
-            <div className="text-center">
+            <div className="text-center animate-arqueo-slide-up-delay-1">
               <h1 className="text-3xl font-bold text-white tracking-tight">Grupo Arqueo</h1>
-              <p className="text-sm mt-1 font-medium" style={{ color: "#F5A623" }}>Gestão de Fornecedores</p>
+              <p className="text-sm mt-1 font-semibold" style={{ color: "#F5A623" }}>Gestão de Fornecedores</p>
             </div>
-            <p className="text-sm text-white/60 text-center max-w-xs leading-relaxed">
+            <p className="text-sm text-white/60 text-center max-w-xs leading-relaxed animate-arqueo-slide-up-delay-2">
               Acesse a plataforma para gerenciar fornecedores, documentos e avaliações do Grupo Arqueo.
             </p>
           </div>
@@ -162,13 +162,13 @@ export default function DashboardLayout({
           <Button
             onClick={() => { window.location.href = "/login"; }}
             size="lg"
-            className="w-full font-semibold text-white shadow-lg hover:opacity-90 transition-all border-0"
+            className="w-full font-semibold text-white shadow-lg hover:opacity-90 transition-all border-0 animate-arqueo-slide-up-delay-3"
             style={{ background: "linear-gradient(135deg, #8B1538 0%, #E85D04 100%)" }}
           >
             Entrar na Plataforma
           </Button>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 animate-arqueo-bar">
             <div className="h-1 w-8 rounded-full" style={{ background: "#8B1538" }} />
             <div className="h-1 w-8 rounded-full" style={{ background: "#E85D04" }} />
             <div className="h-1 w-8 rounded-full" style={{ background: "#F5A623" }} />

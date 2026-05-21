@@ -44,11 +44,11 @@ export default function InternalLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[oklch(0.35_0.10_250)] via-[oklch(0.30_0.12_15)] to-[oklch(0.25_0.08_250)] p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[oklch(0.35_0.10_250)] via-[oklch(0.30_0.12_15)] to-[oklch(0.25_0.08_250)] p-4 animate-arqueo-fade-in">
       <div className="w-full max-w-md space-y-6">
         {/* Logo / Brand */}
         <div className="text-center flex flex-col items-center">
-          <div className="relative mb-4">
+          <div className="relative mb-4 animate-arqueo-slide-up">
             <div
               className="absolute inset-0 rounded-full blur-2xl opacity-40"
               style={{ background: "radial-gradient(circle, #E85D04 0%, #F5A623 60%, transparent 100%)", transform: "scale(1.8)" }}
@@ -56,15 +56,15 @@ export default function InternalLogin() {
             <img
               src="https://d2xsxph8kpxj0f.cloudfront.net/310419663028979380/KbiCF9FN7rZHpjZqbGxEKZ/logo-grupo-arqueo-a_5ae27f44.png"
               alt="Grupo Arqueo"
-              className="relative w-20 h-20 object-contain drop-shadow-2xl"
+              className="relative w-24 h-24 object-contain drop-shadow-2xl"
             />
           </div>
-          <h1 className="text-2xl font-bold text-white">Grupo Arqueo</h1>
-          <p className="text-sm mt-1 font-medium" style={{ color: "#F5A623" }}>Gestão de Fornecedores</p>
+          <h1 className="text-3xl font-bold text-white tracking-tight animate-arqueo-slide-up-delay-1">Grupo Arqueo</h1>
+          <p className="text-sm mt-1 font-semibold animate-arqueo-slide-up-delay-1" style={{ color: "#F5A623" }}>Gestão de Fornecedores</p>
         </div>
 
         {/* Login Card */}
-        <Card className="border-0 shadow-2xl">
+        <Card className="border-0 shadow-2xl animate-arqueo-slide-up-delay-2">
           <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-xl text-center">Acesso Interno</CardTitle>
             <CardDescription className="text-center">
@@ -142,7 +142,7 @@ export default function InternalLogin() {
         </Card>
 
         {/* Footer */}
-        <p className="text-center text-white/50 text-xs">
+        <p className="text-center text-white/50 text-xs animate-arqueo-slide-up-delay-3">
           Acesso restrito a colaboradores autorizados do Grupo Arqueo.
         </p>
       </div>
