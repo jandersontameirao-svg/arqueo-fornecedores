@@ -91,7 +91,7 @@ export function OrgGroupProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("arqueo_selected_company");
   };
 
-  const activeGroup = groups.find((g) => g.id === activeGroupId) || null;
+  const activeGroup = groups.find((g: OrgGroup) => g.id === activeGroupId) || null;
   const isSuperAdmin = orgContext?.isSuperAdmin ?? false;
 
   return (

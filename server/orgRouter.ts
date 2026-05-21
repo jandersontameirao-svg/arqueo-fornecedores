@@ -16,9 +16,8 @@
 
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { eq } from "drizzle-orm";
+import { protectedProcedure, router } from "./_core/trpc";
 import {
   organizationalGroups,
   userGroupRoles,
@@ -30,18 +29,14 @@ import {
 import {
   resolveOrgContext,
   canAccessGroup,
-  canAdmin,
-  type OrgContext,
-  type GlobalRole,
 } from "./orgContext";
 
-// DB singleton
-let _db: ReturnType<typeof drizzle> | null = null;
-function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    _db = drizzle(process.env.DATABASE_URL);
-  }
-  return _db!;
+// Use the shared async DB connection from server/db.ts (avoids duplicate connections)
+import { getDb as _getDbAsync } from "./db";
+async function getDb() {
+  const db = await _getDbAsync();
+  if (!db) throw new Error("[orgRouter] Database not available");
+  return db;
 }
 
 // Admin check middleware
@@ -52,7 +47,7 @@ const orgAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
   return next({ ctx });
 });
 
-// Role enum values
+// Role enum values matching schema
 const groupRoleEnum = z.enum(["group_admin", "group_operator", "group_viewer"]);
 const companyRoleEnum = z.enum(["company_admin", "company_operator", "company_viewer"]);
 const buRoleEnum = z.enum(["bu_admin", "bu_operator", "bu_viewer"]);
@@ -60,22 +55,22 @@ const buRoleEnum = z.enum(["bu_admin", "bu_operator", "bu_viewer"]);
 export const orgRouter = router({
   // ==================== CONTEXT ====================
   context: protectedProcedure.query(async ({ ctx }) => {
-    const orgCtx = await resolveOrgContext(ctx.user);
-    return orgCtx;
+    return resolveOrgContext(ctx.user);
   }),
 
   // ==================== MY ROLES ====================
   myRoles: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
     const userId = ctx.user.id;
-    const groupRoles = await getDb()
+    const groupRoles = await db
       .select()
       .from(userGroupRoles)
       .where(eq(userGroupRoles.userId, userId));
-    const companyRoles = await getDb()
+    const companyRoles = await db
       .select()
       .from(userCompanyRoles)
       .where(eq(userCompanyRoles.userId, userId));
-    const buRoles = await getDb()
+    const buRoles = await db
       .select()
       .from(userBusinessUnitRoles)
       .where(eq(userBusinessUnitRoles.userId, userId));
@@ -85,8 +80,9 @@ export const orgRouter = router({
   // ==================== GROUPS ====================
   groups: router({
     list: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
       const orgCtx = await resolveOrgContext(ctx.user);
-      const allGroups = await getDb().select().from(organizationalGroups);
+      const allGroups = await db.select().from(organizationalGroups);
       // Filter to only accessible groups
       return allGroups.filter((g: { id: number }) => orgCtx.accessibleGroupIds.includes(g.id));
     }),
@@ -94,26 +90,27 @@ export const orgRouter = router({
     get: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ ctx, input }) => {
+        const db = await getDb();
         const orgCtx = await resolveOrgContext(ctx.user);
         if (!canAccessGroup(orgCtx, input.id)) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Sem acesso a este grupo organizacional" });
         }
-        const [group] = await getDb()
+        const [group] = await db
           .select()
           .from(organizationalGroups)
           .where(eq(organizationalGroups.id, input.id));
         if (!group) throw new TRPCError({ code: "NOT_FOUND", message: "Grupo não encontrado" });
-        
+
         // Also fetch companies and BUs for this group
-        const groupCompanies = await getDb()
+        const groupCompanies = await db
           .select()
           .from(companies)
           .where(eq(companies.organizationalGroupId, input.id));
-        const groupBUs = await getDb()
+        const groupBUs = await db
           .select()
           .from(businessUnits)
           .where(eq(businessUnits.organizationalGroupId, input.id));
-        
+
         return { ...group, companies: groupCompanies, businessUnits: groupBUs };
       }),
   }),
@@ -126,7 +123,8 @@ export const orgRouter = router({
       role: groupRoleEnum,
     }))
     .mutation(async ({ ctx, input }) => {
-      await getDb().insert(userGroupRoles).values({
+      const db = await getDb();
+      await db.insert(userGroupRoles).values({
         userId: input.userId,
         organizationalGroupId: input.organizationalGroupId,
         role: input.role,
@@ -143,7 +141,8 @@ export const orgRouter = router({
       role: companyRoleEnum,
     }))
     .mutation(async ({ ctx, input }) => {
-      await getDb().insert(userCompanyRoles).values({
+      const db = await getDb();
+      await db.insert(userCompanyRoles).values({
         userId: input.userId,
         organizationalGroupId: input.organizationalGroupId,
         companyId: input.companyId,
@@ -161,7 +160,8 @@ export const orgRouter = router({
       role: buRoleEnum,
     }))
     .mutation(async ({ ctx, input }) => {
-      await getDb().insert(userBusinessUnitRoles).values({
+      const db = await getDb();
+      await db.insert(userBusinessUnitRoles).values({
         userId: input.userId,
         organizationalGroupId: input.organizationalGroupId,
         businessUnitId: input.businessUnitId,
@@ -174,21 +174,24 @@ export const orgRouter = router({
   removeGroupRole: orgAdminProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
-      await getDb().delete(userGroupRoles).where(eq(userGroupRoles.id, input.id));
+      const db = await getDb();
+      await db.delete(userGroupRoles).where(eq(userGroupRoles.id, input.id));
       return { success: true };
     }),
 
   removeCompanyRole: orgAdminProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
-      await getDb().delete(userCompanyRoles).where(eq(userCompanyRoles.id, input.id));
+      const db = await getDb();
+      await db.delete(userCompanyRoles).where(eq(userCompanyRoles.id, input.id));
       return { success: true };
     }),
 
   removeBusinessUnitRole: orgAdminProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
-      await getDb().delete(userBusinessUnitRoles).where(eq(userBusinessUnitRoles.id, input.id));
+      const db = await getDb();
+      await db.delete(userBusinessUnitRoles).where(eq(userBusinessUnitRoles.id, input.id));
       return { success: true };
     }),
 
@@ -196,15 +199,16 @@ export const orgRouter = router({
   getUserRoles: orgAdminProcedure
     .input(z.object({ userId: z.number() }))
     .query(async ({ input }) => {
-      const groupRoles = await getDb()
+      const db = await getDb();
+      const groupRoles = await db
         .select()
         .from(userGroupRoles)
         .where(eq(userGroupRoles.userId, input.userId));
-      const companyRoles = await getDb()
+      const companyRoles = await db
         .select()
         .from(userCompanyRoles)
         .where(eq(userCompanyRoles.userId, input.userId));
-      const buRoles = await getDb()
+      const buRoles = await db
         .select()
         .from(userBusinessUnitRoles)
         .where(eq(userBusinessUnitRoles.userId, input.userId));
