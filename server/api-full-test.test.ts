@@ -2,7 +2,7 @@
  * v7.34 — Teste Completo de Todas as Entradas de API
  * Cobre: ENV vars, LLM (Manus Forge), S3 Storage, Clicksign, Database, tRPC procedures
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { ENV } from "./_core/env";
 import { invokeLLM } from "./_core/llm";
 import { storagePut, storageGet } from "./storage";
@@ -124,8 +124,9 @@ describe("2. LLM / Inteligência Artificial (OpenAI)", () => {
 });
 
 // ==================== 3. S3 STORAGE ====================
-describe("3. S3 Storage (Manus Forge)", () => {
-  it("storagePut: upload de arquivo de teste", async () => {
+const r2Configured = !!(ENV.r2AccountId && ENV.r2AccessKeyId && ENV.r2SecretAccessKey);
+describe("3. S3 Storage (Cloudflare R2)", () => {
+  it.skipIf(!r2Configured)("storagePut: upload de arquivo de teste", async () => {
     const testContent = Buffer.from(`api-test-${Date.now()}`);
     const result = await storagePut(
       `api-test/connectivity-${Date.now()}.txt`,
@@ -138,7 +139,7 @@ describe("3. S3 Storage (Manus Forge)", () => {
     console.log(`[S3] Upload OK: ${result.url.substring(0, 70)}...`);
   }, 20000);
 
-  it("storageGet: obter URL presignada de arquivo", async () => {
+  it.skipIf(!r2Configured)("storageGet: obter URL presignada de arquivo", async () => {
     const key = `api-test/get-test-${Date.now()}.txt`;
     await storagePut(key, Buffer.from("get-test"), "text/plain");
     const result = await storageGet(key, 60);
@@ -147,6 +148,19 @@ describe("3. S3 Storage (Manus Forge)", () => {
     expect(result.url).toMatch(/^https?:\/\//);
     console.log(`[S3] Get URL OK: ${result.url.substring(0, 70)}...`);
   }, 20000);
+
+  it("storagePut/storageGet: retorna erro claro quando R2 não configurado", async () => {
+    if (r2Configured) {
+      // Se R2 estiver configurado, pular este teste
+      return;
+    }
+    await expect(storagePut("test.txt", Buffer.from("x"), "text/plain")).rejects.toThrow(
+      "Cloudflare R2 não está configurado"
+    );
+    await expect(storageGet("test.txt")).rejects.toThrow(
+      "Cloudflare R2 não está configurado"
+    );
+  });
 });
 
 // ==================== 4. DATABASE ====================

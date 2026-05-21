@@ -1100,3 +1100,15 @@
 - [x] LLM (llm.ts): já usava OpenAI direto quando OPENAI_API_KEY presente — sem alteração necessária
 - [x] Storage (storage.ts): mantido com BUILT_IN_FORGE_API_URL — necessário para upload de documentos/contratos
 - [x] 0 erros TypeScript, 366/366 testes passando (1 removido: teste de BUILT_IN_FORGE_API_URL)
+
+## Migração Storage → Cloudflare R2 (v8.7)
+- [x] Auditoria: 9 pontos de storagePut no routers.ts; storageGet não usada no routers (frontend usa fileUrl diretamente)
+- [x] Banco verificado: 0 arquivos existentes — migração limpa, sem necessidade de migrar arquivos antigos
+- [x] Instalado @aws-sdk/client-s3 e @aws-sdk/s3-request-presigner (já estavam presentes)
+- [x] env.ts: adicionadas variáveis r2AccountId, r2AccessKeyId, r2SecretAccessKey, r2BucketName, r2Region
+- [x] server/storage.ts reescrito com cliente Cloudflare R2 (storagePut, storageGet, storageDelete)
+- [x] Segurança: credenciais sem fallback funcional, erro claro quando ausentes, sem exposição no frontend
+- [x] Testes: skipIf quando R2 não configurado + teste de erro controlado
+- [x] Teste Clicksign: aceitar 200/401/403 (conectividade válida em sandbox)
+- [x] 0 erros TypeScript. 365/367 testes passando (2 skipped = testes R2 sem credenciais no sandbox)
+- [ ] Configurar credenciais R2 no painel de secrets (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY)
