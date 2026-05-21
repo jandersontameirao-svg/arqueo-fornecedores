@@ -558,7 +558,7 @@ export const appRouter = router({
         const orgCtx = await resolveOrgContext(ctx.user);
         const scope = buildScopeFilter(orgCtx);
         // orgGroupIds vazio = sem acesso a nenhum grupo; undefined = sem restrição (legado)
-        const orgGroupIds = scope.groupIds.length > 0 ? scope.groupIds : undefined;
+        const orgGroupIds = orgCtx.isSuperAdmin ? undefined : scope.groupIds;
 
         return db.getAllSuppliers({ ...(filters ?? {}), orgGroupIds });
       }),
@@ -575,11 +575,17 @@ export const appRouter = router({
       .input(supplierSchema)
       .mutation(async ({ input, ctx }) => {
         // Sanitizar CNPJ: remover pontos, barra e hífen
-        const sanitizedCnpj = input.cnpj.replace(/[.\/-]/g, "");
+        const sanitizedCnpj = input.cnpj.replace(/[.\/\-]/g, "");
+        // Injetar escopo organizacional do usuário criador
+        const orgCtxCreate = await resolveOrgContext(ctx.user);
+        const activeGroupId = orgCtxCreate.isSuperAdmin
+          ? (ctx.user.defaultOrgGroupId ?? orgCtxCreate.accessibleGroupIds[0] ?? null)
+          : (orgCtxCreate.accessibleGroupIds[0] ?? null);
         const id = await db.createSupplier({
           ...input,
           cnpj: sanitizedCnpj,
           createdById: ctx.user.id,
+          organizationalGroupId: activeGroupId,
         });
         await db.createAuditLog({
           entityType: "supplier",
@@ -1038,7 +1044,7 @@ export const appRouter = router({
         // ISOLAMENTO MULTI-GRUPO: resolver contexto organizacional e aplicar filtro de escopo
         const orgCtx = await resolveOrgContext(ctx.user);
         const scope = buildScopeFilter(orgCtx);
-        const orgGroupIds = scope.groupIds.length > 0 ? scope.groupIds : undefined;
+        const orgGroupIds = orgCtx.isSuperAdmin ? undefined : scope.groupIds;
         return db.getAllDocuments({ ...input, orgGroupIds });
       }),
 
@@ -1051,10 +1057,16 @@ export const appRouter = router({
     create: managerProcedure
       .input(documentSchema)
       .mutation(async ({ input, ctx }) => {
+        // Injetar escopo organizacional do usuário criador
+        const orgCtxDocCreate = await resolveOrgContext(ctx.user);
+        const docActiveGroupId = orgCtxDocCreate.isSuperAdmin
+          ? (ctx.user.defaultOrgGroupId ?? orgCtxDocCreate.accessibleGroupIds[0] ?? null)
+          : (orgCtxDocCreate.accessibleGroupIds[0] ?? null);
         const id = await db.createDocument({
           ...input,
           expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
           uploadedById: ctx.user.id,
+          organizationalGroupId: docActiveGroupId,
         });
         await db.createAuditLog({
           entityType: "document",
@@ -1805,11 +1817,17 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const { items, startDate, endDate, ...contractData } = input;
+        // Injetar escopo organizacional do usuário criador
+        const orgCtxContractCreate = await resolveOrgContext(ctx.user);
+        const contractActiveGroupId = orgCtxContractCreate.isSuperAdmin
+          ? (ctx.user.defaultOrgGroupId ?? orgCtxContractCreate.accessibleGroupIds[0] ?? null)
+          : (orgCtxContractCreate.accessibleGroupIds[0] ?? null);
         const id = await db.createContract({
           ...contractData,
           startDate: startDate ? new Date(startDate) : undefined,
           endDate: endDate ? new Date(endDate) : undefined,
           createdById: ctx.user.id,
+          organizationalGroupId: contractActiveGroupId,
         });
         if (items && items.length > 0) {
           for (const item of items) {
@@ -2558,7 +2576,7 @@ Estruture o contrato com:
         // ISOLAMENTO MULTI-GRUPO: resolver contexto organizacional e aplicar filtro de escopo
         const orgCtx = await resolveOrgContext(ctx.user);
         const scope = buildScopeFilter(orgCtx);
-        const orgGroupIds = scope.groupIds.length > 0 ? scope.groupIds : undefined;
+        const orgGroupIds = orgCtx.isSuperAdmin ? undefined : scope.groupIds;
         return db.getAllContracts({ ...input, orgGroupIds });
       }),
 

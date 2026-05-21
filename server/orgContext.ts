@@ -13,7 +13,7 @@
  *   A user can ONLY see data belonging to groups/companies/BUs where they have explicit roles
  *   OR where their globalRole grants implicit access (superadmin_global sees everything).
  */
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import {
   users,
   organizationalGroups,
@@ -140,11 +140,11 @@ export async function resolveOrgContext(user: User): Promise<OrgContext> {
     const groupCompanies = await db
       .select({ id: companies.id })
       .from(companies)
-      .where(eq(companies.organizationalGroupId, implicitGroupIds[0]));
+      .where(inArray(companies.organizationalGroupId, implicitGroupIds));
     const groupBUs = await db
       .select({ id: businessUnits.id })
       .from(businessUnits)
-      .where(eq(businessUnits.organizationalGroupId, implicitGroupIds[0]));
+      .where(inArray(businessUnits.organizationalGroupId, implicitGroupIds));
     return {
       globalRole,
       defaultOrgGroupId: user.defaultOrgGroupId,

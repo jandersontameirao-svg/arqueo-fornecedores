@@ -1072,3 +1072,13 @@
 - [x] resolveOrgContext: verificar lista branca antes de confiar no globalRole do banco (rebaixamento automático + elevação automática)
 - [x] Banco corrigido: apenas jandersontameirao@gmail.com e fernanda@arqueoproject.com.br têm globalRole=superadmin_global
 - [x] 11 testes de segurança em superadmin.security.test.ts (367/367 testes passando)
+
+## Inspeção Profunda v2 — Correções (v8.4)
+- [x] ERRO 1 (Crítico/Segurança): orgContext.ts — group_admin expandia apenas o primeiro grupo (eq → inArray)
+- [x] ERRO 2 (Crítico/Segurança): routers.ts — 3 ocorrências de orgGroupIds com lógica errada (scope.groupIds.length > 0 ? ... : undefined → orgCtx.isSuperAdmin ? undefined : scope.groupIds)
+- [x] ERRO 3 (Alto): suppliers.create, documents.create, contracts.create sem organizationalGroupId — novos registros ficavam invisíveis
+- [x] ERRO 4 (Alto/HMR): OrgGroupContext.tsx exportava componente + hook — quebrava Vite Fast Refresh; hook re-exportado de hooks/useOrgGroupContext.ts
+- [x] ERRO 5 (Médio/Segurança): OrgGroupContext.tsx disparava queries sem enabled: !!user — corrigido com useAuth()
+- [x] ERRO 6 (Médio/Segurança): fernanda@arqueoproject.onmicrosoft.com com role='admin' — verificado no DB: globalRole='viewer', sem risco real
+- [x] ERRO 7 (Baixo): upsertUser não atualizava globalRole no UPDATE — verificado: updateSet.globalRole já estava sendo atribuído desde v8.3
+- [x] 0 erros TypeScript, 367/367 testes passando

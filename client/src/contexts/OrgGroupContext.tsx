@@ -1,5 +1,15 @@
+/**
+ * OrgGroupContext — contexto de grupo organizacional ativo.
+ *
+ * NOTA Fast Refresh (ERRO 4): este arquivo exporta tanto o componente OrgGroupProvider
+ * quanto o hook useOrgGroupContext. Para evitar quebra total do HMR, o hook é
+ * re-exportado também de client/src/hooks/useOrgGroupContext.ts.
+ * A solução definitiva seria mover o hook para um arquivo separado, mas isso
+ * exigiria atualizar todos os consumers. A abordagem atual é segura em produção.
+ */
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 interface OrgGroup {
   id: number;
@@ -48,19 +58,24 @@ const OrgGroupContext = createContext<OrgGroupContextType>({
 const STORAGE_KEY = "arqueo_active_org_group_id";
 
 export function OrgGroupProvider({ children }: { children: ReactNode }) {
+  // ERRO 5 FIX: só dispara queries quando o usuário está autenticado
+  const { user } = useAuth();
+
   const [activeGroupId, setActiveGroupIdState] = useState<number | null>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved ? parseInt(saved, 10) : null;
   });
 
-  // Fetch org context from backend
+  // Fetch org context from backend — apenas quando autenticado
   const { data: orgContext, isLoading: ctxLoading } = trpc.org.context.useQuery(undefined, {
+    enabled: !!user,
     retry: false,
     staleTime: 60_000,
   });
 
-  // Fetch accessible groups
+  // Fetch accessible groups — apenas quando autenticado
   const { data: groups = [], isLoading: groupsLoading } = trpc.org.groups.list.useQuery(undefined, {
+    enabled: !!user,
     retry: false,
     staleTime: 60_000,
   });
