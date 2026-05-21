@@ -1,0 +1,25 @@
+{
+  "query": "SHOW TABLES LIKE 'organizational_groups'; SHOW TABLES LIKE 'user_group_roles'; SHOW TABLES LIKE 'user_bu_roles'; SHOW COLUMNS FROM users LIKE 'globalRole';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SHOW TABLES LIKE 'organizational_groups'; SHOW TABLES LIKE 'user_group_roles'; SHOW TABLES LIKE 'user_bu_roles'; SHOW COLUMNS FROM users LIKE 'globalRole';",
+  "rows": [
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (organizational_groups)": "organizational_groups"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (organizational_groups)": "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (user_group_roles)"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (organizational_groups)": "user_group_roles"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (organizational_groups)": "Field\tType\tNull\tKey\tDefault\tExtra"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (organizational_groups)": "globalRole\tenum('superadmin_global','group_admin','company_admin','business_manager','operator','viewer')\tYES\t\toperator\t"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (organizational_groups)\norganizational_groups\nTables_in_KbiCF9FN7rZHpjZqbGxEKZ (user_group_roles)\nuser_group_roles\nField\tType\tNull\tKey\tDefault\tExtra\nglobalRole\tenum('superadmin_global','group_admin','company_admin','business_manager','operator','viewer')\tYES\t\toperator\t\n",
+  "stderr": "",
+  "execution_time_ms": 3307
+}

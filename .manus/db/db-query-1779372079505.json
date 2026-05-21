@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `organizational_groups` ADD COLUMN `description` text;\nALTER TABLE `organizational_groups` ADD COLUMN `logoUrl` varchar(1000);\nALTER TABLE `organizational_groups` ADD COLUMN `createdById` int;\nALTER TABLE `user_group_roles` ADD COLUMN `grantedById` int;\nALTER TABLE `user_company_roles` ADD COLUMN `grantedById` int;\nALTER TABLE `user_business_unit_roles` ADD COLUMN `grantedById` int",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute ALTER TABLE `organizational_groups` ADD COLUMN `description` text;\nALTER TABLE `organizational_groups` ADD COLUMN `logoUrl` varchar(1000);\nALTER TABLE `organizational_groups` ADD COLUMN `createdById` int;\nALTER TABLE `user_group_roles` ADD COLUMN `grantedById` int;\nALTER TABLE `user_company_roles` ADD COLUMN `grantedById` int;\nALTER TABLE `user_business_unit_roles` ADD COLUMN `grantedById` int",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1670
+}

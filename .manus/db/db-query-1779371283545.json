@@ -1,0 +1,66 @@
+{
+  "query": "SHOW COLUMNS FROM audit_logs LIKE 'beforeData';\nSHOW COLUMNS FROM audit_logs LIKE 'userAgent';\nSHOW COLUMNS FROM companies LIKE 'companyType';\nSHOW COLUMNS FROM users LIKE 'defaultOrgGroupId';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SHOW COLUMNS FROM audit_logs LIKE 'beforeData';\nSHOW COLUMNS FROM audit_logs LIKE 'userAgent';\nSHOW COLUMNS FROM companies LIKE 'companyType';\nSHOW COLUMNS FROM users LIKE 'defaultOrgGroupId';",
+  "rows": [
+    {
+      "Field": "beforeData",
+      "Type": "json",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "userAgent",
+      "Type": "varchar(500)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "companyType",
+      "Type": "enum('holding','subsidiary','branch','independent')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "subsidiary",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "defaultOrgGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nbeforeData\tjson\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\nuserAgent\tvarchar(500)\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\ncompanyType\tenum('holding','subsidiary','branch','independent')\tYES\t\tsubsidiary\t\nField\tType\tNull\tKey\tDefault\tExtra\ndefaultOrgGroupId\tint\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 274
+}

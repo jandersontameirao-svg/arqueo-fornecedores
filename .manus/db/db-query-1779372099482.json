@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `user_business_unit_roles` ADD CONSTRAINT `ubr_grantedby_fk` FOREIGN KEY (`grantedById`) REFERENCES `users`(`id`);\nALTER TABLE `user_business_unit_roles` ADD CONSTRAINT `ubr_bu_fk2` FOREIGN KEY (`businessUnitId`) REFERENCES `business_units`(`id`) ON DELETE CASCADE;\nALTER TABLE `user_company_roles` ADD CONSTRAINT `ucr_grantedby_fk` FOREIGN KEY (`grantedById`) REFERENCES `users`(`id`);\nALTER TABLE `user_group_roles` ADD CONSTRAINT `ugr_grantedby_fk` FOREIGN KEY (`grantedById`) REFERENCES `users`(`id`)",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute ALTER TABLE `user_business_unit_roles` ADD CONSTRAINT `ubr_grantedby_fk` FOREIGN KEY (`grantedById`) REFERENCES `users`(`id`);\nALTER TABLE `user_business_unit_roles` ADD CONSTRAINT `ubr_bu_fk2` FOREIGN KEY (`businessUnitId`) REFERENCES `business_units`(`id`) ON DELETE CASCADE;\nALTER TABLE `user_company_roles` ADD CONSTRAINT `ucr_grantedby_fk` FOREIGN KEY (`grantedById`) REFERENCES `users`(`id`);\nALTER TABLE `user_group_roles` ADD CONSTRAINT `ugr_grantedby_fk` FOREIGN KEY (`grantedById`) REFERENCES `users`(`id`)",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1698
+}

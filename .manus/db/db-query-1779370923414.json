@@ -1,0 +1,98 @@
+{
+  "query": "SHOW COLUMNS FROM suppliers LIKE 'organizationalGroupId'; SHOW COLUMNS FROM contracts LIKE 'organizationalGroupId'; SHOW COLUMNS FROM documents LIKE 'organizationalGroupId'; SHOW COLUMNS FROM interactions LIKE 'organizationalGroupId'; SHOW COLUMNS FROM performance_evaluations LIKE 'organizationalGroupId'; SHOW COLUMNS FROM audit_logs LIKE 'organizationalGroupId';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SHOW COLUMNS FROM suppliers LIKE 'organizationalGroupId'; SHOW COLUMNS FROM contracts LIKE 'organizationalGroupId'; SHOW COLUMNS FROM documents LIKE 'organizationalGroupId'; SHOW COLUMNS FROM interactions LIKE 'organizationalGroupId'; SHOW COLUMNS FROM performance_evaluations LIKE 'organizationalGroupId'; SHOW COLUMNS FROM audit_logs LIKE 'organizationalGroupId';",
+  "rows": [
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 285
+}

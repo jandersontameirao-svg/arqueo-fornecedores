@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE `business_units` SET `organizationalGroupId` = 1 WHERE `name` = 'Grupo Arqueo Brasil';\nUPDATE `business_units` SET `organizationalGroupId` = 2 WHERE `name` = 'Grupo Arqueo Africa';\nUPDATE `business_units` SET `organizationalGroupId` = 3 WHERE `name` = 'Foods and Drinks'",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute UPDATE `business_units` SET `organizationalGroupId` = 1 WHERE `name` = 'Grupo Arqueo Brasil';\nUPDATE `business_units` SET `organizationalGroupId` = 2 WHERE `name` = 'Grupo Arqueo Africa';\nUPDATE `business_units` SET `organizationalGroupId` = 3 WHERE `name` = 'Foods and Drinks'",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 289
+}

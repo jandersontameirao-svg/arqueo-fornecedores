@@ -1,1 +1,0 @@
-ALTER TABLE `contracts` ADD `templateName` varchar(255);

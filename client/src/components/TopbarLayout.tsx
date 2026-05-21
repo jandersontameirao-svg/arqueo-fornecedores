@@ -16,6 +16,7 @@ import {
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
+import OrgGroupSelector from "@/components/OrgGroupSelector";
 import {
   LayoutDashboard,
   LogOut,
@@ -528,8 +529,12 @@ export default function TopbarLayout({ children }: { children: React.ReactNode }
             <GlobalSearch />
           </div>
 
-          {/* Right: Company indicator + User */}
+          {/* Right: OrgGroup + Company indicator + User */}
           <div className="flex items-center gap-3">
+            {/* Org Group Selector */}
+            <div className="hidden sm:block">
+              <OrgGroupSelector />
+            </div>
             {/* Company indicator: ocultar em rotas de contexto de unidade */}
             {selectedCompany && !isUnitRoute && (
               <button

@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { BusinessUnitProvider } from "./contexts/BusinessUnitContext";
 import { CompanyProvider } from "./contexts/CompanyContext";
 import { SelectedCompanyProvider } from "./contexts/SelectedCompanyContext";
+import { OrgGroupProvider } from "./contexts/OrgGroupContext";
 import TopbarLayout from "./components/TopbarLayout";
 
 // Pages
@@ -38,6 +39,7 @@ import AdminRoute from "./components/AdminRoute";
 /** Routes that require authentication — wrapped with data providers */
 function ProtectedRoutes() {
   return (
+    <OrgGroupProvider>
     <BusinessUnitProvider>
       <SelectedCompanyProvider>
         <CompanyProvider>
@@ -175,6 +177,7 @@ function ProtectedRoutes() {
         </CompanyProvider>
       </SelectedCompanyProvider>
     </BusinessUnitProvider>
+    </OrgGroupProvider>
   );
 }
 

@@ -1,1 +1,0 @@
-ALTER TABLE `suppliers` DROP INDEX `suppliers_cnpj_unique`;

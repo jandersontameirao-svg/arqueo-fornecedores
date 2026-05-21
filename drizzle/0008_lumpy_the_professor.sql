@@ -1,1 +1,0 @@
-ALTER TABLE `business_units` ADD `logoUrl` varchar(1000);

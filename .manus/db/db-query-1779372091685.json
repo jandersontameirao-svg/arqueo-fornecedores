@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `user_business_unit_roles` DROP FOREIGN KEY `ubr_company_fk`;\nALTER TABLE `user_business_unit_roles` DROP COLUMN `companyId`;\nALTER TABLE `user_business_unit_roles` DROP COLUMN `status`;\nALTER TABLE `user_company_roles` DROP COLUMN `status`;\nALTER TABLE `user_group_roles` DROP COLUMN `status`",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute ALTER TABLE `user_business_unit_roles` DROP FOREIGN KEY `ubr_company_fk`;\nALTER TABLE `user_business_unit_roles` DROP COLUMN `companyId`;\nALTER TABLE `user_business_unit_roles` DROP COLUMN `status`;\nALTER TABLE `user_company_roles` DROP COLUMN `status`;\nALTER TABLE `user_group_roles` DROP COLUMN `status`",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1310
+}

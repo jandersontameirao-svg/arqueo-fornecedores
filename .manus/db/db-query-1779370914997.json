@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `user_business_unit_roles` ADD CONSTRAINT `ubr_org_group_fk` FOREIGN KEY (`organizationalGroupId`) REFERENCES `organizational_groups`(`id`) ON DELETE CASCADE ON UPDATE NO ACTION;\nALTER TABLE `user_business_unit_roles` ADD CONSTRAINT `ubr_company_fk` FOREIGN KEY (`companyId`) REFERENCES `companies`(`id`) ON DELETE CASCADE ON UPDATE NO ACTION;\nALTER TABLE `user_business_unit_roles` ADD CONSTRAINT `ubr_bu_fk` FOREIGN KEY (`businessUnitId`) REFERENCES `business_units`(`id`) ON DELETE CASCADE ON UPDATE NO ACTION;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute ALTER TABLE `user_business_unit_roles` ADD CONSTRAINT `ubr_org_group_fk` FOREIGN KEY (`organizationalGroupId`) REFERENCES `organizational_groups`(`id`) ON DELETE CASCADE ON UPDATE NO ACTION;\nALTER TABLE `user_business_unit_roles` ADD CONSTRAINT `ubr_company_fk` FOREIGN KEY (`companyId`) REFERENCES `companies`(`id`) ON DELETE CASCADE ON UPDATE NO ACTION;\nALTER TABLE `user_business_unit_roles` ADD CONSTRAINT `ubr_bu_fk` FOREIGN KEY (`businessUnitId`) REFERENCES `business_units`(`id`) ON DELETE CASCADE ON UPDATE NO ACTION;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1392
+}

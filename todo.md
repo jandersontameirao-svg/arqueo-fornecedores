@@ -1012,3 +1012,46 @@
 - [x] Componente AdminRoute.tsx criado para proteger rotas admin-only
 - [x] Rotas /audit e /users protegidas com AdminRoute (exibe 403 para não-admins)
 - [x] Rota /403 registrada no Router público
+
+## Arquitetura Multi-Grupo / Multi-Empresa (v8.0)
+
+### Schema / Banco de Dados
+- [x] Criar tabela organizational_groups (id, name, slug, country, status, created_at, updated_at)
+- [x] Adicionar organizational_group_id à tabela business_units (FK → organizational_groups)
+- [x] Adicionar organizational_group_id + company_id à tabela companies
+- [x] Criar tabela user_group_roles (user_id, organizational_group_id, role, status)
+- [x] Criar tabela user_company_roles (user_id, organizational_group_id, company_id, role, status)
+- [x] Criar tabela user_business_unit_roles (user_id, organizational_group_id, company_id, business_unit_id, role, status)
+- [x] Adicionar colunas de escopo (organizational_group_id, company_id, business_unit_id, created_by_user_id, updated_by_user_id) às tabelas operacionais
+- [x] Migração segura: dados existentes recebem organizational_group_id = 1 (Grupo Arqueo Brasil)
+- [x] Dados sem classificação recebem organizational_scope_status = pending_classification
+
+### RBAC Hierárquico
+- [x] Implementar roles: SUPERADMIN_GLOBAL, GROUP_ADMIN, COMPANY_ADMIN, BUSINESS_MANAGER, OPERATOR, VIEWER
+- [x] Middleware de escopo no backend: toda query filtra por organizational_group_id
+- [x] Validação backend: nenhuma consulta operacional sem filtro de grupo
+- [x] Contexto organizacional no tRPC (currentOrganizationalGroupId, currentCompanyId, etc.)
+
+### Frontend
+- [x] Seletor de contexto: grupo → empresa → unidade de negócio
+- [x] Limpeza de dados ao trocar de contexto
+- [ ] Etiquetas de pertencimento em contratos, documentos, fornecedores (pendente — requer integração com cada página)
+
+### Auditoria
+- [x] Adicionar organizational_group_id, company_id, business_unit_id ao audit_logs
+- [x] Registrar before_data e after_data em ações de edição (createScopedAuditLog)
+
+### Dados Iniciais
+- [x] Validar/criar organizational_groups: Grupo Arqueo Brasil, Grupo Arqueo África, Foods and Drinks
+- [x] Vincular business_units existentes ao organizational_group correto
+- [x] Vincular companies existentes ao organizational_group correto
+
+### Testes
+- [x] Isolamento entre grupos (usuário de um grupo não acessa outro)
+- [x] RBAC hierárquico funcional
+- [x] Auditoria com escopo organizacional
+- [x] Dados existentes preservados
+- [x] Funcionalidades existentes não comprometidas
+- [x] TypeScript sem erros (0 erros)
+- [x] Build sem erros
+- [x] Testes existentes continuam passando (349/350, 1 falha externa clicksign)

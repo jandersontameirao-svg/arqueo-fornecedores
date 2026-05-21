@@ -1,0 +1,54 @@
+{
+  "query": "SELECT id, name, email, role, isActive FROM users ORDER BY id LIMIT 10; SELECT COUNT(*) as total FROM suppliers; SELECT COUNT(*) as total FROM audit_logs; SELECT COUNT(*) as total FROM contracts; SELECT COUNT(*) as total FROM documents;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SELECT id, name, email, role, isActive FROM users ORDER BY id LIMIT 10; SELECT COUNT(*) as total FROM suppliers; SELECT COUNT(*) as total FROM audit_logs; SELECT COUNT(*) as total FROM contracts; SELECT COUNT(*) as total FROM documents;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Janderson Rubens",
+      "email": "jandersontameirao@gmail.com",
+      "role": "admin",
+      "isActive": "1"
+    },
+    {
+      "id": "1200169",
+      "name": "Fernanda Tameirão",
+      "email": "fernanda@arqueoproject.onmicrosoft.com",
+      "role": "admin",
+      "isActive": "1"
+    },
+    {
+      "id": "1200173",
+      "name": "Natalia Santana",
+      "email": "natalia@arqueoproject.onmicrosoft.com",
+      "role": "admin",
+      "isActive": "1"
+    },
+    {
+      "id": "5550001",
+      "name": "Gente e Gestão",
+      "email": "gentegestao@grupoarqueo.com.br",
+      "role": "manager",
+      "isActive": "1"
+    },
+    {
+      "id": "5550002",
+      "name": "Fernanda",
+      "email": "fernanda@arqueoproject.com.br",
+      "role": "admin",
+      "isActive": "1"
+    }
+  ],
+  "messages": [
+    "total",
+    "1",
+    "total",
+    "416",
+    "total",
+    "16",
+    "total",
+    "0"
+  ],
+  "stdout": "id\tname\temail\trole\tisActive\n1\tJanderson Rubens\tjandersontameirao@gmail.com\tadmin\t1\n1200169\tFernanda Tameirão\tfernanda@arqueoproject.onmicrosoft.com\tadmin\t1\n1200173\tNatalia Santana\tnatalia@arqueoproject.onmicrosoft.com\tadmin\t1\n5550001\tGente e Gestão\tgentegestao@grupoarqueo.com.br\tmanager\t1\n5550002\tFernanda\tfernanda@arqueoproject.com.br\tadmin\t1\ntotal\n1\ntotal\n416\ntotal\n16\ntotal\n0\n",
+  "stderr": "",
+  "execution_time_ms": 321
+}

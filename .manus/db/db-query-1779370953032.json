@@ -1,0 +1,42 @@
+{
+  "query": "SHOW CREATE TABLE user_group_roles; SHOW CREATE TABLE user_company_roles;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SHOW CREATE TABLE user_group_roles; SHOW CREATE TABLE user_company_roles;",
+  "rows": [
+    {
+      "Table": "user_group_roles",
+      "Create Table": "CREATE TABLE `user_group_roles` ("
+    },
+    {
+      "Table": "Table",
+      "Create Table": "Create Table"
+    },
+    {
+      "Table": "user_company_roles",
+      "Create Table": "CREATE TABLE `user_company_roles` ("
+    }
+  ],
+  "messages": [
+    "  `id` int NOT NULL AUTO_INCREMENT,",
+    "  `userId` int NOT NULL,",
+    "  `organizationalGroupId` int NOT NULL,",
+    "  `role` enum('group_admin','company_admin','business_manager','operator','viewer') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'viewer',",
+    "  `status` enum('active','inactive') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',",
+    "  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,",
+    "  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,",
+    "  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */",
+    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    "  `id` int NOT NULL AUTO_INCREMENT,",
+    "  `userId` int NOT NULL,",
+    "  `organizationalGroupId` int NOT NULL,",
+    "  `companyId` int NOT NULL,",
+    "  `role` enum('company_admin','business_manager','operator','viewer') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'viewer',",
+    "  `status` enum('active','inactive') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',",
+    "  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,",
+    "  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,",
+    "  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */",
+    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+  ],
+  "stdout": "Table\tCreate Table\nuser_group_roles\tCREATE TABLE `user_group_roles` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `userId` int NOT NULL,\n  `organizationalGroupId` int NOT NULL,\n  `role` enum('group_admin','company_admin','business_manager','operator','viewer') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'viewer',\n  `status` enum('active','inactive') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',\n  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci\nTable\tCreate Table\nuser_company_roles\tCREATE TABLE `user_company_roles` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `userId` int NOT NULL,\n  `organizationalGroupId` int NOT NULL,\n  `companyId` int NOT NULL,\n  `role` enum('company_admin','business_manager','operator','viewer') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'viewer',\n  `status` enum('active','inactive') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',\n  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci\n",
+  "stderr": "",
+  "execution_time_ms": 268
+}

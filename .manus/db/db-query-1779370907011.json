@@ -1,0 +1,28 @@
+{
+  "query": "SHOW CREATE TABLE user_business_unit_roles;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SHOW CREATE TABLE user_business_unit_roles;",
+  "rows": [
+    {
+      "Table": "user_business_unit_roles",
+      "Create Table": "CREATE TABLE `user_business_unit_roles` ("
+    }
+  ],
+  "messages": [
+    "  `id` int NOT NULL AUTO_INCREMENT,",
+    "  `userId` int NOT NULL,",
+    "  `organizationalGroupId` int NOT NULL,",
+    "  `companyId` int NOT NULL,",
+    "  `businessUnitId` int NOT NULL,",
+    "  `role` enum('business_manager','operator','viewer') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'viewer',",
+    "  `status` enum('active','inactive') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',",
+    "  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,",
+    "  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,",
+    "  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,",
+    "  KEY `user_business_unit_roles_userId_users_id_fk` (`userId`),",
+    "  CONSTRAINT `user_business_unit_roles_userId_users_id_fk` FOREIGN KEY (`userId`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION",
+    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+  ],
+  "stdout": "Table\tCreate Table\nuser_business_unit_roles\tCREATE TABLE `user_business_unit_roles` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `userId` int NOT NULL,\n  `organizationalGroupId` int NOT NULL,\n  `companyId` int NOT NULL,\n  `businessUnitId` int NOT NULL,\n  `role` enum('business_manager','operator','viewer') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'viewer',\n  `status` enum('active','inactive') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',\n  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,\n  KEY `user_business_unit_roles_userId_users_id_fk` (`userId`),\n  CONSTRAINT `user_business_unit_roles_userId_users_id_fk` FOREIGN KEY (`userId`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci\n",
+  "stderr": "",
+  "execution_time_ms": 402
+}

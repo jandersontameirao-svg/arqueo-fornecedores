@@ -1,0 +1,34 @@
+{
+  "query": "SHOW COLUMNS FROM contract_templates LIKE 'organizationalGroupId'; SHOW COLUMNS FROM contract_templates LIKE 'orgCompanyId';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SHOW COLUMNS FROM contract_templates LIKE 'organizationalGroupId'; SHOW COLUMNS FROM contract_templates LIKE 'orgCompanyId';",
+  "rows": [
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "orgCompanyId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norgCompanyId\tint\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 270
+}

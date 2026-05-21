@@ -1,0 +1,19 @@
+{
+  "query": "SELECT COUNT(*) as total FROM user_business_units; SELECT userId, businessUnitId FROM user_business_units LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SELECT COUNT(*) as total FROM user_business_units; SELECT userId, businessUnitId FROM user_business_units LIMIT 10;",
+  "rows": [
+    {
+      "total": "1"
+    },
+    {
+      "total": "userId\tbusinessUnitId"
+    },
+    {
+      "total": "5550001\t1"
+    }
+  ],
+  "messages": [],
+  "stdout": "total\n1\nuserId\tbusinessUnitId\n5550001\t1\n",
+  "stderr": "",
+  "execution_time_ms": 354
+}

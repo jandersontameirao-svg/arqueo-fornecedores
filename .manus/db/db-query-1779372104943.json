@@ -1,0 +1,13 @@
+{
+  "query": "SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME = 'organizational_groups' AND CONSTRAINT_TYPE = 'UNIQUE'",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME = 'organizational_groups' AND CONSTRAINT_TYPE = 'UNIQUE'",
+  "rows": [
+    {
+      "CONSTRAINT_NAME": "organizational_groups_slug_unique"
+    }
+  ],
+  "messages": [],
+  "stdout": "CONSTRAINT_NAME\norganizational_groups_slug_unique\n",
+  "stderr": "",
+  "execution_time_ms": 262
+}

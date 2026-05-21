@@ -1,1 +1,0 @@
-ALTER TABLE `contracts` MODIFY COLUMN `content` longtext;

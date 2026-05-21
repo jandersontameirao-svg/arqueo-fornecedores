@@ -673,11 +673,48 @@ export async function createAuditLog(data: InsertAuditLog) {
   await db.insert(auditLogs).values(data);
 }
 
+/**
+ * createScopedAuditLog — wrapper that includes organizational scope + before/after data.
+ * Use for new audit entries that need organizational isolation.
+ */
+export async function createScopedAuditLog(
+  data: InsertAuditLog & {
+    organizationalGroupId?: number | null;
+    companyId?: number | null;
+    businessUnitId?: number | null;
+    beforeData?: unknown;
+    afterData?: unknown;
+    userAgent?: string | null;
+    ipAddress?: string | null;
+  }
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(auditLogs).values({
+    entityType: data.entityType,
+    entityId: data.entityId,
+    action: data.action,
+    changes: data.changes ?? null,
+    userId: data.userId ?? null,
+    userEmail: data.userEmail ?? null,
+    organizationalGroupId: data.organizationalGroupId ?? null,
+    companyId: data.companyId ?? null,
+    businessUnitId: data.businessUnitId ?? null,
+    beforeData: data.beforeData ?? null,
+    afterData: data.afterData ?? null,
+    ipAddress: data.ipAddress ?? null,
+    userAgent: data.userAgent ?? null,
+  });
+}
+
 export async function getAuditLogs(filters?: {
   entityType?: string;
   entityId?: number;
   userId?: number;
   limit?: number;
+  organizationalGroupId?: number;
+  companyId?: number;
+  businessUnitId?: number;
 }) {
   const db = await getDb();
   if (!db) return [];
@@ -699,6 +736,16 @@ export async function getAuditLogs(filters?: {
   }
   if (filters?.userId) {
     conditions.push(eq(auditLogs.userId, filters.userId));
+  }
+  // Filtros de escopo organizacional
+  if (filters?.organizationalGroupId) {
+    conditions.push(eq(auditLogs.organizationalGroupId, filters.organizationalGroupId));
+  }
+  if (filters?.companyId) {
+    conditions.push(eq(auditLogs.companyId, filters.companyId));
+  }
+  if (filters?.businessUnitId) {
+    conditions.push(eq(auditLogs.businessUnitId, filters.businessUnitId));
   }
 
   if (conditions.length > 0) {

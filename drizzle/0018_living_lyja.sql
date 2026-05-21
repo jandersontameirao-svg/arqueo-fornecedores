@@ -1,2 +1,0 @@
-ALTER TABLE `suppliers` ADD `groupId` int;--> statement-breakpoint
-ALTER TABLE `suppliers` ADD CONSTRAINT `suppliers_groupId_business_units_id_fk` FOREIGN KEY (`groupId`) REFERENCES `business_units`(`id`) ON DELETE no action ON UPDATE no action;

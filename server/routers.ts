@@ -10,6 +10,7 @@ import * as notifications from "./notifications";
 import * as reports from "./reports";
 import * as exportService from "./export";
 import * as clicksign from "./clicksign";
+import { orgRouter } from "./orgRouter";
 import { invokeLLM } from "./_core/llm";
 import { PDFParse } from "pdf-parse";
 
@@ -272,6 +273,7 @@ const evaluationSchema = z.object({
 // ==================== ROUTERS ====================
 export const appRouter = router({
   system: systemRouter,
+  org: orgRouter,
 
   // ==================== AUTH ====================
   auth: router({

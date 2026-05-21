@@ -1,0 +1,274 @@
+{
+  "query": "SHOW COLUMNS FROM suppliers LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM suppliers LIKE 'orgCompanyId';\nSHOW COLUMNS FROM suppliers LIKE 'orgBusinessUnitId';\nSHOW COLUMNS FROM suppliers LIKE 'organizationalScopeStatus';\nSHOW COLUMNS FROM contracts LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM contracts LIKE 'organizationalScopeStatus';\nSHOW COLUMNS FROM documents LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM interactions LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM performance_evaluations LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM audit_logs LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM audit_logs LIKE 'beforeData';\nSHOW COLUMNS FROM audit_logs LIKE 'userAgent';\nSHOW COLUMNS FROM business_units LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM companies LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM companies LIKE 'companyType';\nSHOW COLUMNS FROM users LIKE 'globalRole';\nSHOW COLUMNS FROM users LIKE 'defaultOrgGroupId';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SHOW COLUMNS FROM suppliers LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM suppliers LIKE 'orgCompanyId';\nSHOW COLUMNS FROM suppliers LIKE 'orgBusinessUnitId';\nSHOW COLUMNS FROM suppliers LIKE 'organizationalScopeStatus';\nSHOW COLUMNS FROM contracts LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM contracts LIKE 'organizationalScopeStatus';\nSHOW COLUMNS FROM documents LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM interactions LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM performance_evaluations LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM audit_logs LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM audit_logs LIKE 'beforeData';\nSHOW COLUMNS FROM audit_logs LIKE 'userAgent';\nSHOW COLUMNS FROM business_units LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM companies LIKE 'organizationalGroupId';\nSHOW COLUMNS FROM companies LIKE 'companyType';\nSHOW COLUMNS FROM users LIKE 'globalRole';\nSHOW COLUMNS FROM users LIKE 'defaultOrgGroupId';",
+  "rows": [
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "orgCompanyId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "orgBusinessUnitId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "organizationalScopeStatus",
+      "Type": "enum('classified','pending_classification')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "pending_classification",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "organizationalScopeStatus",
+      "Type": "enum('classified','pending_classification')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "pending_classification",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "beforeData",
+      "Type": "json",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "userAgent",
+      "Type": "varchar(500)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "companyType",
+      "Type": "enum('holding','subsidiary','branch','independent')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "subsidiary",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "globalRole",
+      "Type": "enum('superadmin_global','group_admin','company_admin','business_manager','operator','viewer')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "operator",
+      "Extra": ""
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "defaultOrgGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norgCompanyId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norgBusinessUnitId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalScopeStatus\tenum('classified','pending_classification')\tYES\t\tpending_classification\t\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalScopeStatus\tenum('classified','pending_classification')\tYES\t\tpending_classification\t\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\nbeforeData\tjson\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\nuserAgent\tvarchar(500)\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\ncompanyType\tenum('holding','subsidiary','branch','independent')\tYES\t\tsubsidiary\t\nField\tType\tNull\tKey\tDefault\tExtra\nglobalRole\tenum('superadmin_global','group_admin','company_admin','business_manager','operator','viewer')\tYES\t\toperator\t\nField\tType\tNull\tKey\tDefault\tExtra\ndefaultOrgGroupId\tint\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 339
+}

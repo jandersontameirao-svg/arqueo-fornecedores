@@ -1,0 +1,31 @@
+{
+  "query": "SHOW TABLES LIKE 'user_bu_roles'; SHOW TABLES LIKE 'user_company_roles'; SHOW TABLES LIKE 'user_business_unit_roles'; SHOW COLUMNS FROM business_units LIKE 'organizationalGroupId'; SHOW COLUMNS FROM companies LIKE 'organizationalGroupId';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SHOW TABLES LIKE 'user_bu_roles'; SHOW TABLES LIKE 'user_company_roles'; SHOW TABLES LIKE 'user_business_unit_roles'; SHOW COLUMNS FROM business_units LIKE 'organizationalGroupId'; SHOW COLUMNS FROM companies LIKE 'organizationalGroupId';",
+  "rows": [
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (user_company_roles)": "user_company_roles"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (user_company_roles)": "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (user_business_unit_roles)"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (user_company_roles)": "user_business_unit_roles"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (user_company_roles)": "Field\tType\tNull\tKey\tDefault\tExtra"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (user_company_roles)": "organizationalGroupId\tint\tYES\t\tNULL\t"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (user_company_roles)": "Field\tType\tNull\tKey\tDefault\tExtra"
+    },
+    {
+      "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (user_company_roles)": "organizationalGroupId\tint\tYES\t\tNULL\t"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_KbiCF9FN7rZHpjZqbGxEKZ (user_company_roles)\nuser_company_roles\nTables_in_KbiCF9FN7rZHpjZqbGxEKZ (user_business_unit_roles)\nuser_business_unit_roles\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\nField\tType\tNull\tKey\tDefault\tExtra\norganizationalGroupId\tint\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 276
+}

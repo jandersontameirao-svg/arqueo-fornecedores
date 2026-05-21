@@ -1,0 +1,8 @@
+{
+  "query": "UPDATE `companies` SET `organizationalGroupId` = 1 WHERE `businessUnitId` = 1;\nUPDATE `suppliers` SET `organizationalGroupId` = 1 WHERE `groupId` = 1;\nUPDATE `users` SET `globalRole` = 'super_admin', `defaultOrgGroupId` = 1 WHERE `role` = 'admin';\nUPDATE `users` SET `globalRole` = 'operator', `defaultOrgGroupId` = 1 WHERE `role` = 'manager'",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute UPDATE `companies` SET `organizationalGroupId` = 1 WHERE `businessUnitId` = 1;\nUPDATE `suppliers` SET `organizationalGroupId` = 1 WHERE `groupId` = 1;\nUPDATE `users` SET `globalRole` = 'super_admin', `defaultOrgGroupId` = 1 WHERE `role` = 'admin';\nUPDATE `users` SET `globalRole` = 'operator', `defaultOrgGroupId` = 1 WHERE `role` = 'manager'",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1265 (01000) at line 3: Data truncated for column '%s' at row %d"
+  ]
+}

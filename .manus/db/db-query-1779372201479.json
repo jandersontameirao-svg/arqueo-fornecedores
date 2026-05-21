@@ -1,0 +1,25 @@
+{
+  "query": "SELECT id, name, slug FROM organizational_groups ORDER BY id",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SELECT id, name, slug FROM organizational_groups ORDER BY id",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Grupo Arqueo Brasil",
+      "slug": "grupo-arqueo-brasil"
+    },
+    {
+      "id": "2",
+      "name": "Grupo Arqueo Africa",
+      "slug": "grupo-arqueo-africa"
+    },
+    {
+      "id": "3",
+      "name": "Foods and Drinks",
+      "slug": "foods-and-drinks"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tslug\n1\tGrupo Arqueo Brasil\tgrupo-arqueo-brasil\n2\tGrupo Arqueo Africa\tgrupo-arqueo-africa\n3\tFoods and Drinks\tfoods-and-drinks\n",
+  "stderr": "",
+  "execution_time_ms": 265
+}

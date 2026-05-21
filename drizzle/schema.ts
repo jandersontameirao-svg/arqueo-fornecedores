@@ -1,6 +1,24 @@
 import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, json, longtext } from "drizzle-orm/mysql-core";
 
 // ==================== USERS ====================
+// ==================== ORGANIZATIONAL GROUPS (GRUPOS ECONÔMICOS) ====================
+export const organizationalGroups = mysqlTable("organizational_groups", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  description: text("description"),
+  logoUrl: varchar("logoUrl", { length: 1000 }),
+  country: varchar("country", { length: 100 }).default("Brasil"),
+  status: mysqlEnum("status", ["active", "inactive"]).default("active").notNull(),
+  createdById: int("createdById"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type OrganizationalGroup = typeof organizationalGroups.$inferSelect;
+export type InsertOrganizationalGroup = typeof organizationalGroups.$inferInsert;
+
+// ==================== USERS ====================
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
@@ -9,6 +27,8 @@ export const users = mysqlTable("users", {
   loginMethod: varchar("loginMethod", { length: 64 }),
   passwordHash: varchar("passwordHash", { length: 255 }),
   role: mysqlEnum("role", ["admin", "manager", "reader"]).default("reader").notNull(),
+  globalRole: mysqlEnum("globalRole", ["superadmin_global", "group_admin", "company_admin", "business_manager", "operator", "viewer"]).default("viewer"),
+  defaultOrgGroupId: int("defaultOrgGroupId"),
   isActive: boolean("isActive").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -71,6 +91,11 @@ export const suppliers = mysqlTable("suppliers", {
   companyId: varchar("companyId", { length: 100 }),
   // Group Association (FK para business_units — segregação obrigatória por grupo)
   groupId: int("groupId").references(() => businessUnits.id),
+  // Escopo organizacional (multi-grupo)
+  organizationalGroupId: int("organizationalGroupId"),
+  orgCompanyId: int("orgCompanyId"),
+  orgBusinessUnitId: int("orgBusinessUnitId"),
+  organizationalScopeStatus: mysqlEnum("organizationalScopeStatus", ["classified", "pending_classification"]).default("pending_classification"),
   // Status geral na base
   status: mysqlEnum("status", ["pending", "approved", "rejected", "suspended", "inactive"]).default("pending").notNull(),
   approvedAt: timestamp("approvedAt"),
@@ -140,6 +165,10 @@ export type InsertSupplierContact = typeof supplierContacts.$inferInsert;
 export const documents = mysqlTable("documents", {
   id: int("id").autoincrement().primaryKey(),
   supplierId: int("supplierId").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
+  // Escopo organizacional (multi-grupo)
+  organizationalGroupId: int("organizationalGroupId"),
+  orgCompanyId: int("orgCompanyId"),
+  orgBusinessUnitId: int("orgBusinessUnitId"),
   name: varchar("name", { length: 255 }).notNull(),
   type: mysqlEnum("type", ["contract", "certificate", "invoice", "license", "insurance", "registration", "other"]).notNull(),
   description: text("description"),
@@ -207,9 +236,18 @@ export const auditLogs = mysqlTable("audit_logs", {
   entityId: int("entityId").notNull(),
   action: mysqlEnum("action", ["create", "update", "delete", "approve", "reject", "upload", "download"]).notNull(),
   changes: json("changes"),
+  // Escopo organizacional
+  organizationalGroupId: int("organizationalGroupId"),
+  companyId: int("companyId"),
+  businessUnitId: int("businessUnitId"),
+  // Before/After data para rastreabilidade
+  beforeData: json("beforeData"),
+  afterData: json("afterData"),
+  // Usuário e metadados
   userId: int("userId").references(() => users.id),
   userEmail: varchar("userEmail", { length: 320 }),
   ipAddress: varchar("ipAddress", { length: 45 }),
+  userAgent: varchar("userAgent", { length: 500 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -220,6 +258,10 @@ export type InsertAuditLog = typeof auditLogs.$inferInsert;
 export const interactions = mysqlTable("interactions", {
   id: int("id").autoincrement().primaryKey(),
   supplierId: int("supplierId").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
+  // Escopo organizacional (multi-grupo)
+  organizationalGroupId: int("organizationalGroupId"),
+  orgCompanyId: int("orgCompanyId"),
+  orgBusinessUnitId: int("orgBusinessUnitId"),
   type: mysqlEnum("type", ["email", "phone", "meeting", "visit", "note", "other"]).notNull(),
   subject: varchar("subject", { length: 255 }).notNull(),
   description: text("description"),
@@ -242,6 +284,10 @@ export type InsertInteraction = typeof interactions.$inferInsert;
 export const performanceEvaluations = mysqlTable("performance_evaluations", {
   id: int("id").autoincrement().primaryKey(),
   supplierId: int("supplierId").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
+  // Escopo organizacional (multi-grupo)
+  organizationalGroupId: int("organizationalGroupId"),
+  orgCompanyId: int("orgCompanyId"),
+  orgBusinessUnitId: int("orgBusinessUnitId"),
   evaluationPeriod: varchar("evaluationPeriod", { length: 50 }).notNull(),
   // KPI Scores (0-100)
   qualityScore: decimal("qualityScore", { precision: 5, scale: 2 }),
@@ -336,6 +382,11 @@ export const contracts = mysqlTable("contracts", {
   // "all_group": contrato visível para todas as empresas do Grupo Arqueo Brasil
   companyScope: mysqlEnum("companyScope", ["single", "all_group"]).default("single").notNull(),
   contractCompanySlug: varchar("contractCompanySlug", { length: 100 }), // slug da empresa (ex: "arqueoproject")
+  // Escopo organizacional (multi-grupo)
+  organizationalGroupId: int("organizationalGroupId"),
+  orgCompanyId: int("orgCompanyId"),
+  orgBusinessUnitId: int("orgBusinessUnitId"),
+  organizationalScopeStatus: mysqlEnum("organizationalScopeStatus", ["classified", "pending_classification"]).default("pending_classification"),
   // Metadata
   createdById: int("createdById").references(() => users.id),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -364,6 +415,9 @@ export type InsertContractItem = typeof contractItems.$inferInsert;
 // ==================== CONTRACT TEMPLATES ====================
 export const contractTemplates = mysqlTable("contract_templates", {
   id: int("id").autoincrement().primaryKey(),
+  // Escopo organizacional (multi-grupo)
+  organizationalGroupId: int("organizationalGroupId"),
+  orgCompanyId: int("orgCompanyId"),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   contractType: mysqlEnum("contractType", ["service", "supply", "lease", "consulting", "maintenance", "other"]).default("service"),
@@ -505,6 +559,8 @@ export const businessUnits = mysqlTable("business_units", {
   code: varchar("code", { length: 50 }),
   description: text("description"),
   logoUrl: varchar("logoUrl", { length: 1000 }),
+  // Escopo organizacional
+  organizationalGroupId: int("organizationalGroupId"),
   status: mysqlEnum("status", ["active", "inactive"]).default("active").notNull(),
   createdById: int("createdById").references(() => users.id),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -530,9 +586,14 @@ export type InsertUserBusinessUnit = typeof userBusinessUnits.$inferInsert;
 export const companies = mysqlTable("companies", {
   id: int("id").autoincrement().primaryKey(),
   businessUnitId: int("businessUnitId").notNull().references(() => businessUnits.id, { onDelete: "cascade" }),
+  // Escopo organizacional
+  organizationalGroupId: int("organizationalGroupId"),
   legalName: varchar("legalName", { length: 255 }).notNull(),
   tradeName: varchar("tradeName", { length: 255 }),
   cnpj: varchar("cnpj", { length: 18 }),
+  // Tipo de empresa
+  companyType: mysqlEnum("companyType", ["holding", "subsidiary", "branch", "independent"]).default("subsidiary"),
+  country: varchar("country", { length: 100 }).default("Brasil"),
   logoUrl: varchar("logoUrl", { length: 1000 }),
   status: mysqlEnum("status", ["active", "inactive"]).default("active").notNull(),
   createdById: int("createdById").references(() => users.id),
@@ -698,3 +759,47 @@ export const supplierDocumentLinks = mysqlTable("supplier_document_links", {
 
 export type SupplierDocumentLink = typeof supplierDocumentLinks.$inferSelect;
 export type InsertSupplierDocumentLink = typeof supplierDocumentLinks.$inferInsert;
+
+// ==================== USER GROUP ROLES (PERMISSÕES POR GRUPO ECONÔMICO) ====================
+export const userGroupRoles = mysqlTable("user_group_roles", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  organizationalGroupId: int("organizationalGroupId").notNull(),
+  role: mysqlEnum("role", ["group_admin", "group_operator", "group_viewer"]).notNull(),
+  grantedById: int("grantedById").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UserGroupRole = typeof userGroupRoles.$inferSelect;
+export type InsertUserGroupRole = typeof userGroupRoles.$inferInsert;
+
+// ==================== USER COMPANY ROLES (PERMISSÕES POR EMPRESA) ====================
+export const userCompanyRoles = mysqlTable("user_company_roles", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  organizationalGroupId: int("organizationalGroupId").notNull(),
+  companyId: int("companyId").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  role: mysqlEnum("role", ["company_admin", "company_operator", "company_viewer"]).notNull(),
+  grantedById: int("grantedById").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UserCompanyRole = typeof userCompanyRoles.$inferSelect;
+export type InsertUserCompanyRole = typeof userCompanyRoles.$inferInsert;
+
+// ==================== USER BUSINESS UNIT ROLES (PERMISSÕES POR UNIDADE DE NEGÓCIO) ====================
+export const userBusinessUnitRoles = mysqlTable("user_business_unit_roles", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  organizationalGroupId: int("organizationalGroupId").notNull(),
+  businessUnitId: int("businessUnitId").notNull().references(() => businessUnits.id, { onDelete: "cascade" }),
+  role: mysqlEnum("role", ["bu_admin", "bu_operator", "bu_viewer"]).notNull(),
+  grantedById: int("grantedById").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UserBusinessUnitRole = typeof userBusinessUnitRoles.$inferSelect;
+export type InsertUserBusinessUnitRole = typeof userBusinessUnitRoles.$inferInsert;

@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE `contracts` SET `organizationalGroupId` = 1 WHERE `organizationalGroupId` IS NULL;\nUPDATE `audit_logs` SET `organizationalGroupId` = 1 WHERE `organizationalGroupId` IS NULL",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute UPDATE `contracts` SET `organizationalGroupId` = 1 WHERE `organizationalGroupId` IS NULL;\nUPDATE `audit_logs` SET `organizationalGroupId` = 1 WHERE `organizationalGroupId` IS NULL",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 294
+}

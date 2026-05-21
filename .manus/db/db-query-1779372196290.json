@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO `organizational_groups` (`name`, `slug`, `country`, `status`, `description`) VALUES \n('Grupo Arqueo Brasil', 'grupo-arqueo-brasil', 'Brasil', 'active', 'Grupo econômico principal no Brasil'),\n('Grupo Arqueo Africa', 'grupo-arqueo-africa', 'Moçambique', 'active', 'Operações no continente africano'),\n('Foods and Drinks', 'foods-and-drinks', 'Brasil', 'active', 'Vertical de alimentos e bebidas')\nON DUPLICATE KEY UPDATE `name` = VALUES(`name`)",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute INSERT INTO `organizational_groups` (`name`, `slug`, `country`, `status`, `description`) VALUES \n('Grupo Arqueo Brasil', 'grupo-arqueo-brasil', 'Brasil', 'active', 'Grupo econômico principal no Brasil'),\n('Grupo Arqueo Africa', 'grupo-arqueo-africa', 'Moçambique', 'active', 'Operações no continente africano'),\n('Foods and Drinks', 'foods-and-drinks', 'Brasil', 'active', 'Vertical de alimentos e bebidas')\nON DUPLICATE KEY UPDATE `name` = VALUES(`name`)",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 330
+}
