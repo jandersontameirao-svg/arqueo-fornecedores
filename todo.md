@@ -948,3 +948,11 @@
 - [x] Executar seed e validar login dos 2 novos usuários (OK)
 - [x] Validar que o usuário OAuth existente continua funcionando (OK)
 - [x] Testes automatizados para login e RBAC (337 testes passando)
+
+## v7.36 — Fix Redirect Loop (Tela Piscando) na Página /login
+
+- [x] Causa raiz: BusinessUnitProvider + CompanyProvider envolviam /login, disparando queries protectedProcedure → UNAUTHORIZED → redirect → loop infinito
+- [x] main.tsx: adicionado guard para não redirecionar se já está em /login ou /onboarding
+- [x] App.tsx: reestruturado — providers de dados (BusinessUnit, Company, SelectedCompany) movidos para ProtectedRoutes, /login e /onboarding ficam fora
+- [x] Página /login renderiza sem nenhuma query autenticada, sem piscar
+- [x] 337 testes passando, 0 erros TypeScript

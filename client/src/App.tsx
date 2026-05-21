@@ -33,138 +33,156 @@ import UnitSuppliers from "./pages/UnitSuppliers";
 import GenerateContract from "./pages/GenerateContract";
 import InternalLogin from "./pages/InternalLogin";
 
+/** Routes that require authentication — wrapped with data providers */
+function ProtectedRoutes() {
+  return (
+    <BusinessUnitProvider>
+      <SelectedCompanyProvider>
+        <CompanyProvider>
+          <Switch>
+            {/* SelectBusinessUnit as landing page */}
+            <Route path="/">
+              <TopbarLayout>
+                <SelectBusinessUnit />
+              </TopbarLayout>
+            </Route>
+
+            {/* Intermediate company selection screen */}
+            <Route path="/select-company">
+              <TopbarLayout>
+                <SelectCompany />
+              </TopbarLayout>
+            </Route>
+
+            {/* Central de gestão de fornecedores da unidade */}
+            <Route path="/unit-suppliers">
+              <TopbarLayout>
+                <UnitSuppliers />
+              </TopbarLayout>
+            </Route>
+
+            {/* Dashboard (former Home) */}
+            <Route path="/dashboard">
+              <TopbarLayout>
+                <Home />
+              </TopbarLayout>
+            </Route>
+
+            {/* Protected routes with TopbarLayout */}
+            <Route path="/suppliers">
+              <TopbarLayout>
+                <Suppliers />
+              </TopbarLayout>
+            </Route>
+            <Route path="/suppliers/add-ai">
+              <TopbarLayout>
+                <AddSupplierAI />
+              </TopbarLayout>
+            </Route>
+            <Route path="/suppliers/new-ai">
+              <TopbarLayout>
+                <AddSupplierAI />
+              </TopbarLayout>
+            </Route>
+            <Route path="/suppliers/link">
+              <TopbarLayout>
+                <SupplierLink />
+              </TopbarLayout>
+            </Route>
+            <Route path="/suppliers/new">
+              <TopbarLayout>
+                <SupplierForm />
+              </TopbarLayout>
+            </Route>
+            <Route path="/suppliers/:id">
+              {(params) => (
+                <TopbarLayout>
+                  <SupplierDetail id={parseInt(params.id)} />
+                </TopbarLayout>
+              )}
+            </Route>
+            <Route path="/suppliers/:id/edit">
+              {(params) => (
+                <TopbarLayout>
+                  <SupplierForm id={parseInt(params.id)} />
+                </TopbarLayout>
+              )}
+            </Route>
+            <Route path="/categories">
+              <TopbarLayout>
+                <Categories />
+              </TopbarLayout>
+            </Route>
+            <Route path="/documents">
+              <TopbarLayout>
+                <Documents />
+              </TopbarLayout>
+            </Route>
+            <Route path="/approvals">
+              <TopbarLayout>
+                <Approvals />
+              </TopbarLayout>
+            </Route>
+            <Route path="/compliance">
+              <TopbarLayout>
+                <Compliance />
+              </TopbarLayout>
+            </Route>
+            <Route path="/interactions">
+              <TopbarLayout>
+                <Interactions />
+              </TopbarLayout>
+            </Route>
+            <Route path="/evaluations">
+              <TopbarLayout>
+                <Evaluations />
+              </TopbarLayout>
+            </Route>
+            <Route path="/audit">
+              <TopbarLayout>
+                <Audit />
+              </TopbarLayout>
+            </Route>
+            <Route path="/users">
+              <TopbarLayout>
+                <Users />
+              </TopbarLayout>
+            </Route>
+            <Route path="/reports">
+              <TopbarLayout>
+                <Reports />
+              </TopbarLayout>
+            </Route>
+            <Route path="/contract-templates">
+              <TopbarLayout>
+                <ContractTemplates />
+              </TopbarLayout>
+            </Route>
+            <Route path="/generate-contract">
+              <TopbarLayout>
+                <GenerateContract />
+              </TopbarLayout>
+            </Route>
+            <Route path="/404" component={NotFound} />
+            <Route component={NotFound} />
+          </Switch>
+        </CompanyProvider>
+      </SelectedCompanyProvider>
+    </BusinessUnitProvider>
+  );
+}
+
 function Router() {
   return (
     <Switch>
-      {/* Public routes */}
+      {/* Public routes — NO data providers, NO auth queries */}
       <Route path="/login" component={InternalLogin} />
       <Route path="/onboarding" component={Onboarding} />
-      
-      {/* SelectBusinessUnit as landing page */}
-      <Route path="/">
-        <TopbarLayout>
-          <SelectBusinessUnit />
-        </TopbarLayout>
-      </Route>
 
-      {/* Intermediate company selection screen */}
-      <Route path="/select-company">
-        <TopbarLayout>
-          <SelectCompany />
-        </TopbarLayout>
+      {/* All other routes go through protected wrapper */}
+      <Route>
+        <ProtectedRoutes />
       </Route>
-
-      {/* Central de gestão de fornecedores da unidade */}
-      <Route path="/unit-suppliers">
-        <TopbarLayout>
-          <UnitSuppliers />
-        </TopbarLayout>
-      </Route>
-
-      {/* Dashboard (former Home) */}
-      <Route path="/dashboard">
-        <TopbarLayout>
-          <Home />
-        </TopbarLayout>
-      </Route>
-
-      {/* Protected routes with TopbarLayout */}
-      <Route path="/suppliers">
-        <TopbarLayout>
-          <Suppliers />
-        </TopbarLayout>
-      </Route>
-      <Route path="/suppliers/add-ai">
-        <TopbarLayout>
-          <AddSupplierAI />
-        </TopbarLayout>
-      </Route>
-      <Route path="/suppliers/new-ai">
-        <TopbarLayout>
-          <AddSupplierAI />
-        </TopbarLayout>
-      </Route>
-      <Route path="/suppliers/link">
-        <TopbarLayout>
-          <SupplierLink />
-        </TopbarLayout>
-      </Route>
-      <Route path="/suppliers/new">
-        <TopbarLayout>
-          <SupplierForm />
-        </TopbarLayout>
-      </Route>
-      <Route path="/suppliers/:id">
-        {(params) => (
-          <TopbarLayout>
-            <SupplierDetail id={parseInt(params.id)} />
-          </TopbarLayout>
-        )}
-      </Route>
-      <Route path="/suppliers/:id/edit">
-        {(params) => (
-          <TopbarLayout>
-            <SupplierForm id={parseInt(params.id)} />
-          </TopbarLayout>
-        )}
-      </Route>
-      <Route path="/categories">
-        <TopbarLayout>
-          <Categories />
-        </TopbarLayout>
-      </Route>
-      <Route path="/documents">
-        <TopbarLayout>
-          <Documents />
-        </TopbarLayout>
-      </Route>
-      <Route path="/approvals">
-        <TopbarLayout>
-          <Approvals />
-        </TopbarLayout>
-      </Route>
-      <Route path="/compliance">
-        <TopbarLayout>
-          <Compliance />
-        </TopbarLayout>
-      </Route>
-      <Route path="/interactions">
-        <TopbarLayout>
-          <Interactions />
-        </TopbarLayout>
-      </Route>
-      <Route path="/evaluations">
-        <TopbarLayout>
-          <Evaluations />
-        </TopbarLayout>
-      </Route>
-      <Route path="/audit">
-        <TopbarLayout>
-          <Audit />
-        </TopbarLayout>
-      </Route>
-      <Route path="/users">
-        <TopbarLayout>
-          <Users />
-        </TopbarLayout>
-      </Route>
-      <Route path="/reports">
-        <TopbarLayout>
-          <Reports />
-        </TopbarLayout>
-      </Route>
-      <Route path="/contract-templates">
-        <TopbarLayout>
-          <ContractTemplates />
-        </TopbarLayout>
-      </Route>
-      <Route path="/generate-contract">
-        <TopbarLayout>
-          <GenerateContract />
-        </TopbarLayout>
-      </Route>
-      <Route path="/404" component={NotFound} />
-      <Route component={NotFound} />
     </Switch>
   );
 }
@@ -173,16 +191,10 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
-        <BusinessUnitProvider>
-          <SelectedCompanyProvider>
-          <CompanyProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Router />
-            </TooltipProvider>
-          </CompanyProvider>
-          </SelectedCompanyProvider>
-        </BusinessUnitProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
