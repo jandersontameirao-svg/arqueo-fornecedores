@@ -55,6 +55,7 @@ import {
   CheckCircle,
   XCircle,
   Building2,
+  KeyRound,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -101,10 +102,12 @@ export default function Users() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [deletingUser, setDeletingUser] = useState<any>(null);
   const [accessUser, setAccessUser] = useState<any>(null);
+  const [passwordUser, setPasswordUser] = useState<any>(null);
+  const [newPassword, setNewPassword] = useState("");
   const [form, setForm] = useState<UserFormData>(emptyForm);
   const [formErrors, setFormErrors] = useState<Partial<UserFormData & { general: string }>>({});
 
-  const { data: users, isLoading } = trpc.users.list.useQuery();
+  const { data: users, isLoading } = trpc.users.listWithAreas.useQuery();
   const { data: allUnits } = trpc.businessUnits.listAll.useQuery(undefined, { enabled: currentUser?.role === "admin" });
   const { data: userAccess, refetch: refetchAccess } = trpc.businessUnits.getUserAccess.useQuery(
     { userId: accessUser?.id },
@@ -157,6 +160,25 @@ export default function Users() {
     onError: (error) => {
       toast.error(error.message);
     },
+  });
+
+  const resetPasswordMutation = trpc.users.resetPassword.useMutation({
+    onSuccess: () => {
+      toast.success("Senha redefinida com sucesso!");
+      setPasswordUser(null);
+      setNewPassword("");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const setPasswordMutation = trpc.users.setPassword.useMutation({
+    onSuccess: () => {
+      toast.success("Senha definida com sucesso! O usuário agora pode fazer login por email/senha.");
+      utils.users.list.invalidate();
+      setPasswordUser(null);
+      setNewPassword("");
+    },
+    onError: (error) => toast.error(error.message),
   });
 
   const isAdmin = currentUser?.role === "admin";
@@ -288,6 +310,7 @@ export default function Users() {
                   <TableHead className="font-medium">Status</TableHead>
                   <TableHead className="font-medium">Último Acesso</TableHead>
                   <TableHead className="font-medium">Cadastro</TableHead>
+                  {isAdmin && <TableHead className="font-medium">Áreas</TableHead>}
                   {isAdmin && <TableHead className="font-medium text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -345,6 +368,20 @@ export default function Users() {
                       </div>
                     </TableCell>
                     {isAdmin && (
+                      <>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {user.role === "admin" ? (
+                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">Todas</Badge>
+                          ) : (user as any).areas?.length > 0 ? (
+                            (user as any).areas.map((area: string) => (
+                              <Badge key={area} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">{area}</Badge>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">Nenhuma</span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button
@@ -370,6 +407,15 @@ export default function Users() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            onClick={() => { setPasswordUser(user); setNewPassword(""); }}
+                            className="h-8 w-8 hover:bg-amber-50 hover:text-amber-600"
+                            title={user.passwordHash ? "Redefinir senha" : "Definir senha"}
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => setDeletingUser(user)}
                             disabled={user.id === currentUser?.id}
                             className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
@@ -379,6 +425,7 @@ export default function Users() {
                           </Button>
                         </div>
                       </TableCell>
+                      </>
                     )}
                   </TableRow>
                 ))}
@@ -489,8 +536,56 @@ export default function Users() {
         </DialogContent>
       </Dialog>
 
-      {/* ── AlertDialog: Confirmar Exclusão ─────────────────────────────────── */}
-      <AlertDialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
+      {/* ── Dialog: Redefinir/Definir Senha ──────────────────────────────────── */}
+      <Dialog open={!!passwordUser} onOpenChange={(open) => { if (!open) { setPasswordUser(null); setNewPassword(""); } }}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>
+              {passwordUser?.passwordHash ? "Redefinir Senha" : "Definir Senha"}
+            </DialogTitle>
+            <DialogDescription>
+              {passwordUser?.passwordHash
+                ? `Defina uma nova senha para ${passwordUser?.name || passwordUser?.email}.`
+                : `Este usuário usa login OAuth. Defina uma senha para habilitar login por email/senha.`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="newPassword">Nova Senha</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                placeholder="Mínimo 6 caracteres"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPasswordUser(null); setNewPassword(""); }}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                if (newPassword.length < 6) { toast.error("Senha deve ter pelo menos 6 caracteres"); return; }
+                if (passwordUser?.passwordHash) {
+                  resetPasswordMutation.mutate({ id: passwordUser.id, newPassword });
+                } else {
+                  setPasswordMutation.mutate({ id: passwordUser.id, password: newPassword });
+                }
+              }}
+              disabled={resetPasswordMutation.isPending || setPasswordMutation.isPending}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {(resetPasswordMutation.isPending || setPasswordMutation.isPending) ? "Salvando..." : "Salvar Senha"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── AlertDialog: Confirmar Exclusão ─────────────────────────────────────── */}   <AlertDialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Desativar usuário?</AlertDialogTitle>

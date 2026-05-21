@@ -980,3 +980,14 @@
 - [x] Validado: users.getById próprio perfil OK, outro usuário FORBIDDEN para manager
 - [x] Validado: audit.list global FORBIDDEN para manager, OK para admin
 - [x] 337 testes passando, 0 erros TypeScript
+
+## v7.39 — Filtro por Área + Gestão de Senhas + Badges de Áreas
+- [x] Backend: suppliers.list filtra por área de negócio para managers (guard automático via getUserBusinessUnitIds)
+- [x] Backend: contracts.listBySupplier filtra por área para managers
+- [x] Admin vê tudo sem filtro
+- [x] Painel admin: botão KeyRound na tabela de usuários para redefinir/definir senha
+- [x] Endpoint tRPC users.resetPassword (adminProcedure, bcrypt hash)
+- [x] Endpoint tRPC users.listWithAreas (retorna usuários com nomes das áreas)
+- [x] Frontend: coluna "Áreas" na tabela com badges coloridos (verde=Todas, azul=área específica)
+- [x] Frontend: dialog de redefinição de senha com validação mínima 6 caracteres
+- [x] 337 testes passando, 0 erros TypeScript

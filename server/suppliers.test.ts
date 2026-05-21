@@ -43,6 +43,9 @@ vi.mock("./db", () => ({
   updateSupplier: vi.fn().mockResolvedValue(undefined),
   deleteSupplier: vi.fn().mockResolvedValue(undefined),
   
+  // Business Unit access functions
+  getUserBusinessUnitIds: vi.fn().mockResolvedValue([1]),
+
   // Workflow functions
   createWorkflow: vi.fn().mockResolvedValue(1),
   createWorkflowStep: vi.fn().mockResolvedValue(1),

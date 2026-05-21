@@ -394,6 +394,68 @@ export const appRouter = router({
         });
         return { success: true };
       }),
+
+    listWithAreas: adminProcedure.query(async () => {
+      const allUsers = await db.getAllUsers();
+      const allUnits = await db.listBusinessUnits();
+      // Get areas for each user efficiently
+      const areaMap = new Map<number, string[]>();
+      for (const user of allUsers) {
+        if (user.role !== "admin") {
+          const unitIds = await db.getUserBusinessUnitIds(user.id);
+          const unitNames = unitIds.map((id: number) => allUnits.find((u: any) => u.id === id)?.name).filter(Boolean) as string[];
+          areaMap.set(user.id, unitNames);
+        }
+      }
+      return allUsers.map(u => ({ ...u, areas: areaMap.get(u.id) || [] }));
+    }),
+
+    resetPassword: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        newPassword: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const bcrypt = await import("bcryptjs");
+        const user = await db.getUserById(input.id);
+        if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado" });
+        if (user.loginMethod === "google" && !user.passwordHash) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Este usuário usa login OAuth. Para habilitar login por senha, defina uma senha primeiro." });
+        }
+        const hash = await bcrypt.hash(input.newPassword, 12);
+        await db.updateUser(input.id, { passwordHash: hash } as any);
+        await db.createAuditLog({
+          entityType: "user",
+          entityId: input.id,
+          action: "update",
+          changes: { passwordReset: true },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { success: true };
+      }),
+
+    setPassword: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const bcrypt = await import("bcryptjs");
+        const user = await db.getUserById(input.id);
+        if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "Usuário não encontrado" });
+        const hash = await bcrypt.hash(input.password, 12);
+        await db.updateUser(input.id, { passwordHash: hash, loginMethod: "internal" } as any);
+        await db.createAuditLog({
+          entityType: "user",
+          entityId: input.id,
+          action: "update",
+          changes: { passwordSet: true, loginMethod: "internal" },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { success: true };
+      }),
   }),
 
   // ==================== CATEGORIES ====================
@@ -469,11 +531,26 @@ export const appRouter = router({
         groupId: z.number().optional(),
         businessUnitId: z.number().optional(),
       }).optional())
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         // businessUnitId é alias de groupId (suppliers.groupId = businessUnits.id)
-        const filters = input
+        let filters = input
           ? { ...input, groupId: input.groupId ?? input.businessUnitId }
           : undefined;
+
+        // GUARD: manager/reader só pode ver fornecedores das áreas designadas
+        if (ctx.user.role !== "admin") {
+          const allowedBUIds = await db.getUserBusinessUnitIds(ctx.user.id);
+          if (allowedBUIds.length === 0) return []; // Sem área designada = sem acesso
+          // Se o groupId solicitado não está nas áreas permitidas, bloquear
+          if (filters?.groupId && !allowedBUIds.includes(filters.groupId)) {
+            return [];
+          }
+          // Se não há groupId explícito, restringir à primeira área permitida
+          if (!filters?.groupId) {
+            filters = { ...(filters || {}), groupId: allowedBUIds[0] };
+          }
+        }
+
         return db.getAllSuppliers(filters);
       }),
 
@@ -1645,7 +1722,17 @@ export const appRouter = router({
         supplierId: z.number(),
         companySlug: z.string().optional(), // Slug da empresa selecionada (segregação por empresa)
       }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        // GUARD: manager/reader só pode ver contratos de fornecedores das áreas designadas
+        if (ctx.user.role !== "admin") {
+          const allowedBUIds = await db.getUserBusinessUnitIds(ctx.user.id);
+          if (allowedBUIds.length === 0) return [];
+          // Verificar se o fornecedor pertence a uma área permitida
+          const supplier = await db.getSupplierById(input.supplierId);
+          if (supplier && supplier.supplier.groupId && !allowedBUIds.includes(supplier.supplier.groupId)) {
+            return [];
+          }
+        }
         // Retorna contratos com vigência efetiva calculada (aditivo mais recente ou original)
         // Se companySlug fornecido: retorna apenas contratos dessa empresa + contratos all_group
         return db.getContractsBySupplierWithEffectiveEndDate(input.supplierId, input.companySlug);
