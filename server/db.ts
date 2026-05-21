@@ -33,6 +33,7 @@ import {
   userBusinessUnits, InsertUserBusinessUnit,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { isSuperAdminEmail } from '../shared/superadmins';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -89,6 +90,22 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     } else if (user.openId === ENV.ownerOpenId) {
       values.role = 'admin';
       updateSet.role = 'admin';
+    }
+
+    // LISTA BRANCA DE SUPERADMINS: apenas os emails autorizados podem ter globalRole='superadmin_global'.
+    // Se o email está na lista branca → forçar superadmin_global.
+    // Se o email NÃO está na lista branca → bloquear qualquer tentativa de atribuir superadmin_global.
+    const emailForCheck = user.email ?? values.email ?? null;
+    if (isSuperAdminEmail(emailForCheck)) {
+      values.globalRole = 'superadmin_global';
+      updateSet.globalRole = 'superadmin_global';
+    } else if (user.globalRole === 'superadmin_global') {
+      // Tentativa de atribuir superadmin_global a email não autorizado — bloquear silenciosamente
+      console.warn(`[Security] Blocked superadmin_global assignment for non-whitelisted email: ${emailForCheck}`);
+      // Não atribui globalRole — mantém o valor atual ou null
+    } else if (user.globalRole !== undefined) {
+      values.globalRole = user.globalRole;
+      updateSet.globalRole = user.globalRole;
     }
 
     if (!values.lastSignedIn) {

@@ -25,6 +25,7 @@ import {
 } from "../drizzle/schema";
 import type { User } from "../drizzle/schema";
 import { getDb as _getDbAsync } from "./db";
+import { isSuperAdminEmail } from "../shared/superadmins";
 // Use the shared async DB connection from server/db.ts (avoids duplicate connections)
 async function getDb() {
   const db = await _getDbAsync();
@@ -72,7 +73,20 @@ export function isRoleAtLeast(userRole: GlobalRole, requiredRole: GlobalRole): b
  * This is the primary function called by middleware to determine what data a user can see.
  */
 export async function resolveOrgContext(user: User): Promise<OrgContext> {
-  const globalRole = (user.globalRole as GlobalRole) || "viewer";
+  // LISTA BRANCA: o status superadmin_global é determinado pelo email, não pelo banco.
+  // Mesmo que o banco tenha globalRole='superadmin_global' para um email não autorizado,
+  // ele será rebaixado para 'viewer' aqui. Isso garante que nenhuma manipulação direta
+  // no banco de dados possa escalar privilégios.
+  let globalRole = (user.globalRole as GlobalRole) || "viewer";
+  if (globalRole === "superadmin_global" && !isSuperAdminEmail(user.email)) {
+    console.warn(`[Security] Downgraded unauthorized superadmin_global for email: ${user.email}`);
+    globalRole = "viewer";
+  }
+  // Garantir que emails da lista branca SEMPRE tenham superadmin_global,
+  // mesmo que o banco ainda não tenha sido atualizado.
+  if (isSuperAdminEmail(user.email) && globalRole !== "superadmin_global") {
+    globalRole = "superadmin_global";
+  }
   const isSuperAdmin = globalRole === "superadmin_global";
 
   // Super admins can access everything

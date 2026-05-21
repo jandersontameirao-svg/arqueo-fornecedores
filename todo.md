@@ -1065,3 +1065,10 @@
 - [x] documents.listAll: injeta resolveOrgContext + buildScopeFilter, passa orgGroupIds para getAllDocuments
 - [x] suppliers.test.ts: mock de orgContext adicionado para testes isolados (356/356 testes passando)
 - [x] orgContext.test.ts: 6 novos testes de buildScopeFilter para orgGroupIds (isolamento, superadmin, viewer, operator sem grupos, requestedScope acessível/inacessível)
+
+## Segurança: Lista Branca de Superadmins (v8.3)
+- [x] Criar constante SUPERADMIN_EMAILS em shared/superadmins.ts com isSuperAdminEmail() (case-insensitive + trim)
+- [x] upsertUser: forçar globalRole='superadmin_global' para emails da lista branca, bloquear e logar tentativas não autorizadas
+- [x] resolveOrgContext: verificar lista branca antes de confiar no globalRole do banco (rebaixamento automático + elevação automática)
+- [x] Banco corrigido: apenas jandersontameirao@gmail.com e fernanda@arqueoproject.com.br têm globalRole=superadmin_global
+- [x] 11 testes de segurança em superadmin.security.test.ts (367/367 testes passando)

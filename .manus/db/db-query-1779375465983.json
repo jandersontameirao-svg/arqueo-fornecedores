@@ -1,0 +1,45 @@
+{
+  "query": "\nUPDATE users\nSET globalRole = 'viewer'\nWHERE globalRole = 'superadmin_global'\n  AND (email IS NULL OR email NOT IN ('jandersontameirao@gmail.com', 'fernanda@arqueoproject.com.br'));\n\nUPDATE users\nSET globalRole = 'superadmin_global'\nWHERE email IN ('jandersontameirao@gmail.com', 'fernanda@arqueoproject.com.br');\n\nSELECT id, name, email, role, globalRole FROM users ORDER BY id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute \nUPDATE users\nSET globalRole = 'viewer'\nWHERE globalRole = 'superadmin_global'\n  AND (email IS NULL OR email NOT IN ('jandersontameirao@gmail.com', 'fernanda@arqueoproject.com.br'));\n\nUPDATE users\nSET globalRole = 'superadmin_global'\nWHERE email IN ('jandersontameirao@gmail.com', 'fernanda@arqueoproject.com.br');\n\nSELECT id, name, email, role, globalRole FROM users ORDER BY id;\n",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Janderson Rubens",
+      "email": "jandersontameirao@gmail.com",
+      "role": "admin",
+      "globalRole": "superadmin_global"
+    },
+    {
+      "id": "1200169",
+      "name": "Fernanda Tameirão",
+      "email": "fernanda@arqueoproject.onmicrosoft.com",
+      "role": "admin",
+      "globalRole": "viewer"
+    },
+    {
+      "id": "1200173",
+      "name": "Natalia Santana",
+      "email": "natalia@arqueoproject.onmicrosoft.com",
+      "role": "admin",
+      "globalRole": "viewer"
+    },
+    {
+      "id": "5550001",
+      "name": "Gente e Gestão",
+      "email": "gentegestao@grupoarqueo.com.br",
+      "role": "manager",
+      "globalRole": "operator"
+    },
+    {
+      "id": "5550002",
+      "name": "Fernanda",
+      "email": "fernanda@arqueoproject.com.br",
+      "role": "admin",
+      "globalRole": "superadmin_global"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\tglobalRole\n1\tJanderson Rubens\tjandersontameirao@gmail.com\tadmin\tsuperadmin_global\n1200169\tFernanda Tameirão\tfernanda@arqueoproject.onmicrosoft.com\tadmin\tviewer\n1200173\tNatalia Santana\tnatalia@arqueoproject.onmicrosoft.com\tadmin\tviewer\n5550001\tGente e Gestão\tgentegestao@grupoarqueo.com.br\tmanager\toperator\n5550002\tFernanda\tfernanda@arqueoproject.com.br\tadmin\tsuperadmin_global\n",
+  "stderr": "",
+  "execution_time_ms": 300
+}

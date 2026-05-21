@@ -1,0 +1,8 @@
+{
+  "query": "\n-- Passo 1: Revogar superadmin_global de qualquer usuário que NÃO seja da lista branca\nUPDATE users\nSET global_role = 'viewer'\nWHERE global_role = 'superadmin_global'\n  AND (email IS NULL OR email NOT IN ('jandersontameirao@gmail.com', 'fernanda@arqueoproject.com.br'));\n\n-- Passo 2: Garantir que os 2 emails autorizados tenham superadmin_global (se já existirem no banco)\nUPDATE users\nSET global_role = 'superadmin_global'\nWHERE email IN ('jandersontameirao@gmail.com', 'fernanda@arqueoproject.com.br');\n\n-- Passo 3: Verificar o resultado\nSELECT id, name, email, role, global_role FROM users ORDER BY id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute \n-- Passo 1: Revogar superadmin_global de qualquer usuário que NÃO seja da lista branca\nUPDATE users\nSET global_role = 'viewer'\nWHERE global_role = 'superadmin_global'\n  AND (email IS NULL OR email NOT IN ('jandersontameirao@gmail.com', 'fernanda@arqueoproject.com.br'));\n\n-- Passo 2: Garantir que os 2 emails autorizados tenham superadmin_global (se já existirem no banco)\nUPDATE users\nSET global_role = 'superadmin_global'\nWHERE email IN ('jandersontameirao@gmail.com', 'fernanda@arqueoproject.com.br');\n\n-- Passo 3: Verificar o resultado\nSELECT id, name, email, role, global_role FROM users ORDER BY id;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 3: Unknown column 'global_role' in 'where clause'"
+  ]
+}
