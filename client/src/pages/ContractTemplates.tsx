@@ -478,6 +478,30 @@ export default function ContractTemplatesPage() {
 
   const { data: templates, isLoading } = trpc.templates.listAll.useQuery();
 
+  // Download seguro: gera URL assinada fresca via R2 usando fileKey permanente
+  const getSignedUrlMutation = trpc.storage.getSignedUrl.useMutation({
+    onSuccess: ({ url }) => {
+      window.open(url, "_blank");
+    },
+    onError: () => {
+      toast.error("Não foi possível gerar o link de download. Tente novamente.");
+    },
+  });
+
+  const handleTemplateDownload = (fileKey: string | undefined, fileUrl: string | undefined, fileName: string | undefined) => {
+    if (fileKey) {
+      getSignedUrlMutation.mutate({ fileKey });
+    } else if (fileUrl) {
+      // Fallback para registros legados sem fileKey
+      const a = document.createElement("a");
+      a.href = fileUrl;
+      a.download = fileName || "template.docx";
+      a.click();
+    } else {
+      toast.error("Arquivo não disponível.");
+    }
+  };
+
   const deleteMutation = trpc.templates.delete.useMutation({
     onSuccess: () => {
       toast.success("Template excluído");
@@ -608,16 +632,16 @@ export default function ContractTemplatesPage() {
                     </Badge>
                   )}
                   <div className="flex items-center gap-1.5">
-                    {(t as any).fileUrl && (
-                      <a
-                        href={(t as any).fileUrl}
-                        download={(t as any).fileName || "template.docx"}
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                    {((t as any).fileKey || (t as any).fileUrl) && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleTemplateDownload((t as any).fileKey, (t as any).fileUrl, (t as any).fileName); }}
+                        disabled={getSignedUrlMutation.isPending}
+                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
                       >
                         <Download className="h-3 w-3" />
                         .docx
-                      </a>
+                      </button>
                     )}
                     <span className="text-xs text-muted-foreground">
                       {(t as any).fileUrl ? (t as any).fileName : t.content ? `${String(t.content).length} chars` : "Vazio"}

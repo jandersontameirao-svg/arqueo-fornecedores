@@ -1,6 +1,7 @@
 import { trpc } from "@/lib/trpc";
 import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,6 +60,26 @@ export default function Compliance() {
       utils.compliance.getAlerts.invalidate();
     },
   });
+
+  // Download seguro: gera URL assinada fresca via R2 usando fileKey permanente
+  const getSignedUrlMutation = trpc.storage.getSignedUrl.useMutation({
+    onSuccess: ({ url }) => {
+      window.open(url, "_blank");
+    },
+    onError: () => {
+      toast.error("Não foi possível gerar o link de download. Tente novamente.");
+    },
+  });
+
+  const handleDownload = (fileKey: string | null | undefined, fileUrl: string | null | undefined) => {
+    if (fileKey) {
+      getSignedUrlMutation.mutate({ fileKey });
+    } else if (fileUrl) {
+      window.open(fileUrl, "_blank");
+    } else {
+      toast.error("Arquivo não disponível.");
+    }
+  };
 
   const activeAlerts = alerts?.filter((a) => !a.alert.resolvedAt) || [];
   const criticalCount = activeAlerts.filter((a) => a.alert.severity === "critical").length;
@@ -197,7 +218,8 @@ export default function Compliance() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => window.open(item.document!.fileUrl, "_blank")}
+                            onClick={() => handleDownload(item.document!.fileKey, item.document!.fileUrl)}
+                            disabled={getSignedUrlMutation.isPending}
                           >
                             <FileText className="h-4 w-4" />
                           </Button>

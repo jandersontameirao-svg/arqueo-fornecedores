@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `contract_templates` ADD COLUMN `fileKey` varchar(500) DEFAULT NULL;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute ALTER TABLE `contract_templates` ADD COLUMN `fileKey` varchar(500) DEFAULT NULL;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 538
+}

@@ -101,7 +101,28 @@ export default function SupplierDocuments({ supplierId, canEdit }: SupplierDocum
 
   const utils = trpc.useUtils();
   const { data: documents, isLoading } = trpc.documents.list.useQuery({ supplierId });
-  
+
+  // Download seguro: gera URL assinada fresca via R2 usando fileKey permanente
+  const getSignedUrlMutation = trpc.storage.getSignedUrl.useMutation({
+    onSuccess: ({ url }) => {
+      window.open(url, "_blank");
+    },
+    onError: () => {
+      toast.error("Não foi possível gerar o link de download. Tente novamente.");
+    },
+  });
+
+  const handleDownload = (fileKey: string | null | undefined, fileUrl: string | null | undefined) => {
+    if (fileKey) {
+      getSignedUrlMutation.mutate({ fileKey });
+    } else if (fileUrl) {
+      // Fallback para registros legados sem fileKey
+      window.open(fileUrl, "_blank");
+    } else {
+      toast.error("Arquivo não disponível.");
+    }
+  };
+
   const uploadMutation = trpc.documents.upload.useMutation({
     onSuccess: () => {
       utils.documents.list.invalidate({ supplierId });
@@ -481,7 +502,8 @@ export default function SupplierDocuments({ supplierId, canEdit }: SupplierDocum
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => window.open(item.document.fileUrl, "_blank")}
+                    onClick={() => handleDownload(item.document.fileKey, item.document.fileUrl)}
+                    disabled={getSignedUrlMutation.isPending}
                   >
                     <Download className="h-4 w-4" />
                   </Button>

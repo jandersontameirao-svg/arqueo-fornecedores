@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +61,26 @@ export default function Documents() {
     type: typeFilter !== "all" ? typeFilter : undefined,
     expirationStatus: expirationFilter !== "all" ? expirationFilter : undefined,
   });
+
+  // Download seguro: gera URL assinada fresca via R2 usando fileKey permanente
+  const getSignedUrlMutation = trpc.storage.getSignedUrl.useMutation({
+    onSuccess: ({ url }) => {
+      window.open(url, "_blank");
+    },
+    onError: () => {
+      toast.error("Não foi possível gerar o link de download. Tente novamente.");
+    },
+  });
+
+  const handleDownload = (fileKey: string | null | undefined, fileUrl: string | null | undefined) => {
+    if (fileKey) {
+      getSignedUrlMutation.mutate({ fileKey });
+    } else if (fileUrl) {
+      window.open(fileUrl, "_blank");
+    } else {
+      toast.error("Arquivo não disponível.");
+    }
+  };
 
   // Janela crítica: somente documentos com ≤15 dias para vencer
   const isExpiringSoon = (expiresAt: Date | null) => {
@@ -218,7 +239,8 @@ export default function Documents() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => window.open(item.document.fileUrl, "_blank")}
+                        onClick={() => handleDownload(item.document.fileKey, item.document.fileUrl)}
+                        disabled={getSignedUrlMutation.isPending}
                       >
                         <Download className="h-4 w-4" />
                       </Button>

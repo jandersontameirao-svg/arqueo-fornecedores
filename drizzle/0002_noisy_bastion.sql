@@ -1,0 +1,1 @@
+ALTER TABLE `contract_templates` ADD `fileKey` varchar(500);

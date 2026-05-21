@@ -130,6 +130,27 @@ export default function SupplierInteractions({ supplierId, canEdit }: SupplierIn
     },
   });
 
+  // Download seguro: gera URL assinada fresca via R2 usando attachmentKey permanente
+  const getSignedUrlMutation = trpc.storage.getSignedUrl.useMutation({
+    onSuccess: ({ url }) => {
+      window.open(url, "_blank");
+    },
+    onError: () => {
+      toast.error("Não foi possível gerar o link de download. Tente novamente.");
+    },
+  });
+
+  const handleAttachmentDownload = (attachmentKey: string | null | undefined, attachmentUrl: string | null | undefined) => {
+    if (attachmentKey) {
+      getSignedUrlMutation.mutate({ fileKey: attachmentKey });
+    } else if (attachmentUrl) {
+      // Fallback para registros legados sem attachmentKey
+      window.open(attachmentUrl, "_blank");
+    } else {
+      toast.error("Arquivo não disponível.");
+    }
+  };
+
   const uploadAttachmentMutation = trpc.interactions.uploadAttachment.useMutation({
     onSuccess: (data) => {
       toast.success(
@@ -402,18 +423,18 @@ export default function SupplierInteractions({ supplierId, canEdit }: SupplierIn
                             )}
 
                             {/* Anexo */}
-                            {item.interaction.attachmentUrl && (
+                            {(item.interaction.attachmentUrl || item.interaction.attachmentKey) && (
                               <div className="mt-3 flex items-center gap-2">
-                                <a
-                                  href={item.interaction.attachmentUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-2 text-xs text-[oklch(0.45_0.12_250)] hover:underline bg-[oklch(0.95_0.02_250)] px-2 py-1 rounded-md"
+                                <button
+                                  type="button"
+                                  onClick={() => handleAttachmentDownload(item.interaction.attachmentKey, item.interaction.attachmentUrl)}
+                                  disabled={getSignedUrlMutation.isPending}
+                                  className="flex items-center gap-2 text-xs text-[oklch(0.45_0.12_250)] hover:underline bg-[oklch(0.95_0.02_250)] px-2 py-1 rounded-md disabled:opacity-50"
                                 >
                                   <Paperclip className="h-3 w-3" />
                                   {item.interaction.attachmentName || "Anexo"}
                                   <ExternalLink className="h-3 w-3" />
-                                </a>
+                                </button>
                                 {hasAiContent && (
                                   <Button
                                     variant="ghost"

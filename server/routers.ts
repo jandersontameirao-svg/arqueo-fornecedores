@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
-import { storagePut } from "./storage";
+import { storagePut, storageGet } from "./storage";
 import * as db from "./db";
 import * as notifications from "./notifications";
 import * as reports from "./reports";
@@ -275,6 +275,25 @@ const evaluationSchema = z.object({
 export const appRouter = router({
   system: systemRouter,
   org: orgRouter,
+  // ==================== STORAGE ====================
+  storage: router({
+    /**
+     * Gera uma URL assinada fresca para download de um arquivo no R2.
+     * O frontend DEVE usar este endpoint para todos os downloads.
+     * NUNCA abrir fileUrl salva no banco diretamente — ela pode estar expirada.
+     * @param fileKey  Caminho do arquivo no bucket (ex: "documents/1/1234-abc.pdf")
+     * @param expiresIn Validade em segundos (padrão: 3600 = 1h, máximo: 86400 = 24h)
+     */
+    getSignedUrl: protectedProcedure
+      .input(z.object({
+        fileKey: z.string().min(1, "fileKey é obrigatório"),
+        expiresIn: z.number().int().min(60).max(86400).optional().default(3600),
+      }))
+      .mutation(async ({ input }) => {
+        const { key, url } = await storageGet(input.fileKey, input.expiresIn);
+        return { key, url, expiresIn: input.expiresIn };
+      }),
+  }),
 
   // ==================== AUTH ====================
   auth: router({
@@ -2918,7 +2937,7 @@ Estruture o contrato com:
           extracted = { title: input.fileName.replace(".pdf", ""), summary: "Não foi possível extrair os dados automaticamente." };
         }
 
-        return { extracted, pdfUrl };
+        return { extracted, pdfUrl, pdfKey: fileKey };
       }),
   }),
 
@@ -3096,10 +3115,11 @@ Estruture o contrato com:
           contractType: input.contractType,
           content: `[Arquivo Word] ${input.fileName}\n\nEste template foi importado como arquivo Word (.docx). Faça o download para visualizar o conteúdo completo.`,
           fileUrl,
+          fileKey,
           fileName: input.fileName,
           createdById: ctx.user.id,
         });
-        return { id, fileUrl };
+        return { id, fileKey, fileUrl };
       }),
 
     extractFromPDF: managerProcedure
@@ -3205,7 +3225,7 @@ Estruture o contrato com:
           extracted = { title: input.fileName.replace(".pdf", ""), summary: "Não foi possível extrair os dados automaticamente." };
         }
 
-         return { extracted, pdfUrl };
+         return { extracted, pdfUrl, pdfKey: fileKey };
       }),
 
     analyzeFileForAutofill: managerProcedure
@@ -3331,7 +3351,7 @@ REGRAS CRÍTICAS:
           };
         }
 
-        return { success: true, extracted, fileUrl };
+        return { success: true, extracted, fileUrl, fileKey };
       }),
 
     // ==================== TEMPLATE AUTO-INSERT ====================
@@ -3426,7 +3446,7 @@ REGRAS CRÍTICAS:
             extracted: null,
           };
         }
-        return { success: true, extracted, fileUrl };
+        return { success: true, extracted, fileUrl, fileKey };
       }),
 
     // ==================== TEMPLATE FIELDS ====================

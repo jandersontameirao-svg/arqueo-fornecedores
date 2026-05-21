@@ -423,6 +423,7 @@ export const contractTemplates = mysqlTable("contract_templates", {
   contractType: mysqlEnum("contractType", ["service", "supply", "lease", "consulting", "maintenance", "other"]).default("service"),
   content: longtext("content").notNull(),
   fileUrl: varchar("fileUrl", { length: 1000 }),
+  fileKey: varchar("fileKey", { length: 500 }),
   fileName: varchar("fileName", { length: 500 }),
   isActive: boolean("isActive").default(true).notNull(),
   createdById: int("createdById").references(() => users.id),

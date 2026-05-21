@@ -15,6 +15,13 @@
       "when": 1779373126503,
       "tag": "0001_powerful_freak",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1779391405656,
+      "tag": "0002_noisy_bastion",
+      "breakpoints": true
     }
   ]
 }

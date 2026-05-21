@@ -83,6 +83,7 @@ export function ContractPDFImport({ supplierId, open, onClose, onSuccess, compan
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string>("");
+  const [pdfKey, setPdfKey] = useState<string>("");
   const [extracted, setExtracted] = useState<ExtractedData | null>(null);
   const [showRisks, setShowRisks] = useState(true);
   const [showMilestones, setShowMilestones] = useState(true);
@@ -104,11 +105,22 @@ export function ContractPDFImport({ supplierId, open, onClose, onSuccess, compan
   const [milestones, setMilestones] = useState<ExtractedData["milestones"]>([]);
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
 
+  // Download seguro: gera URL assinada fresca via R2 usando pdfKey permanente
+  const getSignedUrlMutation = trpc.storage.getSignedUrl.useMutation({
+    onSuccess: ({ url }: { url: string }) => {
+      window.open(url, "_blank");
+    },
+    onError: () => {
+      toast.error("Não foi possível abrir o PDF.");
+    },
+  });
+
   const extractMutation = trpc.templates.extractFromPDF.useMutation({
-    onSuccess: (data: { extracted: ExtractedData; pdfUrl: string }) => {
+    onSuccess: (data: { extracted: ExtractedData; pdfUrl: string; pdfKey?: string }) => {
       const ext = data.extracted as ExtractedData;
       setExtracted(ext);
       setPdfUrl(data.pdfUrl);
+      setPdfKey(data.pdfKey || "");
       // Populate review fields
       setTitle(ext.title || "");
       setNumber(ext.number || "");
@@ -548,12 +560,22 @@ export function ContractPDFImport({ supplierId, open, onClose, onSuccess, compan
               </div>
             </div>
 
-            {pdfUrl && (
-              <Button variant="outline" size="sm" className="w-full" asChild>
-                <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
-                  <Eye className="h-4 w-4 mr-1.5" />
-                  Visualizar PDF Original
-                </a>
+            {(pdfKey || pdfUrl) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  if (pdfKey) {
+                    getSignedUrlMutation.mutate({ fileKey: pdfKey });
+                  } else {
+                    window.open(pdfUrl, "_blank");
+                  }
+                }}
+                disabled={getSignedUrlMutation.isPending}
+              >
+                <Eye className="h-4 w-4 mr-1.5" />
+                Visualizar PDF Original
               </Button>
             )}
           </div>

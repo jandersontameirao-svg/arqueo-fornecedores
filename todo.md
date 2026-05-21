@@ -1112,3 +1112,18 @@
 - [x] Teste Clicksign: aceitar 200/401/403 (conectividade válida em sandbox)
 - [x] 0 erros TypeScript. 365/367 testes passando (2 skipped = testes R2 sem credenciais no sandbox)
 - [ ] Configurar credenciais R2 no painel de secrets (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY)
+
+## Correção Arquitetura Storage — Signed URL Permanente (v8.8)
+- [x] Auditoria: 7 pontos de download no frontend + 4 procedures de backend mapeados
+- [x] Implementado endpoint tRPC storage.getSignedUrl(fileKey) — gera URL assinada fresca sob demanda
+- [x] Backend: procedures de extração de PDF retornam pdfKey/fileKey junto com pdfUrl/fileUrl
+- [x] Backend: coluna fileKey adicionada ao schema contract_templates + migração aplicada no banco
+- [x] Frontend: SupplierDocuments.tsx — handleDownload usa fileKey → getSignedUrl, fallback legado para fileUrl
+- [x] Frontend: SupplierInteractions.tsx — handleAttachmentDownload usa attachmentKey → getSignedUrl, fallback legado
+- [x] Frontend: Compliance.tsx — handleDownload usa fileKey → getSignedUrl, fallback legado
+- [x] Frontend: Documents.tsx — handleDownload usa fileKey → getSignedUrl, fallback legado
+- [x] Frontend: ContractPDFImport.tsx — botão PDF usa pdfKey → getSignedUrl, fallback legado
+- [x] Frontend: AmendmentPDFImport.tsx — botão PDF usa pdfKey → getSignedUrl, fallback legado
+- [x] Frontend: ContractTemplates.tsx — handleTemplateDownload usa fileKey → getSignedUrl, fallback legado
+- [x] Compatibilidade com registros antigos: todos os fallbacks para fileUrl legado preservados
+- [x] 0 erros TypeScript. 365/367 testes passando (2 skipped = testes R2 sem credenciais no sandbox)
