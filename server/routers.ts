@@ -289,9 +289,13 @@ export const appRouter = router({
       return db.getAllUsers();
     }),
 
-    getById: adminProcedure
+    getById: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        // Admin pode ver qualquer usuário; manager/reader só veem o próprio perfil
+        if (ctx.user.role !== "admin" && ctx.user.id !== input.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito ao próprio perfil" });
+        }
         return db.getUserById(input.id);
       }),
 
@@ -1454,14 +1458,20 @@ export const appRouter = router({
 
   // ==================== AUDIT ====================
   audit: router({
-    list: adminProcedure
+    // Quando entityType+entityId fornecidos: qualquer usuário autenticado pode ver o histórico da entidade
+    // Quando sem filtro de entidade (log global): somente admin
+    list: protectedProcedure
       .input(z.object({
         entityType: z.string().optional(),
         entityId: z.number().optional(),
         userId: z.number().optional(),
         limit: z.number().optional(),
       }).optional())
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        // Log global (sem filtro de entidade) é restrito a admin
+        if (!input?.entityType && !input?.entityId && ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a administradores" });
+        }
         return db.getAuditLogs(input);
       }),
   }),
@@ -1565,7 +1575,7 @@ export const appRouter = router({
 
   // ==================== REPORTS ====================
   reports: router({
-    suppliers: managerProcedure
+    suppliers: protectedProcedure
       .input(z.object({
         format: z.enum(["csv", "json"]),
         status: z.string().optional(),
@@ -1583,7 +1593,7 @@ export const appRouter = router({
         });
       }),
 
-    documents: managerProcedure
+    documents: protectedProcedure
       .input(z.object({
         format: z.enum(["csv", "json"]),
         type: z.string().optional(),
@@ -1597,7 +1607,7 @@ export const appRouter = router({
         });
       }),
 
-    evaluations: managerProcedure
+    evaluations: protectedProcedure
       .input(z.object({
         format: z.enum(["csv", "json"]),
       }))
@@ -1619,7 +1629,7 @@ export const appRouter = router({
         });
       }),
 
-    expiringDocuments: managerProcedure
+    expiringDocuments: protectedProcedure
       .input(z.object({
         daysAhead: z.number().optional(),
       }))

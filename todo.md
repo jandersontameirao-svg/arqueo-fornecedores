@@ -968,3 +968,15 @@
 - [x] gentegestao@grupoarqueo.com.br vinculado SOMENTE à Grupo Arqueo Brasil
 - [x] Testado: manager vê 1 unidade, admin vê 3 unidades
 - [x] 337 testes passando, 0 erros TypeScript
+
+## v7.38 — Auditoria Completa de Acesso por Role
+- [x] Mapeamento completo: 80+ procedures por tipo (publicProcedure, protectedProcedure, managerProcedure, adminProcedure)
+- [x] users.getById: protectedProcedure com guard (admin vê todos, manager/reader vê só próprio perfil)
+- [x] reports.suppliers/documents/evaluations/expiringDocuments: protectedProcedure (reader pode gerar relatórios)
+- [x] audit.list: protectedProcedure com guard (com entityType: todos; sem filtro: admin only)
+- [x] businessUnits.list: filtra por permissão (admin vê 3, manager vê 1 área)
+- [x] Validado: SupplierHistory (audit com entityType) funciona para manager
+- [x] Validado: reports.suppliers funciona para manager
+- [x] Validado: users.getById próprio perfil OK, outro usuário FORBIDDEN para manager
+- [x] Validado: audit.list global FORBIDDEN para manager, OK para admin
+- [x] 337 testes passando, 0 erros TypeScript
