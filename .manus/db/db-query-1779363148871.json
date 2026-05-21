@@ -1,0 +1,18 @@
+{
+  "query": "SELECT id, name FROM business_units WHERE name LIKE '%Arqueo%Brasil%' OR name LIKE '%Grupo Arqueo%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SELECT id, name FROM business_units WHERE name LIKE '%Arqueo%Brasil%' OR name LIKE '%Grupo Arqueo%';",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Grupo Arqueo Brasil"
+    },
+    {
+      "id": "2",
+      "name": "Grupo Arqueo Africa"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\n1\tGrupo Arqueo Brasil\n2\tGrupo Arqueo Africa\n",
+  "stderr": "",
+  "execution_time_ms": 325
+}

@@ -3601,23 +3601,40 @@ REGRAS CRÍTICAS:
   }),
 
   // ==================== BUSINESS UNITS ====================
-  businessUnits: router({
-    list: protectedProcedure.query(async () => {
+   businessUnits: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      return db.listBusinessUnitsForUser(ctx.user.id, ctx.user.role);
+    }),
+    listAll: adminProcedure.query(async () => {
       return db.listBusinessUnits();
     }),
-
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
         return db.getBusinessUnitById(input.id);
       }),
-
     getCompanies: protectedProcedure
       .input(z.object({ businessUnitId: z.number() }))
       .query(async ({ input }) => {
         return db.listCompaniesByUnit(input.businessUnitId);
       }),
-
+    // --- User Access Management (admin only) ---
+    getUserAccess: adminProcedure
+      .input(z.object({ userId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getUserBusinessUnitLinks(input.userId);
+      }),
+    assignUser: adminProcedure
+      .input(z.object({ userId: z.number(), businessUnitId: z.number() }))
+      .mutation(async ({ input }) => {
+        return db.assignUserToBusinessUnit(input.userId, input.businessUnitId);
+      }),
+    removeUser: adminProcedure
+      .input(z.object({ userId: z.number(), businessUnitId: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.removeUserFromBusinessUnit(input.userId, input.businessUnitId);
+        return { success: true };
+      }),
     create: adminProcedure
       .input(z.object({
         name: z.string().min(1),

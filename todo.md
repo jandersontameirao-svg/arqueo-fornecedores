@@ -956,3 +956,15 @@
 - [x] App.tsx: reestruturado — providers de dados (BusinessUnit, Company, SelectedCompany) movidos para ProtectedRoutes, /login e /onboarding ficam fora
 - [x] Página /login renderiza sem nenhuma query autenticada, sem piscar
 - [x] 337 testes passando, 0 erros TypeScript
+
+## v7.37 — Controle de Acesso por Área de Negócio (Business Unit)
+
+- [x] Schema: tabela `user_business_units` (userId, businessUnitId, unique constraint)
+- [x] db.ts: helpers getUserBusinessUnitIds, listBusinessUnitsForUser, assignUser, removeUser
+- [x] Backend: `businessUnits.list` filtra por permissão (admin vê tudo, manager vê só designadas)
+- [x] Backend: procedures `getUserAccess`, `assignUser`, `removeUser` (admin only)
+- [x] Frontend: botão Building2 na tabela de usuários para gerenciar acesso
+- [x] Frontend: dialog com checkboxes para vincular/desvincular áreas
+- [x] gentegestao@grupoarqueo.com.br vinculado SOMENTE à Grupo Arqueo Brasil
+- [x] Testado: manager vê 1 unidade, admin vê 3 unidades
+- [x] 337 testes passando, 0 erros TypeScript

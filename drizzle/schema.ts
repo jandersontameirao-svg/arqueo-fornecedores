@@ -514,6 +514,18 @@ export const businessUnits = mysqlTable("business_units", {
 export type BusinessUnit = typeof businessUnits.$inferSelect;
 export type InsertBusinessUnit = typeof businessUnits.$inferInsert;
 
+// ==================== USER ↔ BUSINESS UNIT ACCESS (CONTROLE DE ACESSO POR ÁREA) ====================
+// Managers só veem as áreas vinculadas aqui. Admins ignoram esta tabela (veem tudo).
+export const userBusinessUnits = mysqlTable("user_business_units", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  businessUnitId: int("businessUnitId").notNull().references(() => businessUnits.id, { onDelete: "cascade" }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type UserBusinessUnit = typeof userBusinessUnits.$inferSelect;
+export type InsertUserBusinessUnit = typeof userBusinessUnits.$inferInsert;
+
 // ==================== COMPANIES (EMPRESAS VINCULADAS) ====================
 export const companies = mysqlTable("companies", {
   id: int("id").autoincrement().primaryKey(),

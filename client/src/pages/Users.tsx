@@ -54,7 +54,9 @@ import {
   UserPlus,
   CheckCircle,
   XCircle,
+  Building2,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const roleLabels: Record<string, string> = {
   admin: "Administrador",
@@ -98,10 +100,24 @@ export default function Users() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [deletingUser, setDeletingUser] = useState<any>(null);
+  const [accessUser, setAccessUser] = useState<any>(null);
   const [form, setForm] = useState<UserFormData>(emptyForm);
   const [formErrors, setFormErrors] = useState<Partial<UserFormData & { general: string }>>({});
 
   const { data: users, isLoading } = trpc.users.list.useQuery();
+  const { data: allUnits } = trpc.businessUnits.listAll.useQuery(undefined, { enabled: currentUser?.role === "admin" });
+  const { data: userAccess, refetch: refetchAccess } = trpc.businessUnits.getUserAccess.useQuery(
+    { userId: accessUser?.id },
+    { enabled: !!accessUser }
+  );
+  const assignMutation = trpc.businessUnits.assignUser.useMutation({
+    onSuccess: () => { refetchAccess(); toast.success("Área vinculada!"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const removeMutation = trpc.businessUnits.removeUser.useMutation({
+    onSuccess: () => { refetchAccess(); toast.success("Área desvinculada!"); },
+    onError: (e) => toast.error(e.message),
+  });
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const createMutation = trpc.users.create.useMutation({
@@ -340,6 +356,17 @@ export default function Users() {
                           >
                             <Edit className="h-4 w-4 text-muted-foreground" />
                           </Button>
+                          {user.role !== "admin" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setAccessUser(user)}
+                              className="h-8 w-8 hover:bg-blue-50 hover:text-blue-600"
+                              title="Gerenciar acesso a áreas de negócio"
+                            >
+                              <Building2 className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -406,6 +433,57 @@ export default function Users() {
             </Button>
             <Button onClick={handleUpdate} disabled={updateMutation.isPending}>
               {updateMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal: Gerenciar Acesso a Áreas ────────────────────────────────── */}
+      <Dialog open={!!accessUser} onOpenChange={(open) => { if (!open) setAccessUser(null); }}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-blue-600" />
+              Acesso a Áreas de Negócio
+            </DialogTitle>
+            <DialogDescription>
+              Selecione quais áreas <strong>{accessUser?.name || accessUser?.email}</strong> pode acessar.
+              {accessUser?.role === "admin" && " Administradores têm acesso total automaticamente."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2 max-h-[300px] overflow-y-auto">
+            {allUnits && allUnits.length > 0 ? allUnits.map((unit: any) => {
+              const isAssigned = userAccess?.some((ua: any) => ua.businessUnitId === unit.id);
+              return (
+                <label
+                  key={unit.id}
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    isAssigned ? "bg-blue-50 border-blue-200" : "hover:bg-muted/50"
+                  }`}
+                >
+                  <Checkbox
+                    checked={isAssigned}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        assignMutation.mutate({ userId: accessUser.id, businessUnitId: unit.id });
+                      } else {
+                        removeMutation.mutate({ userId: accessUser.id, businessUnitId: unit.id });
+                      }
+                    }}
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{unit.name}</p>
+                    {unit.code && <p className="text-xs text-muted-foreground">{unit.code}</p>}
+                  </div>
+                </label>
+              );
+            }) : (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhuma área de negócio cadastrada.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAccessUser(null)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>

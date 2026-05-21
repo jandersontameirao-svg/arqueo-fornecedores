@@ -1,4 +1,4 @@
-import { eq, desc, asc, and, or, like, gte, lte, sql, isNull } from "drizzle-orm";
+import { eq, desc, asc, and, or, like, gte, lte, sql, isNull, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users,
@@ -30,6 +30,7 @@ import {
   extractionRuns, InsertExtractionRun,
   extractedFields, InsertExtractedField,
   supplierDocumentLinks, InsertSupplierDocumentLink,
+  userBusinessUnits, InsertUserBusinessUnit,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1262,6 +1263,59 @@ export async function deleteBusinessUnit(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(businessUnits).where(eq(businessUnits.id, id));
+}
+
+// ==================== USER ↔ BUSINESS UNIT ACCESS ====================
+
+export async function getUserBusinessUnitIds(userId: number): Promise<number[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({ businessUnitId: userBusinessUnits.businessUnitId })
+    .from(userBusinessUnits)
+    .where(eq(userBusinessUnits.userId, userId));
+  return rows.map(r => r.businessUnitId);
+}
+
+export async function getUserBusinessUnitLinks(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select()
+    .from(userBusinessUnits)
+    .where(eq(userBusinessUnits.userId, userId));
+}
+
+export async function assignUserToBusinessUnit(userId: number, businessUnitId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Idempotent: check if already exists
+  const existing = await db.select()
+    .from(userBusinessUnits)
+    .where(and(eq(userBusinessUnits.userId, userId), eq(userBusinessUnits.businessUnitId, businessUnitId)));
+  if (existing.length > 0) return existing[0];
+  const [result] = await db.insert(userBusinessUnits).values({ userId, businessUnitId });
+  return { id: result.insertId, userId, businessUnitId };
+}
+
+export async function removeUserFromBusinessUnit(userId: number, businessUnitId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(userBusinessUnits)
+    .where(and(eq(userBusinessUnits.userId, userId), eq(userBusinessUnits.businessUnitId, businessUnitId)));
+}
+
+export async function listBusinessUnitsForUser(userId: number, role: string) {
+  const db = await getDb();
+  if (!db) return [];
+  // Admin sees everything
+  if (role === "admin") {
+    return db.select().from(businessUnits).orderBy(businessUnits.name);
+  }
+  // Manager/reader sees only assigned units
+  const allowedIds = await getUserBusinessUnitIds(userId);
+  if (allowedIds.length === 0) return [];
+  return db.select().from(businessUnits)
+    .where(inArray(businessUnits.id, allowedIds))
+    .orderBy(businessUnits.name);
 }
 
 // ==================== COMPANIES ====================
