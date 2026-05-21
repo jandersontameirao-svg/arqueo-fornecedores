@@ -2,8 +2,38 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
+// Mock orgContext to avoid real DB calls from resolveOrgContext
+vi.mock("./orgContext", () => ({
+  resolveOrgContext: vi.fn().mockResolvedValue({
+    globalRole: "superadmin_global",
+    defaultOrgGroupId: null,
+    accessibleGroupIds: [1, 2, 3],
+    accessibleCompanyIds: [1, 2, 3, 4],
+    accessibleBusinessUnitIds: [1, 2, 3],
+    effectiveLevel: "global",
+    isSuperAdmin: true,
+  }),
+  buildScopeFilter: vi.fn().mockReturnValue({
+    groupIds: [1, 2, 3],
+    companyIds: [1, 2, 3, 4],
+    buIds: [1, 2, 3],
+  }),
+  canAccessGroup: vi.fn().mockReturnValue(true),
+  canAccessCompany: vi.fn().mockReturnValue(true),
+  canAccessBusinessUnit: vi.fn().mockReturnValue(true),
+  canAdmin: vi.fn().mockReturnValue(true),
+  canManage: vi.fn().mockReturnValue(true),
+  isRoleAtLeast: vi.fn().mockReturnValue(true),
+  listOrganizationalGroups: vi.fn().mockResolvedValue([]),
+  getOrganizationalGroupById: vi.fn().mockResolvedValue(null),
+  getUserGroupRoles: vi.fn().mockResolvedValue([]),
+  getUserCompanyRoles: vi.fn().mockResolvedValue([]),
+  getUserBusinessUnitRoles: vi.fn().mockResolvedValue([]),
+}));
+
 // Mock the database module with all required functions
 vi.mock("./db", () => ({
+  getDb: vi.fn().mockResolvedValue(null),
   // Supplier functions
   getSuppliers: vi.fn().mockResolvedValue([
     {

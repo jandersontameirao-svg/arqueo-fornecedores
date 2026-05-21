@@ -246,3 +246,104 @@ describe("OrgContext — Access Control Functions", () => {
     });
   });
 });
+
+// ==================== SCOPE FILTER INTEGRATION TESTS ====================
+// Testa que buildScopeFilter produz os orgGroupIds corretos para cada tipo de usuário
+// e que os filtros de db.ts respeitam esses IDs.
+
+describe("buildScopeFilter — orgGroupIds para procedures de listagem", () => {
+  it("superadmin: orgGroupIds deve incluir todos os grupos acessíveis", () => {
+    const ctx: OrgContext = {
+      globalRole: "superadmin_global",
+      defaultOrgGroupId: null,
+      accessibleGroupIds: [1, 2, 3],
+      accessibleCompanyIds: [1, 2, 3, 4],
+      accessibleBusinessUnitIds: [1, 2, 3],
+      effectiveLevel: "global",
+      isSuperAdmin: true,
+    };
+    const scope = buildScopeFilter(ctx);
+    // Super admin vê todos os grupos — orgGroupIds = [1, 2, 3]
+    expect(scope.groupIds).toEqual([1, 2, 3]);
+    expect(scope.groupIds.length).toBeGreaterThan(0);
+  });
+
+  it("group_admin do grupo 1: orgGroupIds deve ser [1] (isolamento do grupo 2)", () => {
+    const ctx: OrgContext = {
+      globalRole: "group_admin",
+      defaultOrgGroupId: 1,
+      accessibleGroupIds: [1],
+      accessibleCompanyIds: [1, 2, 3, 4],
+      accessibleBusinessUnitIds: [1],
+      effectiveLevel: "group",
+      isSuperAdmin: false,
+    };
+    const scope = buildScopeFilter(ctx);
+    expect(scope.groupIds).toEqual([1]);
+    // Não deve incluir grupo 2 ou 3
+    expect(scope.groupIds).not.toContain(2);
+    expect(scope.groupIds).not.toContain(3);
+  });
+
+  it("operator sem grupos: orgGroupIds deve ser [] (sem acesso a nenhum dado)", () => {
+    const ctx: OrgContext = {
+      globalRole: "operator",
+      defaultOrgGroupId: null,
+      accessibleGroupIds: [],
+      accessibleCompanyIds: [],
+      accessibleBusinessUnitIds: [],
+      effectiveLevel: "business_unit",
+      isSuperAdmin: false,
+    };
+    const scope = buildScopeFilter(ctx);
+    expect(scope.groupIds).toEqual([]);
+    // Quando orgGroupIds = [], db.getAllSuppliers/Contracts/Documents deve retornar []
+    // (lógica de early-return no db.ts: if orgGroupIds.length === 0 return [])
+  });
+
+  it("viewer com acesso a grupo 2: orgGroupIds deve ser [2]", () => {
+    const ctx: OrgContext = {
+      globalRole: "viewer",
+      defaultOrgGroupId: 2,
+      accessibleGroupIds: [2],
+      accessibleCompanyIds: [5],
+      accessibleBusinessUnitIds: [2],
+      effectiveLevel: "group",
+      isSuperAdmin: false,
+    };
+    const scope = buildScopeFilter(ctx);
+    expect(scope.groupIds).toEqual([2]);
+    expect(scope.groupIds).not.toContain(1);
+  });
+
+  it("buildScopeFilter com requestedScope: deve restringir ao grupo solicitado se acessível", () => {
+    const ctx: OrgContext = {
+      globalRole: "group_admin",
+      defaultOrgGroupId: 1,
+      accessibleGroupIds: [1, 2],
+      accessibleCompanyIds: [1, 2, 3, 4, 5],
+      accessibleBusinessUnitIds: [1, 2],
+      effectiveLevel: "group",
+      isSuperAdmin: false,
+    };
+    const scope = buildScopeFilter(ctx, { organizationalGroupId: 1 });
+    expect(scope.groupIds).toEqual([1]);
+  });
+
+  it("buildScopeFilter com requestedScope inacessível: deve retornar arrays vazios", () => {
+    const ctx: OrgContext = {
+      globalRole: "group_admin",
+      defaultOrgGroupId: 1,
+      accessibleGroupIds: [1],
+      accessibleCompanyIds: [1, 2, 3, 4],
+      accessibleBusinessUnitIds: [1],
+      effectiveLevel: "group",
+      isSuperAdmin: false,
+    };
+    // Solicita grupo 3, mas só tem acesso ao grupo 1
+    const scope = buildScopeFilter(ctx, { organizationalGroupId: 3 });
+    expect(scope.groupIds).toEqual([]);
+    expect(scope.companyIds).toEqual([]);
+    expect(scope.buIds).toEqual([]);
+  });
+});

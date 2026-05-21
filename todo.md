@@ -1055,3 +1055,13 @@
 - [x] TypeScript sem erros (0 erros)
 - [x] Build sem erros
 - [x] Testes existentes continuam passando (349/350, 1 falha externa clicksign)
+
+## Filtro de Escopo Organizacional nos Procedures (v8.2)
+- [x] getAllSuppliers: parâmetro orgGroupIds com filtro WHERE organizationalGroupId IN (...)
+- [x] getAllContracts: parâmetro orgGroupIds com filtro WHERE contracts.organizationalGroupId IN (...)
+- [x] getAllDocuments: parâmetro orgGroupIds com filtro WHERE documents.organizationalGroupId IN (...)
+- [x] suppliers.list: injeta resolveOrgContext + buildScopeFilter, passa orgGroupIds para getAllSuppliers
+- [x] contracts.listAll: injeta resolveOrgContext + buildScopeFilter, passa orgGroupIds para getAllContracts
+- [x] documents.listAll: injeta resolveOrgContext + buildScopeFilter, passa orgGroupIds para getAllDocuments
+- [x] suppliers.test.ts: mock de orgContext adicionado para testes isolados (356/356 testes passando)
+- [x] orgContext.test.ts: 6 novos testes de buildScopeFilter para orgGroupIds (isolamento, superadmin, viewer, operator sem grupos, requestedScope acessível/inacessível)

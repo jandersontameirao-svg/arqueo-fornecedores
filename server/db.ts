@@ -242,6 +242,8 @@ export async function getAllSuppliers(filters?: {
   search?: string;
   companyId?: string;
   groupId?: number;
+  /** IDs dos grupos organizacionais acessíveis (multi-grupo). Se fornecido e vazio, retorna [] */
+  orgGroupIds?: number[];
 }) {
   const db = await getDb();
   if (!db) return [];
@@ -361,6 +363,11 @@ export async function getAllSuppliers(filters?: {
   const conditions = [...baseConditions];
   if (filters?.groupId) {
     conditions.push(eq(suppliers.groupId, filters.groupId));
+  }
+  // ISOLAMENTO MULTI-GRUPO: se orgGroupIds fornecido, filtrar por organizationalGroupId
+  if (filters?.orgGroupIds !== undefined) {
+    if (filters.orgGroupIds.length === 0) return []; // sem acesso a nenhum grupo
+    conditions.push(inArray(suppliers.organizationalGroupId, filters.orgGroupIds));
   }
   if (searchCond) conditions.push(searchCond);
 
@@ -548,6 +555,8 @@ export async function getAllDocuments(filters?: {
   search?: string;
   type?: string;
   expirationStatus?: string;
+  /** IDs dos grupos organizacionais acessíveis (multi-grupo). Se fornecido e vazio, retorna [] */
+  orgGroupIds?: number[];
 }) {
   const db = await getDb();
   if (!db) return [];
@@ -582,6 +591,12 @@ export async function getAllDocuments(filters?: {
         )
       );
     }
+  }
+
+  // ISOLAMENTO MULTI-GRUPO: se orgGroupIds fornecido, filtrar por organizationalGroupId
+  if (filters?.orgGroupIds !== undefined) {
+    if (filters.orgGroupIds.length === 0) return []; // sem acesso a nenhum grupo
+    conditions.push(inArray(documents.organizationalGroupId, filters.orgGroupIds));
   }
 
   let query = db.select({
@@ -2443,6 +2458,8 @@ export async function getAllContracts(params: {
   groupId?: number;
   limit?: number;
   offset?: number;
+  /** IDs dos grupos organizacionais acessíveis (multi-grupo). Se fornecido e vazio, retorna [] */
+  orgGroupIds?: number[];
 }) {
   const dbConn = await getDb();
   if (!dbConn) return [];
@@ -2475,6 +2492,11 @@ export async function getAllContracts(params: {
   if (params.status) conditions.push(eq(contracts.status, params.status as any));
   if (params.contractType) conditions.push(eq(contracts.contractType, params.contractType as any));
   if (params.groupId) conditions.push(eq(suppliers.groupId, params.groupId));
+  // ISOLAMENTO MULTI-GRUPO: se orgGroupIds fornecido, filtrar por contracts.organizationalGroupId
+  if (params.orgGroupIds !== undefined) {
+    if (params.orgGroupIds.length === 0) return [];
+    conditions.push(inArray(contracts.organizationalGroupId, params.orgGroupIds));
+  }
   if (params.search) {
     const like = `%${params.search}%`;
     conditions.push(

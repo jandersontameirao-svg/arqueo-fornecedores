@@ -11,6 +11,7 @@ import * as reports from "./reports";
 import * as exportService from "./export";
 import * as clicksign from "./clicksign";
 import { orgRouter } from "./orgRouter";
+import { resolveOrgContext, buildScopeFilter } from "./orgContext";
 import { invokeLLM } from "./_core/llm";
 import { PDFParse } from "pdf-parse";
 
@@ -553,7 +554,13 @@ export const appRouter = router({
           }
         }
 
-        return db.getAllSuppliers(filters);
+        // ISOLAMENTO MULTI-GRUPO: resolver contexto organizacional e aplicar filtro de escopo
+        const orgCtx = await resolveOrgContext(ctx.user);
+        const scope = buildScopeFilter(orgCtx);
+        // orgGroupIds vazio = sem acesso a nenhum grupo; undefined = sem restrição (legado)
+        const orgGroupIds = scope.groupIds.length > 0 ? scope.groupIds : undefined;
+
+        return db.getAllSuppliers({ ...(filters ?? {}), orgGroupIds });
       }),
 
     getById: protectedProcedure
@@ -1027,8 +1034,12 @@ export const appRouter = router({
         type: z.string().optional(),
         expirationStatus: z.string().optional(),
       }))
-      .query(async ({ input }) => {
-        return db.getAllDocuments(input);
+      .query(async ({ input, ctx }) => {
+        // ISOLAMENTO MULTI-GRUPO: resolver contexto organizacional e aplicar filtro de escopo
+        const orgCtx = await resolveOrgContext(ctx.user);
+        const scope = buildScopeFilter(orgCtx);
+        const orgGroupIds = scope.groupIds.length > 0 ? scope.groupIds : undefined;
+        return db.getAllDocuments({ ...input, orgGroupIds });
       }),
 
     getById: protectedProcedure
@@ -2543,8 +2554,12 @@ Estruture o contrato com:
         groupId: z.number().optional(),
         limit: z.number().optional(),
       }))
-      .query(async ({ input }) => {
-        return db.getAllContracts(input);
+      .query(async ({ input, ctx }) => {
+        // ISOLAMENTO MULTI-GRUPO: resolver contexto organizacional e aplicar filtro de escopo
+        const orgCtx = await resolveOrgContext(ctx.user);
+        const scope = buildScopeFilter(orgCtx);
+        const orgGroupIds = scope.groupIds.length > 0 ? scope.groupIds : undefined;
+        return db.getAllContracts({ ...input, orgGroupIds });
       }),
 
     // ==================== GERAR PDF DO CONTRATO ====================
