@@ -453,29 +453,50 @@ export default function TopbarLayout({ children }: { children: React.ReactNode }
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <div
+        className="flex items-center justify-center min-h-screen p-4"
+        style={{
+          background:
+            "radial-gradient(ellipse at 15% 25%, #1A3A5C 0%, transparent 50%), radial-gradient(ellipse at 85% 15%, #E85D04 0%, transparent 40%), radial-gradient(ellipse at 65% 85%, #8B1538 0%, transparent 55%), linear-gradient(135deg, #0f1c2e 0%, #1e0a14 50%, #0f1c2e 100%)",
+        }}
+      >
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
           <div className="flex flex-col items-center gap-4">
-            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <Shield className="h-8 w-8 text-primary" />
+            <div className="relative">
+              <div
+                className="absolute inset-0 rounded-full blur-2xl opacity-40"
+                style={{ background: "radial-gradient(circle, #E85D04 0%, #F5A623 60%, transparent 100%)", transform: "scale(1.8)" }}
+              />
+              <img
+                src="https://d2xsxph8kpxj0f.cloudfront.net/310419663028979380/KbiCF9FN7rZHpjZqbGxEKZ/logo-grupo-arqueo-a_5ae27f44.png"
+                alt="Grupo Arqueo"
+                className="relative w-24 h-24 object-contain drop-shadow-2xl"
+              />
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-center">
-              Gestão de Fornecedores
-            </h1>
-            <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Acesse a plataforma para gerenciar fornecedores, documentos e
-              avaliações do Grupo Arqueo.
+            <div className="text-center">
+              <h1 className="text-3xl font-bold text-white tracking-tight">Grupo Arqueo</h1>
+              <p className="text-sm mt-1 font-medium" style={{ color: "#F5A623" }}>Gestão de Fornecedores</p>
+            </div>
+            <p className="text-sm text-white/60 text-center max-w-xs leading-relaxed">
+              Acesse a plataforma para gerenciar fornecedores, documentos e avaliações do Grupo Arqueo.
             </p>
           </div>
+
           <Button
-            onClick={() => {
-              window.location.href = "/login";
-            }}
+            onClick={() => { window.location.href = "/login"; }}
             size="lg"
-            className="w-full shadow-lg hover:shadow-xl transition-all"
+            className="w-full font-semibold text-white shadow-lg hover:opacity-90 transition-all border-0"
+            style={{ background: "linear-gradient(135deg, #8B1538 0%, #E85D04 100%)" }}
           >
             Entrar na Plataforma
           </Button>
+
+          <div className="flex gap-2">
+            <div className="h-1 w-8 rounded-full" style={{ background: "#8B1538" }} />
+            <div className="h-1 w-8 rounded-full" style={{ background: "#E85D04" }} />
+            <div className="h-1 w-8 rounded-full" style={{ background: "#F5A623" }} />
+            <div className="h-1 w-8 rounded-full" style={{ background: "#1A56DB" }} />
+          </div>
         </div>
       </div>
     );

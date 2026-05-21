@@ -991,3 +991,11 @@
 - [x] Frontend: coluna "Áreas" na tabela com badges coloridos (verde=Todas, azul=área específica)
 - [x] Frontend: dialog de redefinição de senha com validação mínima 6 caracteres
 - [x] 337 testes passando, 0 erros TypeScript
+
+## Tematização Visual das Telas de Entrada (v7.40)
+- [x] Inserir logo Grupo Arqueo na tela de login (InternalLogin.tsx) — substituiu ícone de cadeado
+- [x] Inserir logo Grupo Arqueo na tela de landing não autenticada (DashboardLayout.tsx + TopbarLayout.tsx)
+- [x] Tematizar telas de entrada com cores Arqueo (bordô #8B1538, laranja #E85D04, amarelo #F5A623, azul #1A56DB)
+- [x] Fundo escuro com gradientes radiais multicoloridos (azul, laranja, bordô) em todas as telas de entrada
+- [x] Barra decorativa de 4 cores Arqueo abaixo do CTA nas telas de landing
+- [x] Efeito de glow laranja/amarelo ao redor da logo nas telas de entrada
