@@ -20,14 +20,10 @@ describe("1. Variáveis de Ambiente", () => {
     expect(ENV.cookieSecret).toBeTruthy();
   });
 
-  it("BUILT_IN_FORGE_API_URL configurado e válido", () => {
-    expect(ENV.forgeApiUrl).toBeTruthy();
-    expect(ENV.forgeApiUrl).toMatch(/^https?:\/\//);
-  });
-
-  it("BUILT_IN_FORGE_API_KEY configurado", () => {
-    expect(ENV.forgeApiKey).toBeTruthy();
-    expect(ENV.forgeApiKey.length).toBeGreaterThan(10);
+  it("OPENAI_API_KEY configurado", () => {
+    expect(ENV.openaiApiKey).toBeTruthy();
+    expect(ENV.openaiApiKey.length).toBeGreaterThan(10);
+    console.log(`[ENV] OPENAI_API_KEY configurado: ${ENV.openaiApiKey.length > 0}`);
   });
 
   it("OAUTH_SERVER_URL configurado e válido", () => {
@@ -55,7 +51,7 @@ describe("1. Variáveis de Ambiente", () => {
 });
 
 // ==================== 2. LLM / IA ====================
-describe("2. LLM / Inteligência Artificial (Manus Forge)", () => {
+describe("2. LLM / Inteligência Artificial (OpenAI)", () => {
   it("invokeLLM: resposta simples de texto", async () => {
     const result = await invokeLLM({
       messages: [

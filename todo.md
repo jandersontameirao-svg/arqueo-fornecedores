@@ -1088,3 +1088,15 @@
 - [x] BUG: AmendmentPDFImport.tsx com o mesmo erro de utils.client.milestones.create.mutate()
 - [x] FIX: Criado hook trpc.milestones.create.useMutation() separado em ambos os componentes; chamada via mutateAsync() dentro do onSuccess
 - [x] 0 erros TypeScript, 367/367 testes passando
+
+## Limpeza de Dependências Manus Forge (v8.6)
+- [x] Removido server/_core/voiceTranscription.ts (não utilizado)
+- [x] Removido server/_core/imageGeneration.ts (não utilizado)
+- [x] Removido server/_core/dataApi.ts (não utilizado)
+- [x] Removido server/_core/map.ts (não utilizado)
+- [x] Removido client/src/components/Map.tsx (não utilizado)
+- [x] notification.ts substituído por stub silencioso (console.log) — sem dependência de BUILT_IN_FORGE_API_URL
+- [x] api-full-test.test.ts: testes de BUILT_IN_FORGE_API_URL/KEY substituídos por teste de OPENAI_API_KEY
+- [x] LLM (llm.ts): já usava OpenAI direto quando OPENAI_API_KEY presente — sem alteração necessária
+- [x] Storage (storage.ts): mantido com BUILT_IN_FORGE_API_URL — necessário para upload de documentos/contratos
+- [x] 0 erros TypeScript, 366/366 testes passando (1 removido: teste de BUILT_IN_FORGE_API_URL)
