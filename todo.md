@@ -1082,3 +1082,9 @@
 - [x] ERRO 6 (Médio/Segurança): fernanda@arqueoproject.onmicrosoft.com com role='admin' — verificado no DB: globalRole='viewer', sem risco real
 - [x] ERRO 7 (Baixo): upsertUser não atualizava globalRole no UPDATE — verificado: updateSet.globalRole já estava sendo atribuído desde v8.3
 - [x] 0 erros TypeScript, 367/367 testes passando
+
+## Bug Fix — contracts.create / amendments.create (v8.5)
+- [x] BUG: ContractPDFImport.tsx chamava utils.client.milestones.create.mutate() — caminho inexistente no appRouter (deveria ser milestones, não client.milestones)
+- [x] BUG: AmendmentPDFImport.tsx com o mesmo erro de utils.client.milestones.create.mutate()
+- [x] FIX: Criado hook trpc.milestones.create.useMutation() separado em ambos os componentes; chamada via mutateAsync() dentro do onSuccess
+- [x] 0 erros TypeScript, 367/367 testes passando

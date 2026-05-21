@@ -1,0 +1,346 @@
+{
+  "query": "DESCRIBE contracts;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute DESCRIBE contracts;",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "supplierId",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "number",
+      "Type": "varchar(50)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "title",
+      "Type": "varchar(255)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "object",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "contractType",
+      "Type": "enum('service','supply','lease','consulting','maintenance','other')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "service",
+      "Extra": ""
+    },
+    {
+      "Field": "status",
+      "Type": "enum('draft','review','active','suspended','expired','terminated')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "draft",
+      "Extra": ""
+    },
+    {
+      "Field": "creationMode",
+      "Type": "enum('manual','template','duplicate','ai')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "manual",
+      "Extra": ""
+    },
+    {
+      "Field": "totalValue",
+      "Type": "decimal(15,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "currency",
+      "Type": "varchar(3)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "BRL",
+      "Extra": ""
+    },
+    {
+      "Field": "paymentTerms",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "startDate",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "endDate",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "signedAt",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "contractorName",
+      "Type": "varchar(1000)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "contractorCnpj",
+      "Type": "varchar(500)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "contractorRepresentative",
+      "Type": "varchar(500)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "content",
+      "Type": "longtext",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "notes",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "fileKey",
+      "Type": "varchar(500)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "fileUrl",
+      "Type": "varchar(1000)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "fileName",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "createdById",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "createdAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "updatedAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "Field": "clicksignEnvelopeId",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "clicksignDocumentId",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "signatureStatus",
+      "Type": "enum('not_sent','sending','sent','partially_signed','signed','refused','cancelled','expired','send_failed')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "not_sent",
+      "Extra": ""
+    },
+    {
+      "Field": "lastSendAttemptAt",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "lastSendError",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "sendAttemptCount",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "templateId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "extractionRunId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "aiConfidenceScore",
+      "Type": "decimal(5,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "filledFieldsOrigin",
+      "Type": "json",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "templateName",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "companyScope",
+      "Type": "enum('single','all_group')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "single",
+      "Extra": ""
+    },
+    {
+      "Field": "contractCompanySlug",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "organizationalGroupId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "orgCompanyId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "orgBusinessUnitId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "organizationalScopeStatus",
+      "Type": "enum('classified','pending_classification')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "pending_classification",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\nsupplierId\tint\tNO\tMUL\tNULL\t\nnumber\tvarchar(50)\tYES\t\tNULL\t\ntitle\tvarchar(255)\tNO\t\tNULL\t\nobject\ttext\tYES\t\tNULL\t\ncontractType\tenum('service','supply','lease','consulting','maintenance','other')\tYES\t\tservice\t\nstatus\tenum('draft','review','active','suspended','expired','terminated')\tNO\t\tdraft\t\ncreationMode\tenum('manual','template','duplicate','ai')\tYES\t\tmanual\t\ntotalValue\tdecimal(15,2)\tYES\t\tNULL\t\ncurrency\tvarchar(3)\tYES\t\tBRL\t\npaymentTerms\ttext\tYES\t\tNULL\t\nstartDate\ttimestamp\tYES\t\tNULL\t\nendDate\ttimestamp\tYES\t\tNULL\t\nsignedAt\ttimestamp\tYES\t\tNULL\t\ncontractorName\tvarchar(1000)\tYES\t\tNULL\t\ncontractorCnpj\tvarchar(500)\tYES\t\tNULL\t\ncontractorRepresentative\tvarchar(500)\tYES\t\tNULL\t\ncontent\tlongtext\tYES\t\tNULL\t\nnotes\ttext\tYES\t\tNULL\t\nfileKey\tvarchar(500)\tYES\t\tNULL\t\nfileUrl\tvarchar(1000)\tYES\t\tNULL\t\nfileName\tvarchar(255)\tYES\t\tNULL\t\ncreatedById\tint\tYES\tMUL\tNULL\t\ncreatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\nupdatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\nclicksignEnvelopeId\tvarchar(255)\tYES\t\tNULL\t\nclicksignDocumentId\tvarchar(255)\tYES\t\tNULL\t\nsignatureStatus\tenum('not_sent','sending','sent','partially_signed','signed','refused','cancelled','expired','send_failed')\tYES\t\tnot_sent\t\nlastSendAttemptAt\ttimestamp\tYES\t\tNULL\t\nlastSendError\ttext\tYES\t\tNULL\t\nsendAttemptCount\tint\tYES\t\t0\t\ntemplateId\tint\tYES\tMUL\tNULL\t\nextractionRunId\tint\tYES\t\tNULL\t\naiConfidenceScore\tdecimal(5,2)\tYES\t\tNULL\t\nfilledFieldsOrigin\tjson\tYES\t\tNULL\t\ntemplateName\tvarchar(255)\tYES\t\tNULL\t\ncompanyScope\tenum('single','all_group')\tNO\t\tsingle\t\ncontractCompanySlug\tvarchar(100)\tYES\t\tNULL\t\norganizationalGroupId\tint\tYES\t\tNULL\t\norgCompanyId\tint\tYES\t\tNULL\t\norgBusinessUnitId\tint\tYES\t\tNULL\t\norganizationalScopeStatus\tenum('classified','pending_classification')\tYES\t\tpending_classification\t\n",
+  "stderr": "",
+  "execution_time_ms": 263
+}

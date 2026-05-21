@@ -131,13 +131,15 @@ export function ContractPDFImport({ supplierId, open, onClose, onSuccess, compan
     },
   });
 
+  const createMilestoneMutation = trpc.milestones.create.useMutation();
+
   const createContractMutation = trpc.contracts.create.useMutation({
     onSuccess: async (newContract) => {
       // Create milestones if any
       if (milestones.length > 0) {
         for (const m of milestones) {
           try {
-            await utils.client.milestones.create.mutate({
+            await createMilestoneMutation.mutateAsync({
               contractId: newContract.id,
               title: m.title,
               description: m.description,

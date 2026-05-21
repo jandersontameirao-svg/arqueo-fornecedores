@@ -123,13 +123,15 @@ export function AmendmentPDFImport({ contractId, open, onClose, onSuccess }: Ame
     },
   });
 
+  const createMilestoneMutation = trpc.milestones.create.useMutation();
+
   const createMutation = trpc.amendments.create.useMutation({
     onSuccess: async (newAmendment) => {
       // Create milestones if any
       if (milestones.length > 0) {
         for (const m of milestones) {
           try {
-            await utils.client.milestones.create.mutate({
+            await createMilestoneMutation.mutateAsync({
               contractId,
               amendmentId: newAmendment.id,
               title: m.title,
