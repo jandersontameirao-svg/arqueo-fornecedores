@@ -44,7 +44,7 @@ const results = {};
 // STEP 1: Login
 console.log("=== STEP 1: Login /api/auth/login ===");
 const login = await req("POST", "/api/auth/login", {
-  email: "jandersontameirao@gmail.com",
+  email: "janderson@grupoarqueo.com.br",
   password: "kesulindo123",
 });
 console.log("Status:", login.status);
@@ -71,7 +71,7 @@ if (user) {
 } else {
   console.log("Response (raw):", me.body.substring(0, 200));
 }
-results.authMe = user?.email === "jandersontameirao@gmail.com";
+results.authMe = user?.email === "janderson@grupoarqueo.com.br";
 results.roleAdmin = user?.role === "admin";
 results.globalRoleSuperadmin = user?.globalRole === "superadmin_global";
 
@@ -91,7 +91,7 @@ results.sessionInvalidated = userAfter === null;
 // STEP 5: Novo login
 console.log("\n=== STEP 5: Novo login ===");
 const login2 = await req("POST", "/api/auth/login", {
-  email: "jandersontameirao@gmail.com",
+  email: "janderson@grupoarqueo.com.br",
   password: "kesulindo123",
 });
 console.log("Status:", login2.status);
@@ -132,7 +132,7 @@ results.protectedAccess = !!suppliersData;
 // STEP 8: Senha errada deve ser rejeitada
 console.log("\n=== STEP 8: Login com senha errada (deve falhar) ===");
 const loginWrong = await req("POST", "/api/auth/login", {
-  email: "jandersontameirao@gmail.com",
+  email: "janderson@grupoarqueo.com.br",
   password: "senhaerrada",
 });
 console.log("Status:", loginWrong.status);

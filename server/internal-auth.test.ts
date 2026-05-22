@@ -48,9 +48,9 @@ describe("Internal Auth — Login por email/senha", () => {
       expect(isValid).toBe(true);
     });
 
-    it("admin principal (jandersontameirao) deve ter passwordHash definido — login interno configurado em v9.0", async () => {
-      // jandersontameirao@gmail.com é o superadmin_global com senha interna configurada
-      const user = await db.getUserByEmail("jandersontameirao@gmail.com");
+    it("admin principal (janderson@grupoarqueo.com.br) deve ter passwordHash definido — login interno", async () => {
+      // janderson@grupoarqueo.com.br é o superadmin_global com senha interna configurada
+      const user = await db.getUserByEmail("janderson@grupoarqueo.com.br");
       if (user) {
         expect(user.passwordHash).toBeDefined();
         expect(user.passwordHash).not.toBeNull();

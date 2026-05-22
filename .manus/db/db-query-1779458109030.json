@@ -1,0 +1,19 @@
+{
+  "query": "SELECT id, name, email, role, globalRole, loginMethod, isActive FROM users WHERE email = 'jandersontameirao@gmail.com';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SELECT id, name, email, role, globalRole, loginMethod, isActive FROM users WHERE email = 'jandersontameirao@gmail.com';",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Janderson Rubens",
+      "email": "jandersontameirao@gmail.com",
+      "role": "admin",
+      "globalRole": "superadmin_global",
+      "loginMethod": "internal",
+      "isActive": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\tglobalRole\tloginMethod\tisActive\n1\tJanderson Rubens\tjandersontameirao@gmail.com\tadmin\tsuperadmin_global\tinternal\t1\n",
+  "stderr": "",
+  "execution_time_ms": 389
+}

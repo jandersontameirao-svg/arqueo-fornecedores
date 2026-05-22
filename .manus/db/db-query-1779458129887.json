@@ -1,0 +1,28 @@
+{
+  "query": "SELECT id, name, email, role, globalRole, loginMethod, isActive FROM users WHERE email IN ('janderson@grupoarqueo.com.br', 'financeiro@grupoarqueo.com.br');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SELECT id, name, email, role, globalRole, loginMethod, isActive FROM users WHERE email IN ('janderson@grupoarqueo.com.br', 'financeiro@grupoarqueo.com.br');",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Janderson Rubens",
+      "email": "janderson@grupoarqueo.com.br",
+      "role": "admin",
+      "globalRole": "superadmin_global",
+      "loginMethod": "internal",
+      "isActive": "1"
+    },
+    {
+      "id": "7380001",
+      "name": "Financeiro Arqueo",
+      "email": "financeiro@grupoarqueo.com.br",
+      "role": "manager",
+      "globalRole": "NULL",
+      "loginMethod": "internal",
+      "isActive": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\tglobalRole\tloginMethod\tisActive\n1\tJanderson Rubens\tjanderson@grupoarqueo.com.br\tadmin\tsuperadmin_global\tinternal\t1\n7380001\tFinanceiro Arqueo\tfinanceiro@grupoarqueo.com.br\tmanager\tNULL\tinternal\t1\n",
+  "stderr": "",
+  "execution_time_ms": 363
+}
