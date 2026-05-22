@@ -35,8 +35,10 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
-  // OAuth callback under /api/oauth/callback
-  registerOAuthRoutes(app);
+  // OAuth callback under /api/oauth/callback (only if Manus OAuth is configured)
+  if (process.env.OAUTH_SERVER_URL) {
+    registerOAuthRoutes(app);
+  }
   // Internal auth login (email/password)
   registerInternalAuthRoutes(app);
   // Clicksign webhook endpoint

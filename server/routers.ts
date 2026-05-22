@@ -303,6 +303,24 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, cookieOptions);
       return { success: true } as const;
     }),
+    setMyPassword: protectedProcedure
+      .input(z.object({
+        password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const bcrypt = await import("bcryptjs");
+        const hash = await bcrypt.hash(input.password, 12);
+        await db.updateUser(ctx.user.id, { passwordHash: hash, loginMethod: "internal" } as any);
+        await db.createAuditLog({
+          entityType: "user",
+          entityId: ctx.user.id,
+          action: "update",
+          changes: { passwordSet: true, loginMethod: "internal" },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return { success: true };
+      }),
   }),
 
   // ==================== USERS ====================

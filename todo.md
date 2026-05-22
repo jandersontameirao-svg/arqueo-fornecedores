@@ -1127,3 +1127,16 @@
 - [x] Frontend: ContractTemplates.tsx — handleTemplateDownload usa fileKey → getSignedUrl, fallback legado
 - [x] Compatibilidade com registros antigos: todos os fallbacks para fileUrl legado preservados
 - [x] 0 erros TypeScript. 365/367 testes passando (2 skipped = testes R2 sem credenciais no sandbox)
+
+## Autenticação Local Email/Senha (v9.0)
+- [x] Auditar fluxo de auth atual (schema, OAuth routes, session, frontend)
+- [x] Backend: rota POST /api/auth/login com bcrypt + JWT (já existia em internalAuth.ts)
+- [x] Backend: procedure auth.setMyPassword para usuário logado definir própria senha
+- [x] Frontend: tela /login com email/senha (já existia em InternalLogin.tsx)
+- [x] OAuth Manus como fallback opcional (condicional via VITE_OAUTH_PORTAL_URL)
+- [x] Botão OAuth oculto quando variáveis Manus não existem
+- [x] getLoginUrl() retorna /login quando OAuth não configurado
+- [x] registerOAuthRoutes condicional no backend (só registra se OAUTH_SERVER_URL existir)
+- [x] appId com fallback "local" quando VITE_APP_ID não existe
+- [x] Script scripts/set-admin-password.mjs para deploy externo
+- [x] 0 erros TypeScript. 367/367 testes passando
