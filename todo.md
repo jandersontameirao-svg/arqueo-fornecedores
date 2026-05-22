@@ -1149,3 +1149,10 @@
 - [x] routers.ts: auth.logout revoga o jti do token antes de limpar o cookie
 - [x] Teste corrigido: internal-auth.test.ts — jandersontameirao agora tem passwordHash (admin interno v9.0)
 - [x] 0 erros TypeScript. 367/367 testes passando
+
+## Atualização Lista Branca de Superadmins (v9.3)
+- [x] shared/superadmins.ts: email antigo jandersontameirao@gmail.com substituído por janderson@grupoarqueo.com.br
+- [x] shared/superadmins.ts: financeiro@grupoarqueo.com.br adicionado como superadmin_global (autorização expressa do CEO)
+- [x] Banco: globalRole = superadmin_global atualizado para ambos os emails
+- [x] superadmin.security.test.ts: testes atualizados para os 3 emails autorizados (tamanho da lista = 3)
+- [x] 0 erros TypeScript. 369/369 testes passando

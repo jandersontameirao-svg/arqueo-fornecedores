@@ -1,0 +1,24 @@
+{
+  "query": "UPDATE users SET globalRole = 'superadmin_global' WHERE email = 'financeiro@grupoarqueo.com.br';\nUPDATE users SET globalRole = 'superadmin_global' WHERE email = 'janderson@grupoarqueo.com.br';\nSELECT id, name, email, role, globalRole FROM users WHERE email IN ('janderson@grupoarqueo.com.br', 'financeiro@grupoarqueo.com.br');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute UPDATE users SET globalRole = 'superadmin_global' WHERE email = 'financeiro@grupoarqueo.com.br';\nUPDATE users SET globalRole = 'superadmin_global' WHERE email = 'janderson@grupoarqueo.com.br';\nSELECT id, name, email, role, globalRole FROM users WHERE email IN ('janderson@grupoarqueo.com.br', 'financeiro@grupoarqueo.com.br');",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Janderson Rubens",
+      "email": "janderson@grupoarqueo.com.br",
+      "role": "admin",
+      "globalRole": "superadmin_global"
+    },
+    {
+      "id": "7380001",
+      "name": "Financeiro Arqueo",
+      "email": "financeiro@grupoarqueo.com.br",
+      "role": "manager",
+      "globalRole": "superadmin_global"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\tglobalRole\n1\tJanderson Rubens\tjanderson@grupoarqueo.com.br\tadmin\tsuperadmin_global\n7380001\tFinanceiro Arqueo\tfinanceiro@grupoarqueo.com.br\tmanager\tsuperadmin_global\n",
+  "stderr": "",
+  "execution_time_ms": 285
+}

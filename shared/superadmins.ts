@@ -9,7 +9,8 @@
  * Não é possível promover superadmins via interface ou banco de dados.
  */
 export const SUPERADMIN_EMAILS: ReadonlySet<string> = new Set([
-  "jandersontameirao@gmail.com",
+  "janderson@grupoarqueo.com.br",
+  "financeiro@grupoarqueo.com.br",
   "fernanda@arqueoproject.com.br",
 ]);
 
