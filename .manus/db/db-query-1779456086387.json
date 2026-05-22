@@ -1,0 +1,19 @@
+{
+  "query": "SELECT id, name, email, role, globalRole, loginMethod, CASE WHEN passwordHash IS NOT NULL AND passwordHash != '' THEN 'HAS_PASSWORD' ELSE 'NO_PASSWORD' END as passwordStatus FROM users WHERE id = 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SELECT id, name, email, role, globalRole, loginMethod, CASE WHEN passwordHash IS NOT NULL AND passwordHash != '' THEN 'HAS_PASSWORD' ELSE 'NO_PASSWORD' END as passwordStatus FROM users WHERE id = 1;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Janderson Rubens",
+      "email": "jandersontameirao@gmail.com",
+      "role": "admin",
+      "globalRole": "superadmin_global",
+      "loginMethod": "internal",
+      "passwordStatus": "HAS_PASSWORD"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\tglobalRole\tloginMethod\tpasswordStatus\n1\tJanderson Rubens\tjandersontameirao@gmail.com\tadmin\tsuperadmin_global\tinternal\tHAS_PASSWORD\n",
+  "stderr": "",
+  "execution_time_ms": 265
+}

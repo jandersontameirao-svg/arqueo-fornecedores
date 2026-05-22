@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE users SET passwordHash = '$2b$12$PBXdHwFdzzzTsn7l80sU6u.J55Kl5vs4KlrWyHNHe3.N.XmKIxBY6', loginMethod = 'internal', updatedAt = NOW() WHERE email = 'jandersontameirao@gmail.com' AND id = 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute UPDATE users SET passwordHash = '$2b$12$PBXdHwFdzzzTsn7l80sU6u.J55Kl5vs4KlrWyHNHe3.N.XmKIxBY6', loginMethod = 'internal', updatedAt = NOW() WHERE email = 'jandersontameirao@gmail.com' AND id = 1;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2005
+}

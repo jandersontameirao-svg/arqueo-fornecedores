@@ -4,6 +4,8 @@ import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { sdk, revokeToken } from "./_core/sdk";
+import { parse as parseCookieHeader } from "cookie";
 import { storagePut, storageGet } from "./storage";
 import * as db from "./db";
 import * as notifications from "./notifications";
@@ -298,8 +300,21 @@ export const appRouter = router({
   // ==================== AUTH ====================
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
+    logout: publicProcedure.mutation(async ({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
+      // Revoke the JWT token by jti so it cannot be reused after logout
+      const cookieHeader = ctx.req.headers.cookie;
+      if (cookieHeader) {
+        const cookies = parseCookieHeader(cookieHeader);
+        const token = cookies[COOKIE_NAME];
+        if (token) {
+          const session = await sdk.verifySession(token);
+          if (session?.jti) {
+            // Blocklist until 1 year from now (max token lifetime)
+            revokeToken(session.jti, Date.now() + 365 * 24 * 60 * 60 * 1000);
+          }
+        }
+      }
       ctx.res.clearCookie(COOKIE_NAME, cookieOptions);
       return { success: true } as const;
     }),

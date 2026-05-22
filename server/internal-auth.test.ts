@@ -41,17 +41,22 @@ describe("Internal Auth — Login por email/senha", () => {
       expect(isValid).toBe(false);
     });
 
-    it("deve validar senha correta do admin", async () => {
+    it("deve validar senha correta do admin fernanda", async () => {
       const user = await db.getUserByEmail("fernanda@arqueoproject.com.br");
       expect(user?.passwordHash).toBeDefined();
       const isValid = await bcrypt.compare("kesulindo123", user!.passwordHash!);
       expect(isValid).toBe(true);
     });
 
-    it("usuário OAuth não deve ter passwordHash", async () => {
+    it("admin principal (jandersontameirao) deve ter passwordHash definido — login interno configurado em v9.0", async () => {
+      // jandersontameirao@gmail.com é o superadmin_global com senha interna configurada
       const user = await db.getUserByEmail("jandersontameirao@gmail.com");
       if (user) {
-        expect(user.passwordHash).toBeNull();
+        expect(user.passwordHash).toBeDefined();
+        expect(user.passwordHash).not.toBeNull();
+        expect(user.loginMethod).toBe("internal");
+        expect(user.role).toBe("admin");
+        expect(user.globalRole).toBe("superadmin_global");
       }
     });
   });

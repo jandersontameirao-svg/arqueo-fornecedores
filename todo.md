@@ -1140,3 +1140,12 @@
 - [x] appId com fallback "local" quando VITE_APP_ID não existe
 - [x] Script scripts/set-admin-password.mjs para deploy externo
 - [x] 0 erros TypeScript. 367/367 testes passando
+
+## Validação e Hardening do Login Local (v9.1)
+- [x] Validação completa: 12/12 checks passando (login, sessão, auth.me, role, globalRole, logout, invalidação, relogin, admin, protected, senha errada, OAuth não obrigatório)
+- [x] Bug fix: logout não invalidava sessão JWT (stateless) — implementada blocklist em memória com jti
+- [x] sdk.ts: signSession agora inclui jti único em cada token (setJti)
+- [x] sdk.ts: verifySession verifica blocklist antes de retornar sessão válida
+- [x] routers.ts: auth.logout revoga o jti do token antes de limpar o cookie
+- [x] Teste corrigido: internal-auth.test.ts — jandersontameirao agora tem passwordHash (admin interno v9.0)
+- [x] 0 erros TypeScript. 367/367 testes passando

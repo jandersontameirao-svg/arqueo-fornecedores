@@ -14,9 +14,34 @@ import type {
   GetUserInfoWithJwtRequest,
   GetUserInfoWithJwtResponse,
 } from "./types/manusTypes";
+
 // Utility function
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
+
+// ---------------------------------------------------------------------------
+// In-memory blocklist for revoked session tokens (logout).
+// Maps jti -> expiry timestamp (ms). Entries are purged when expired.
+// This is process-local; in a multi-process/cluster setup, use Redis instead.
+// ---------------------------------------------------------------------------
+const revokedTokens = new Map<string, number>();
+
+function purgeExpiredRevocations() {
+  const now = Date.now();
+  revokedTokens.forEach((exp, jti) => {
+    if (now > exp) revokedTokens.delete(jti);
+  });
+}
+
+export function revokeToken(jti: string, expiresAt: number): void {
+  purgeExpiredRevocations();
+  revokedTokens.set(jti, expiresAt);
+}
+
+export function isTokenRevoked(jti: string): boolean {
+  purgeExpiredRevocations();
+  return revokedTokens.has(jti);
+}
 
 export type SessionPayload = {
   openId: string;
@@ -186,6 +211,8 @@ class SDKServer {
     const expiresInMs = options.expiresInMs ?? ONE_YEAR_MS;
     const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1000);
     const secretKey = this.getSessionSecret();
+    // Generate a unique jti for revocation support
+    const jti = `${payload.openId}-${issuedAt}-${Math.random().toString(36).slice(2)}`;
 
     return new SignJWT({
       openId: payload.openId,
@@ -194,12 +221,13 @@ class SDKServer {
     })
       .setProtectedHeader({ alg: "HS256", typ: "JWT" })
       .setExpirationTime(expirationSeconds)
+      .setJti(jti)
       .sign(secretKey);
   }
 
   async verifySession(
     cookieValue: string | undefined | null
-  ): Promise<{ openId: string; appId: string; name: string } | null> {
+  ): Promise<{ openId: string; appId: string; name: string; jti?: string } | null> {
     if (!cookieValue) {
       console.warn("[Auth] Missing session cookie");
       return null;
@@ -210,7 +238,7 @@ class SDKServer {
       const { payload } = await jwtVerify(cookieValue, secretKey, {
         algorithms: ["HS256"],
       });
-      const { openId, appId, name } = payload as Record<string, unknown>;
+      const { openId, appId, name, jti } = payload as Record<string, unknown>;
 
       if (
         !isNonEmptyString(openId) ||
@@ -221,10 +249,17 @@ class SDKServer {
         return null;
       }
 
+      // Check revocation blocklist (logout)
+      if (isNonEmptyString(jti) && isTokenRevoked(jti)) {
+        console.warn("[Auth] Token has been revoked (logged out)");
+        return null;
+      }
+
       return {
         openId,
         appId,
         name,
+        jti: isNonEmptyString(jti) ? jti : undefined,
       };
     } catch (error) {
       console.warn("[Auth] Session verification failed", String(error));
