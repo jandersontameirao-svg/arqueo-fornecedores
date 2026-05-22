@@ -49,7 +49,6 @@ describe("Internal Auth — Login por email/senha", () => {
     });
 
     it("admin principal (janderson@grupoarqueo.com.br) deve ter passwordHash definido — login interno", async () => {
-      // janderson@grupoarqueo.com.br é o superadmin_global com senha interna configurada
       const user = await db.getUserByEmail("janderson@grupoarqueo.com.br");
       if (user) {
         expect(user.passwordHash).toBeDefined();
@@ -57,6 +56,16 @@ describe("Internal Auth — Login por email/senha", () => {
         expect(user.loginMethod).toBe("internal");
         expect(user.role).toBe("admin");
         expect(user.globalRole).toBe("superadmin_global");
+      }
+    });
+
+    it("financeiro@grupoarqueo.com.br deve ter role admin e globalRole superadmin_global", async () => {
+      const user = await db.getUserByEmail("financeiro@grupoarqueo.com.br");
+      if (user) {
+        expect(user.role).toBe("admin");
+        expect(user.globalRole).toBe("superadmin_global");
+        expect(user.loginMethod).toBe("internal");
+        expect(user.isActive).toBe(true);
       }
     });
   });

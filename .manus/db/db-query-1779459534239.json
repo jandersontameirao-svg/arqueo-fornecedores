@@ -1,0 +1,17 @@
+{
+  "query": "UPDATE users SET role = 'admin' WHERE email = 'financeiro@grupoarqueo.com.br';\nSELECT id, name, email, role, globalRole FROM users WHERE email = 'financeiro@grupoarqueo.com.br';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute UPDATE users SET role = 'admin' WHERE email = 'financeiro@grupoarqueo.com.br';\nSELECT id, name, email, role, globalRole FROM users WHERE email = 'financeiro@grupoarqueo.com.br';",
+  "rows": [
+    {
+      "id": "7380001",
+      "name": "Financeiro Arqueo",
+      "email": "financeiro@grupoarqueo.com.br",
+      "role": "admin",
+      "globalRole": "superadmin_global"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\tglobalRole\n7380001\tFinanceiro Arqueo\tfinanceiro@grupoarqueo.com.br\tadmin\tsuperadmin_global\n",
+  "stderr": "",
+  "execution_time_ms": 1785
+}
