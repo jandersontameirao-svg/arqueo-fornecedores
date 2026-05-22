@@ -47,13 +47,21 @@ let _client: S3Client | null = null;
 function getClient(): S3Client {
   assertR2Configured();
   if (!_client) {
+    // R2_ACCOUNT_ID pode ser configurado como:
+    //   - URL completa: "https://abc123.r2.cloudflarestorage.com"
+    //   - Apenas o Account ID: "abc123"
+    const rawAccountId = ENV.r2AccountId.trim();
+    const endpoint = rawAccountId.startsWith("http")
+      ? rawAccountId
+      : `https://${rawAccountId}.r2.cloudflarestorage.com`;
+
     _client = new S3Client({
       region: ENV.r2Region || "auto",
       credentials: {
         accessKeyId: ENV.r2AccessKeyId,
         secretAccessKey: ENV.r2SecretAccessKey,
       },
-      endpoint: `https://${ENV.r2AccountId}.r2.cloudflarestorage.com`,
+      endpoint,
     });
   }
   return _client;
