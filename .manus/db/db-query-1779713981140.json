@@ -1,0 +1,23 @@
+{
+  "query": "SELECT \n  (SELECT COUNT(*) FROM `supplier_company_links`) AS supplier_company_links,\n  (SELECT COUNT(*) FROM `supplier_contacts`) AS supplier_contacts,\n  (SELECT COUNT(*) FROM `supplier_document_links`) AS supplier_document_links,\n  (SELECT COUNT(*) FROM `supplier_links`) AS supplier_links,\n  (SELECT COUNT(*) FROM `suppliers`) AS suppliers,\n  (SELECT COUNT(*) FROM `template_fields`) AS template_fields,\n  (SELECT COUNT(*) FROM `user_business_unit_roles`) AS user_business_unit_roles,\n  (SELECT COUNT(*) FROM `user_business_units`) AS user_business_units,\n  (SELECT COUNT(*) FROM `user_company_roles`) AS user_company_roles,\n  (SELECT COUNT(*) FROM `user_group_roles`) AS user_group_roles,\n  (SELECT COUNT(*) FROM `users`) AS users;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SELECT \n  (SELECT COUNT(*) FROM `supplier_company_links`) AS supplier_company_links,\n  (SELECT COUNT(*) FROM `supplier_contacts`) AS supplier_contacts,\n  (SELECT COUNT(*) FROM `supplier_document_links`) AS supplier_document_links,\n  (SELECT COUNT(*) FROM `supplier_links`) AS supplier_links,\n  (SELECT COUNT(*) FROM `suppliers`) AS suppliers,\n  (SELECT COUNT(*) FROM `template_fields`) AS template_fields,\n  (SELECT COUNT(*) FROM `user_business_unit_roles`) AS user_business_unit_roles,\n  (SELECT COUNT(*) FROM `user_business_units`) AS user_business_units,\n  (SELECT COUNT(*) FROM `user_company_roles`) AS user_company_roles,\n  (SELECT COUNT(*) FROM `user_group_roles`) AS user_group_roles,\n  (SELECT COUNT(*) FROM `users`) AS users;",
+  "rows": [
+    {
+      "supplier_company_links": "0",
+      "supplier_contacts": "0",
+      "supplier_document_links": "0",
+      "supplier_links": "0",
+      "suppliers": "2",
+      "template_fields": "0",
+      "user_business_unit_roles": "0",
+      "user_business_units": "1",
+      "user_company_roles": "0",
+      "user_group_roles": "0",
+      "users": "6"
+    }
+  ],
+  "messages": [],
+  "stdout": "supplier_company_links\tsupplier_contacts\tsupplier_document_links\tsupplier_links\tsuppliers\ttemplate_fields\tuser_business_unit_roles\tuser_business_units\tuser_company_roles\tuser_group_roles\tusers\n0\t0\t0\t0\t2\t0\t0\t1\t0\t0\t6\n",
+  "stderr": "",
+  "execution_time_ms": 308
+}

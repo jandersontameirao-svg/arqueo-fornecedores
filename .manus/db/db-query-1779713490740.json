@@ -1,0 +1,55 @@
+{
+  "query": "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME LIMIT 35 OFFSET 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME LIMIT 35 OFFSET 20;",
+  "rows": [
+    {
+      "TABLE_NAME": "interactions"
+    },
+    {
+      "TABLE_NAME": "organizational_groups"
+    },
+    {
+      "TABLE_NAME": "performance_evaluations"
+    },
+    {
+      "TABLE_NAME": "supplier_categories"
+    },
+    {
+      "TABLE_NAME": "supplier_company_links"
+    },
+    {
+      "TABLE_NAME": "supplier_contacts"
+    },
+    {
+      "TABLE_NAME": "supplier_document_links"
+    },
+    {
+      "TABLE_NAME": "supplier_links"
+    },
+    {
+      "TABLE_NAME": "suppliers"
+    },
+    {
+      "TABLE_NAME": "template_fields"
+    },
+    {
+      "TABLE_NAME": "user_business_unit_roles"
+    },
+    {
+      "TABLE_NAME": "user_business_units"
+    },
+    {
+      "TABLE_NAME": "user_company_roles"
+    },
+    {
+      "TABLE_NAME": "user_group_roles"
+    },
+    {
+      "TABLE_NAME": "users"
+    }
+  ],
+  "messages": [],
+  "stdout": "TABLE_NAME\ninteractions\norganizational_groups\nperformance_evaluations\nsupplier_categories\nsupplier_company_links\nsupplier_contacts\nsupplier_document_links\nsupplier_links\nsuppliers\ntemplate_fields\nuser_business_unit_roles\nuser_business_units\nuser_company_roles\nuser_group_roles\nusers\n",
+  "stderr": "",
+  "execution_time_ms": 327
+}

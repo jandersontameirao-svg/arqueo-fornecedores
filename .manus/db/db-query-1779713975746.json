@@ -1,0 +1,24 @@
+{
+  "query": "SELECT \n  (SELECT COUNT(*) FROM `contract_templates`) AS contract_templates,\n  (SELECT COUNT(*) FROM `contract_versions`) AS contract_versions,\n  (SELECT COUNT(*) FROM `contracts`) AS contracts,\n  (SELECT COUNT(*) FROM `document_expiration_notifications`) AS doc_expiration_notif,\n  (SELECT COUNT(*) FROM `documents`) AS documents,\n  (SELECT COUNT(*) FROM `extracted_fields`) AS extracted_fields,\n  (SELECT COUNT(*) FROM `extraction_runs`) AS extraction_runs,\n  (SELECT COUNT(*) FROM `financial_milestones`) AS financial_milestones,\n  (SELECT COUNT(*) FROM `interactions`) AS interactions,\n  (SELECT COUNT(*) FROM `organizational_groups`) AS organizational_groups,\n  (SELECT COUNT(*) FROM `performance_evaluations`) AS performance_evaluations,\n  (SELECT COUNT(*) FROM `supplier_categories`) AS supplier_categories;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SELECT \n  (SELECT COUNT(*) FROM `contract_templates`) AS contract_templates,\n  (SELECT COUNT(*) FROM `contract_versions`) AS contract_versions,\n  (SELECT COUNT(*) FROM `contracts`) AS contracts,\n  (SELECT COUNT(*) FROM `document_expiration_notifications`) AS doc_expiration_notif,\n  (SELECT COUNT(*) FROM `documents`) AS documents,\n  (SELECT COUNT(*) FROM `extracted_fields`) AS extracted_fields,\n  (SELECT COUNT(*) FROM `extraction_runs`) AS extraction_runs,\n  (SELECT COUNT(*) FROM `financial_milestones`) AS financial_milestones,\n  (SELECT COUNT(*) FROM `interactions`) AS interactions,\n  (SELECT COUNT(*) FROM `organizational_groups`) AS organizational_groups,\n  (SELECT COUNT(*) FROM `performance_evaluations`) AS performance_evaluations,\n  (SELECT COUNT(*) FROM `supplier_categories`) AS supplier_categories;",
+  "rows": [
+    {
+      "contract_templates": "5",
+      "contract_versions": "5",
+      "contracts": "17",
+      "doc_expiration_notif": "0",
+      "documents": "0",
+      "extracted_fields": "146",
+      "extraction_runs": "6",
+      "financial_milestones": "0",
+      "interactions": "0",
+      "organizational_groups": "3",
+      "performance_evaluations": "0",
+      "supplier_categories": "6"
+    }
+  ],
+  "messages": [],
+  "stdout": "contract_templates\tcontract_versions\tcontracts\tdoc_expiration_notif\tdocuments\textracted_fields\textraction_runs\tfinancial_milestones\tinteractions\torganizational_groups\tperformance_evaluations\tsupplier_categories\n5\t5\t17\t0\t0\t146\t6\t0\t0\t3\t0\t6\n",
+  "stderr": "",
+  "execution_time_ms": 317
+}

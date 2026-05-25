@@ -1,0 +1,24 @@
+{
+  "query": "SELECT \n  (SELECT COUNT(*) FROM `__drizzle_migrations`) AS drizzle_migrations,\n  (SELECT COUNT(*) FROM `approval_steps`) AS approval_steps,\n  (SELECT COUNT(*) FROM `approval_workflows`) AS approval_workflows,\n  (SELECT COUNT(*) FROM `audit_logs`) AS audit_logs,\n  (SELECT COUNT(*) FROM `business_units`) AS business_units,\n  (SELECT COUNT(*) FROM `companies`) AS companies,\n  (SELECT COUNT(*) FROM `compliance_alerts`) AS compliance_alerts,\n  (SELECT COUNT(*) FROM `contract_amendments`) AS contract_amendments,\n  (SELECT COUNT(*) FROM `contract_clicksign_events`) AS contract_clicksign_events,\n  (SELECT COUNT(*) FROM `contract_expiration_notifications`) AS contract_expiration_notif,\n  (SELECT COUNT(*) FROM `contract_items`) AS contract_items,\n  (SELECT COUNT(*) FROM `contract_signers`) AS contract_signers;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SELECT \n  (SELECT COUNT(*) FROM `__drizzle_migrations`) AS drizzle_migrations,\n  (SELECT COUNT(*) FROM `approval_steps`) AS approval_steps,\n  (SELECT COUNT(*) FROM `approval_workflows`) AS approval_workflows,\n  (SELECT COUNT(*) FROM `audit_logs`) AS audit_logs,\n  (SELECT COUNT(*) FROM `business_units`) AS business_units,\n  (SELECT COUNT(*) FROM `companies`) AS companies,\n  (SELECT COUNT(*) FROM `compliance_alerts`) AS compliance_alerts,\n  (SELECT COUNT(*) FROM `contract_amendments`) AS contract_amendments,\n  (SELECT COUNT(*) FROM `contract_clicksign_events`) AS contract_clicksign_events,\n  (SELECT COUNT(*) FROM `contract_expiration_notifications`) AS contract_expiration_notif,\n  (SELECT COUNT(*) FROM `contract_items`) AS contract_items,\n  (SELECT COUNT(*) FROM `contract_signers`) AS contract_signers;",
+  "rows": [
+    {
+      "drizzle_migrations": "27",
+      "approval_steps": "32",
+      "approval_workflows": "16",
+      "audit_logs": "420",
+      "business_units": "3",
+      "companies": "4",
+      "compliance_alerts": "17",
+      "contract_amendments": "11",
+      "contract_clicksign_events": "8",
+      "contract_expiration_notif": "0",
+      "contract_items": "0",
+      "contract_signers": "4"
+    }
+  ],
+  "messages": [],
+  "stdout": "drizzle_migrations\tapproval_steps\tapproval_workflows\taudit_logs\tbusiness_units\tcompanies\tcompliance_alerts\tcontract_amendments\tcontract_clicksign_events\tcontract_expiration_notif\tcontract_items\tcontract_signers\n27\t32\t16\t420\t3\t4\t17\t11\t8\t0\t0\t4\n",
+  "stderr": "",
+  "execution_time_ms": 4363
+}

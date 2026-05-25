@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Lock, Mail, AlertCircle, ArrowLeft } from "lucide-react";
+import { Lock, Mail, AlertCircle, ArrowLeft, BookOpen } from "lucide-react";
 import { getLoginUrl } from "@/const";
 
 export default function InternalLogin() {
@@ -44,7 +44,17 @@ export default function InternalLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[oklch(0.35_0.10_250)] via-[oklch(0.30_0.12_15)] to-[oklch(0.25_0.08_250)] p-4 animate-arqueo-fade-in">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[oklch(0.35_0.10_250)] via-[oklch(0.30_0.12_15)] to-[oklch(0.25_0.08_250)] p-4 animate-arqueo-fade-in relative">
+      {/* Aba Guia Rápido — topo esquerdo */}
+      <a
+        href="https://d2xsxph8kpxj0f.cloudfront.net/310419663028979380/KbiCF9FN7rZHpjZqbGxEKZ/guia-rapido-arqueo-fornecedores_f5bce2fc.pdf"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 text-white hover:bg-white/20 transition-all duration-200 text-sm font-medium shadow-lg z-50"
+      >
+        <BookOpen className="w-4 h-4" />
+        Guia Rápido
+      </a>
       <div className="w-full max-w-md space-y-6">
         {/* Logo / Brand */}
         <div className="text-center flex flex-col items-center">

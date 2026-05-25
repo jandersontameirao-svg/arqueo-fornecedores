@@ -1156,3 +1156,9 @@
 - [x] Banco: globalRole = superadmin_global atualizado para ambos os emails
 - [x] superadmin.security.test.ts: testes atualizados para os 3 emails autorizados (tamanho da lista = 3)
 - [x] 0 erros TypeScript. 369/369 testes passando
+
+## Guia Rápido — PDF + Aba na tela de login
+- [x] Capturar screenshots de todas as telas do sistema
+- [x] Criar PDF Guia Rápido com prints e explicações simples de cada funcionalidade
+- [x] Upload do PDF como asset estático
+- [x] Adicionar aba "Guia Rápido" no topo esquerdo da tela de login
