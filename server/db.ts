@@ -303,77 +303,64 @@ export async function getAllSuppliers(filters?: {
   // SEGREGAÇÃO POR EMPRESA: quando companyId fornecido, incluir diretos + vinculados
 
   if (filters?.companyId) {
-    // Busca fornecedores cadastrados diretamente nessa empresa
-    const directConds = [...baseConditions, eq(suppliers.companyId, filters.companyId)];
-    if (searchCond) directConds.push(searchCond);
+    // Fonte canônica: supplierCompanyLinks
+    // Converte companyId para número (pode vir como string do frontend)
+    const companyIdNum = typeof filters.companyId === 'string' ? parseInt(filters.companyId, 10) : filters.companyId;
+    if (isNaN(companyIdNum)) return [];
 
-    const directQuery = db.select({
-      supplier: suppliers,
-      category: supplierCategories,
-      createdBy: users,
-    })
-      .from(suppliers)
-      .leftJoin(supplierCategories, eq(suppliers.categoryId, supplierCategories.id))
-      .leftJoin(users, eq(suppliers.createdById, users.id))
-      .where(and(...directConds))
-      .orderBy(desc(suppliers.createdAt));
+    // Condições no vínculo
+    const linkConditions: any[] = [
+      eq(supplierCompanyLinks.companyId, companyIdNum),
+      eq(supplierCompanyLinks.status, "active"),
+    ];
 
-    const direct = await directQuery;
-
-    // Busca fornecedores vinculados a essa empresa (como destino)
-    const linkedRows = await db.select({
-      link: supplierLinks,
-      supplier: suppliers,
-      category: supplierCategories,
-      createdBy: users,
-    })
-      .from(supplierLinks)
-      .innerJoin(suppliers, eq(supplierLinks.supplierId, suppliers.id))
-      .leftJoin(supplierCategories, eq(suppliers.categoryId, supplierCategories.id))
-      .leftJoin(users, eq(suppliers.createdById, users.id))
-      .where(and(
-        eq(supplierLinks.targetCompanyId, filters.companyId),
-        eq(supplierLinks.status, "active")
-      ));
-
-    // Aplica filtros de busca/status/etc nos vinculados também
-    let linked = linkedRows;
-    if (filters?.status) {
-      linked = linked.filter(r => r.supplier.status === filters.status);
+    // Filtros opcionais no vínculo
+    if (filters?.categoryId) {
+      linkConditions.push(eq(supplierCompanyLinks.categoryId, filters.categoryId));
     }
     if (filters?.criticality) {
-      linked = linked.filter(r => r.supplier.criticality === filters.criticality);
-    }
-    if (filters?.categoryId) {
-      linked = linked.filter(r => r.supplier.categoryId === filters.categoryId);
-    }
-    if (searchCond && filters?.search) {
-      const term = filters.search.trim().toLowerCase();
-      linked = linked.filter(r => {
-        const s = r.supplier;
-        return (
-          s.companyName?.toLowerCase().includes(term) ||
-          s.tradeName?.toLowerCase().includes(term) ||
-          s.cnpj?.replace(/[.\-\/]/g, '').includes(term.replace(/[.\-\/]/g, '')) ||
-          s.email?.toLowerCase().includes(term) ||
-          s.city?.toLowerCase().includes(term) ||
-          s.state?.toLowerCase().includes(term)
-        );
-      });
+      linkConditions.push(eq(supplierCompanyLinks.criticality, filters.criticality as any));
     }
 
-    // Deduplica: se fornecedor já está nos diretos, não adicionar nos vinculados
-    const directIds = new Set(direct.map(r => r.supplier.id));
-    const linkedUnique = linked.filter(r => !directIds.has(r.supplier.id));
+    // Condições no fornecedor
+    const supplierConditions: any[] = [];
+    if (filters?.status) {
+      supplierConditions.push(eq(suppliers.status, filters.status as any));
+    }
+    if (searchCond) supplierConditions.push(searchCond);
 
-    // Retorna diretos + vinculados (vinculados marcados com _isLinked)
-    const linkedMapped = linkedUnique.map(r => ({
-      supplier: { ...r.supplier, _isLinked: true, _linkId: r.link.id },
-      category: r.category,
-      createdBy: r.createdBy,
-    }));
+    const allConditions = [
+      and(...linkConditions),
+      ...(supplierConditions.length > 0 ? [and(...supplierConditions)] : []),
+    ];
 
-    return [...direct, ...linkedMapped];
+    const rows = await db.select({
+      supplier: suppliers,
+      category: supplierCategories,
+      createdBy: users,
+      link: supplierCompanyLinks,
+    })
+      .from(supplierCompanyLinks)
+      .innerJoin(suppliers, eq(supplierCompanyLinks.supplierId, suppliers.id))
+      .leftJoin(supplierCategories, eq(supplierCompanyLinks.categoryId, supplierCategories.id))
+      .leftJoin(users, eq(suppliers.createdById, users.id))
+      .where(and(...allConditions))
+      .orderBy(desc(suppliers.createdAt));
+
+    // Deduplica por supplierId (caso haja múltiplos vínculos para a mesma empresa)
+    const seen = new Set<number>();
+    return rows
+      .filter(r => {
+        if (seen.has(r.supplier.id)) return false;
+        seen.add(r.supplier.id);
+        return true;
+      })
+      .map(r => ({
+        supplier: r.supplier,
+        category: r.category,
+        createdBy: r.createdBy,
+        link: r.link,
+      }));
   }
 
   // Sem companyId: filtrar por groupId se fornecido (segregação por grupo)
@@ -2162,10 +2149,16 @@ export async function countSuppliersByBusinessUnit(businessUnitId: number): Prom
 export async function countSuppliersByCompanyStringId(companyId: string): Promise<number> {
   const db = await getDb();
   if (!db) return 0;
+  // Fonte canônica: supplierCompanyLinks (companyId como número)
+  const companyIdNum = parseInt(companyId, 10);
+  if (isNaN(companyIdNum)) return 0;
   const result = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(suppliers)
-    .where(eq(suppliers.companyId, companyId));
+    .select({ count: sql<number>`count(distinct ${supplierCompanyLinks.supplierId})` })
+    .from(supplierCompanyLinks)
+    .where(and(
+      eq(supplierCompanyLinks.companyId, companyIdNum),
+      eq(supplierCompanyLinks.status, "active")
+    ));
   return Number(result[0]?.count ?? 0);
 }
 

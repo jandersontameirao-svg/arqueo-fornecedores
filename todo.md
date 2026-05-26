@@ -1162,3 +1162,12 @@
 - [x] Criar PDF Guia Rápido com prints e explicações simples de cada funcionalidade
 - [x] Upload do PDF como asset estático
 - [x] Adicionar aba "Guia Rápido" no topo esquerdo da tela de login
+
+## Correção supplierCompanyLinks — Vínculo Canônico Fornecedor-Empresa
+- [x] Corrigir getAllSuppliers em server/db.ts para usar supplierCompanyLinks como fonte canônica
+- [x] Corrigir suppliers.create em server/routers.ts para criar vínculo em supplierCompanyLinks
+- [x] Corrigir fluxo de cadastro via IA para criar supplierCompanyLinks
+- [x] Corrigir contadores de fornecedores por empresa
+- [x] Corrigir telas relacionadas (documentos, contratos, contatos, aprovação, histórico)
+- [x] Criar/atualizar testes de supplierCompanyLinks
+- [x] 0 erros TypeScript. 370/370 testes passando

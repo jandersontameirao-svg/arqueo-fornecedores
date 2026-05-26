@@ -663,6 +663,25 @@ export const appRouter = router({
           stepNumber: 2,
           stepName: "Aprovação Final",
         });
+        // Criar vínculo em supplierCompanyLinks se companyId fornecido
+        if (input.companyId) {
+          const companyIdNum = parseInt(input.companyId, 10);
+          if (!isNaN(companyIdNum)) {
+            const alreadyLinked = await db.checkSupplierCompanyLinkExists(id, companyIdNum);
+            if (!alreadyLinked) {
+              await db.createSupplierCompanyLink({
+                supplierId: id,
+                companyId: companyIdNum,
+                businessUnitId: input.groupId ?? undefined,
+                categoryId: input.categoryId ?? undefined,
+                criticality: (input.criticality as any) ?? "medium",
+                homologationStatus: "pending",
+                status: "active",
+                linkedById: ctx.user.id,
+              });
+            }
+          }
+        }
         return { id };
       }),
 
@@ -1018,8 +1037,28 @@ export const appRouter = router({
           totalSteps: 2,
           createdById: ctx.user.id,
         });
-        await db.createWorkflowStep({ workflowId, stepNumber: 1, stepName: "Verifica\u00e7\u00e3o de Documentos" });
-        await db.createWorkflowStep({ workflowId, stepNumber: 2, stepName: "Aprova\u00e7\u00e3o Final" });
+        await db.createWorkflowStep({ workflowId, stepNumber: 1, stepName: "Verificação de Documentos" });
+        await db.createWorkflowStep({ workflowId, stepNumber: 2, stepName: "Aprovação Final" });
+
+        // Criar vínculo em supplierCompanyLinks se companyId fornecido (mesmo comportamento do cadastro manual)
+        if (input.supplierData.companyId) {
+          const companyIdNum = parseInt(input.supplierData.companyId, 10);
+          if (!isNaN(companyIdNum)) {
+            const alreadyLinked = await db.checkSupplierCompanyLinkExists(supplierId, companyIdNum);
+            if (!alreadyLinked) {
+              await db.createSupplierCompanyLink({
+                supplierId,
+                companyId: companyIdNum,
+                businessUnitId: input.supplierData.groupId ?? undefined,
+                categoryId: input.supplierData.categoryId ?? undefined,
+                criticality: (input.supplierData.criticality as any) ?? "medium",
+                homologationStatus: "pending",
+                status: "active",
+                linkedById: ctx.user.id,
+              });
+            }
+          }
+        }
 
         // Link uploaded documents to supplier
         for (const file of input.uploadedFiles) {
