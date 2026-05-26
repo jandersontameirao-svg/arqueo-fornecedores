@@ -1176,3 +1176,10 @@
 - [x] Corrigir getAllSuppliers para usar supplierCompanyLinks.businessUnitId quando não há companyId
 - [x] Garantir deduplication (DISTINCT) quando fornecedor vinculado a múltiplas empresas da mesma área- [x] Aplicar filtros (search, status, categoryId, criticality) corretamente na query por businessUnitId- [x] Criar/atualizar testes: listagem por businessUnitId, deduplication, filtros, companyId ainda funciona
 - [x] 0 erros TypeScript. 387/387 testes passando
+
+## Correção navegação Home → /suppliers (v9.8)
+- [x] Corrigir Home.tsx: preservar activeUnit antes de navegar para /suppliers
+- [x] Corrigir Suppliers.tsx: resolver groupId via fallback seguro (activeUnit → selectedCompany.groupId → rota)
+- [x] Garantir que o topo não mostre "Sem grupo" quando área está ativa
+- [x] Criar/atualizar testes: navegação preserva área, groupId válido, sem regressão
+- [x] 0 erros TypeScript. 400/400 testes passando

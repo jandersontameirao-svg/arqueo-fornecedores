@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
@@ -101,7 +101,7 @@ export default function Suppliers() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { selectedCompany } = useSelectedCompany();
-  const { activeUnit } = useBusinessUnitContext();
+  const { activeUnit, units, isLoading: unitsLoading } = useBusinessUnitContext();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -115,18 +115,33 @@ export default function Suppliers() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  // FALLBACK SEGURO: quando activeUnit ainda não carregou (units query pendente),
+  // lê o activeUnitId do localStorage para resolver groupId sem esperar o contexto
+  const persistedUnitId = useMemo(() => {
+    if (activeUnit) return null; // já temos o contexto, não precisa do fallback
+    const saved = localStorage.getItem("arqueo_active_unit_id");
+    return saved ? parseInt(saved, 10) : null;
+  }, [activeUnit]);
+
+  // Unidade ativa resolvida: contexto carregado OU fallback do localStorage
+  const resolvedUnit = activeUnit || (persistedUnitId && units.length > 0
+    ? units.find(u => u.id === persistedUnitId) || null
+    : null);
+
   const companyId = selectedCompany?.id || undefined;
-  // groupId via selectedCompany (empresa selecionada) OU via activeUnit (visão por área)
+  // groupId via selectedCompany (empresa selecionada) OU via unidade resolvida (visão por área)
   const groupId = selectedCompany?.groupId
     ? selectedCompany.groupId
-    : activeUnit?.id || undefined;
+    : resolvedUnit?.id || undefined;
 
   // Verifica se a área tem empresas registradas (para distinguir área vazia de visão geral)
-  const areaCompanies = activeUnit ? getCompaniesForGroup(activeUnit.name) : [];
+  const areaCompanies = resolvedUnit ? getCompaniesForGroup(resolvedUnit.name) : [];
   const areaHasCompanies = areaCompanies.length > 0;
 
   // ISOLAMENTO: só busca dados se há empresa selecionada ou área com empresas
-  const hasScope = !!(companyId || (activeUnit && areaHasCompanies));
+  // Aguarda o carregamento das units se há um persistedUnitId pendente
+  const contextReady = !unitsLoading || activeUnit !== null || !persistedUnitId;
+  const hasScope = contextReady && !!(companyId || (resolvedUnit && areaHasCompanies));
 
   const { data: categories } = trpc.categories.list.useQuery();
   const { data: suppliers, isLoading } = trpc.suppliers.list.useQuery({
@@ -150,12 +165,12 @@ export default function Suppliers() {
   };
 
   // ESTADO VAZIO: apenas quando a área realmente não tem empresas cadastradas
-  if (activeUnit && !areaHasCompanies) {
+  if (resolvedUnit && !areaHasCompanies) {
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Cadastro de Fornecedores</h1>
-          <p className="text-muted-foreground">{activeUnit.name}</p>
+          <p className="text-muted-foreground">{resolvedUnit.name}</p>
         </div>
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">

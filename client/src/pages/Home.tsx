@@ -106,13 +106,21 @@ const CustomBarTooltip = ({ active, payload, label }: any) => {
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const { activeUnit } = useBusinessUnitContext();
+  const { activeUnit, setActiveUnitId } = useBusinessUnitContext();
   const { selectedCompany } = useSelectedCompany();
   const companyId = selectedCompany?.id || undefined;
   // groupId via selectedCompany OU via activeUnit (visão por área)
   const groupId = selectedCompany?.groupId
     ? selectedCompany.groupId
     : activeUnit?.id || undefined;
+
+  // Navega para /suppliers garantindo que activeUnit está persistido no localStorage
+  const navigateToSuppliers = () => {
+    if (activeUnit) {
+      setActiveUnitId(activeUnit.id); // garante persistência no localStorage antes da navegação
+    }
+    setLocation("/suppliers");
+  };
 
   // Verifica se a área tem empresas registradas
   const areaCompanies = activeUnit ? getCompaniesForGroup(activeUnit.name) : [];
@@ -263,7 +271,7 @@ export default function Home() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="cursor-pointer hover:shadow-md transition-shadow group" onClick={() => setLocation("/suppliers")}>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow group" onClick={navigateToSuppliers}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Fornecedores</CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -297,7 +305,7 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow group" onClick={() => setLocation("/suppliers")}>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow group" onClick={navigateToSuppliers}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Documentos</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
