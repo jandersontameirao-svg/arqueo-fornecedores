@@ -385,11 +385,10 @@ export async function getAllSuppliers(filters?: {
       supplierConds.push(eq(suppliers.status, filters.status as any));
     }
     if (searchCond) supplierConds.push(searchCond);
-    // ISOLAMENTO MULTI-GRUPO: restringir por organizationalGroupId se necessário
-    if (filters?.orgGroupIds !== undefined) {
-      if (filters.orgGroupIds.length === 0) return [];
-      supplierConds.push(inArray(suppliers.organizationalGroupId, filters.orgGroupIds));
-    }
+    // NOTA: Não aplicar filtro por suppliers.organizationalGroupId neste caminho.
+    // O isolamento de escopo já é garantido pelo supplierCompanyLinks.businessUnitId.
+    // Fornecedores legados com organizationalGroupId NULL mas com vínculo ativo em
+    // supplierCompanyLinks devem aparecer normalmente na listagem por área.
 
     const allConds = [
       and(...linkConds),

@@ -1183,3 +1183,9 @@
 - [x] Garantir que o topo não mostre "Sem grupo" quando área está ativa
 - [x] Criar/atualizar testes: navegação preserva área, groupId válido, sem regressão
 - [x] 0 erros TypeScript. 400/400 testes passando
+
+## Correção getAllSuppliers — orgGroupIds no caminho businessUnitId (v9.9)
+- [x] Remover filtro suppliers.organizationalGroupId do caminho canônico por businessUnitId
+- [x] Manter filtro orgGroupIds apenas nos caminhos sem businessUnitId (companyId ou global)
+- [x] Criar/atualizar testes: 12 cenários cobertos (supplier-org-group-fix.test.ts)
+- [x] 0 erros TypeScript. 412/412 testes passando
