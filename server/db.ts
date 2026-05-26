@@ -363,11 +363,70 @@ export async function getAllSuppliers(filters?: {
       }));
   }
 
-  // Sem companyId: filtrar por groupId se fornecido (segregação por grupo)
-  const conditions = [...baseConditions];
+  // Sem companyId: se groupId (businessUnitId) fornecido, usar supplierCompanyLinks como fonte canônica
   if (filters?.groupId) {
-    conditions.push(eq(suppliers.groupId, filters.groupId));
+    const buId = filters.groupId;
+
+    // Condições no vínculo
+    const linkConds: any[] = [
+      eq(supplierCompanyLinks.businessUnitId, buId),
+      eq(supplierCompanyLinks.status, "active"),
+    ];
+    if (filters?.categoryId) {
+      linkConds.push(eq(supplierCompanyLinks.categoryId, filters.categoryId));
+    }
+    if (filters?.criticality) {
+      linkConds.push(eq(supplierCompanyLinks.criticality, filters.criticality as any));
+    }
+
+    // Condições no fornecedor
+    const supplierConds: any[] = [];
+    if (filters?.status) {
+      supplierConds.push(eq(suppliers.status, filters.status as any));
+    }
+    if (searchCond) supplierConds.push(searchCond);
+    // ISOLAMENTO MULTI-GRUPO: restringir por organizationalGroupId se necessário
+    if (filters?.orgGroupIds !== undefined) {
+      if (filters.orgGroupIds.length === 0) return [];
+      supplierConds.push(inArray(suppliers.organizationalGroupId, filters.orgGroupIds));
+    }
+
+    const allConds = [
+      and(...linkConds),
+      ...(supplierConds.length > 0 ? [and(...supplierConds)] : []),
+    ];
+
+    const rows = await db.select({
+      supplier: suppliers,
+      category: supplierCategories,
+      createdBy: users,
+      link: supplierCompanyLinks,
+    })
+      .from(supplierCompanyLinks)
+      .innerJoin(suppliers, eq(supplierCompanyLinks.supplierId, suppliers.id))
+      .leftJoin(supplierCategories, eq(supplierCompanyLinks.categoryId, supplierCategories.id))
+      .leftJoin(users, eq(suppliers.createdById, users.id))
+      .where(and(...allConds))
+      .orderBy(desc(suppliers.createdAt));
+
+    // Deduplica por supplierId (fornecedor vinculado a múltiplas empresas da mesma área)
+    const seen = new Set<number>();
+    return rows
+      .filter(r => {
+        if (seen.has(r.supplier.id)) return false;
+        seen.add(r.supplier.id);
+        return true;
+      })
+      .map(r => ({
+        supplier: r.supplier,
+        category: r.category,
+        createdBy: r.createdBy,
+        link: r.link,
+      }));
   }
+
+  // Sem companyId e sem groupId: listagem global (superadmin ou fallback legado)
+  const conditions = [...baseConditions];
   // ISOLAMENTO MULTI-GRUPO: se orgGroupIds fornecido, filtrar por organizationalGroupId
   if (filters?.orgGroupIds !== undefined) {
     if (filters.orgGroupIds.length === 0) return []; // sem acesso a nenhum grupo

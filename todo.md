@@ -1171,3 +1171,8 @@
 - [x] Corrigir telas relacionadas (documentos, contratos, contatos, aprovação, histórico)
 - [x] Criar/atualizar testes de supplierCompanyLinks
 - [x] 0 erros TypeScript. 370/370 testes passando
+
+## Correção getAllSuppliers por businessUnitId (v9.7)
+- [x] Corrigir getAllSuppliers para usar supplierCompanyLinks.businessUnitId quando não há companyId
+- [x] Garantir deduplication (DISTINCT) quando fornecedor vinculado a múltiplas empresas da mesma área- [x] Aplicar filtros (search, status, categoryId, criticality) corretamente na query por businessUnitId- [x] Criar/atualizar testes: listagem por businessUnitId, deduplication, filtros, companyId ainda funciona
+- [x] 0 erros TypeScript. 387/387 testes passando
