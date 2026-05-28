@@ -77,8 +77,10 @@ export default function SupplierContracts({ supplierId, supplierName, supplierCn
   const utils = trpc.useUtils();
   const canManage = user?.role === "admin" || user?.role === "manager";
   const { selectedCompany } = useSelectedCompany();
-  // Slug da empresa selecionada: usado para filtrar contratos por empresa
-  const companySlug = selectedCompany?.id || undefined;
+  // Usar companyId numérico para chamadas ao backend; id é preservado como slug visual
+  const companySlug = selectedCompany?.companyId
+    ? String(selectedCompany.companyId)
+    : undefined;
 
   const [creationModalOpen, setCreationModalOpen] = useState(false);
   const [selectedMode, setSelectedMode] = useState<ContractCreationMode | null>(null);

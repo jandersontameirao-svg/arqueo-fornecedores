@@ -39,7 +39,9 @@ const statusColors: Record<string, string> = {
 export default function Approvals() {
   const [, setLocation] = useLocation();
   const { selectedCompany } = useSelectedCompany();
-  const { data: pendingWorkflows, isLoading } = trpc.workflows.getPending.useQuery({ companyId: selectedCompany?.id });
+  const { data: pendingWorkflows, isLoading } = trpc.workflows.getPending.useQuery({
+    companyId: selectedCompany?.companyId ? String(selectedCompany.companyId) : selectedCompany?.id,
+  });
 
   return (
     <div className="space-y-6">

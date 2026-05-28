@@ -16,7 +16,8 @@ import { trpc } from "@/lib/trpc";
 
 // ─── Definição estática das empresas por grupo ────────────────────────────────
 interface CompanyDef {
-  id: string;
+  id: string;          // slug visual
+  companyId?: number;  // ID numérico real na tabela companies
   name: string;
   color: string;
   description?: string;
@@ -25,10 +26,10 @@ interface CompanyDef {
 
 const COMPANIES_BY_GROUP: Record<string, CompanyDef[]> = {
   "Grupo Arqueo Brasil": [
-    { id: "arqueogis-preventiva", name: "Arqueogis Preventiva", color: "#F09327", description: "Arqueologia preventiva e licenciamento ambiental" },
-    { id: "arqueoproject", name: "Arqueoproject", color: "#6E0F2B", description: "Gestão e execução de projetos arqueológicos" },
-    { id: "arqueogis-geoprocessamento", name: "Arqueogis Geoprocessamento", color: "#D4A017", description: "Geoprocessamento e análise espacial" },
-    { id: "arqueocean", name: "Arqueocean", color: "#3178C1", description: "Arqueologia subaquática e oceanografia" },
+    { id: "arqueogis-preventiva", companyId: 1, name: "Arqueogis Preventiva", color: "#F09327", description: "Arqueologia preventiva e licenciamento ambiental" },
+    { id: "arqueoproject", companyId: 2, name: "Arqueoproject", color: "#6E0F2B", description: "Gestão e execução de projetos arqueológicos" },
+    { id: "arqueogis-geoprocessamento", companyId: 3, name: "Arqueogis Geoprocessamento", color: "#D4A017", description: "Geoprocessamento e análise espacial" },
+    { id: "arqueocean", companyId: 30001, name: "Arqueocean", color: "#3178C1", description: "Arqueologia subaquática e oceanografia" },
   ],
   "Foods and Drinks": [
     { id: "vinho24hbsb", name: "Vinho24hBSB", color: "#6E0F2B", description: "Distribuição e varejo de vinhos e bebidas", logoUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310419663028979380/tpVGXZuyboWbtFfx.png" },
@@ -64,6 +65,7 @@ function CompanyCard({
 }) {
   const companyData: SelectedCompany = {
     id: company.id,
+    companyId: company.companyId,
     name: company.name,
     color: company.color,
     groupName,
@@ -139,6 +141,7 @@ function CompanySupplierCard({
 }) {
   const companyData: SelectedCompany = {
     id: company.id,
+    companyId: company.companyId,
     name: company.name,
     color: company.color,
     groupName,

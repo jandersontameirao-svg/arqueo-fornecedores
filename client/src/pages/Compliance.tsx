@@ -49,9 +49,10 @@ const alertTypeLabels: Record<string, string> = {
 export default function Compliance() {
   const [, setLocation] = useLocation();
   const { selectedCompany } = useSelectedCompany();
+  const _companyIdStr = selectedCompany?.companyId ? String(selectedCompany.companyId) : undefined;
   const { data: alerts, isLoading } = trpc.compliance.getAlerts.useQuery({
-    companyId: selectedCompany?.id || undefined,
-    groupId: !selectedCompany?.id && selectedCompany?.groupId ? selectedCompany.groupId : undefined,
+    companyId: _companyIdStr,
+    groupId: !_companyIdStr && selectedCompany?.groupId ? selectedCompany.groupId : undefined,
   });
   const utils = trpc.useUtils();
 

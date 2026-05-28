@@ -1189,3 +1189,20 @@
 - [x] Manter filtro orgGroupIds apenas nos caminhos sem businessUnitId (companyId ou global)
 - [x] Criar/atualizar testes: 12 cenários cobertos (supplier-org-group-fix.test.ts)
 - [x] 0 erros TypeScript. 412/412 testes passando
+
+## Correção estrutural selectedCompany.companyId numérico (v9.10)
+- [x] Adicionar companyId numérico ao tipo SelectedCompany e CompanyDef
+- [x] Mapear as 4 empresas com IDs numéricos reais (arqueogis-preventiva=1, arqueoproject=2, arqueogis-geoprocessamento=3, arqueocean=30001)
+- [x] Implementar fallback/migração segura para localStorage antigo sem companyId
+- [x] Atualizar Suppliers.tsx para usar selectedCompany.companyId
+- [x] Atualizar Home.tsx para usar selectedCompany.companyId
+- [x] Atualizar Evaluations.tsx para usar selectedCompany.companyId
+- [x] Atualizar Interactions.tsx para usar selectedCompany.companyId
+- [x] Atualizar Compliance.tsx para usar selectedCompany.companyId
+- [x] Atualizar Approvals.tsx para usar selectedCompany.companyId
+- [x] Atualizar SupplierForm.tsx para usar selectedCompany.companyId
+- [x] Atualizar AddSupplierAI.tsx para usar selectedCompany.companyId
+- [x] Atualizar SupplierContracts.tsx para usar selectedCompany.companyId
+- [x] Atualizar TemplatePlaceholderFiller.tsx para usar selectedCompany.companyId (não usa selectedCompany.id, usa selectedCompanyId local)
+- [x] Criar/atualizar testes: 12 cenários cobertos (selected-company-numeric-id.test.ts)
+- [x] 0 erros TypeScript. 424/424 testes passando

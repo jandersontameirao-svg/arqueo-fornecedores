@@ -27,10 +27,11 @@ type EvalItem = { evaluation: { id: number; overallScore: string | null; evaluat
 export default function Evaluations() {
   const [, setLocation] = useLocation();
   const { selectedCompany } = useSelectedCompany();
+  const _companyIdStr = selectedCompany?.companyId ? String(selectedCompany.companyId) : undefined;
   const { data: evaluations, isLoading } = trpc.evaluations.getLatest.useQuery({
     limit: 20,
-    companyId: selectedCompany?.id || undefined,
-    groupId: !selectedCompany?.id && selectedCompany?.groupId ? selectedCompany.groupId : undefined,
+    companyId: _companyIdStr,
+    groupId: !_companyIdStr && selectedCompany?.groupId ? selectedCompany.groupId : undefined,
   });
 
   const getScoreColor = (score: number) => {

@@ -128,7 +128,10 @@ export default function Suppliers() {
     ? units.find(u => u.id === persistedUnitId) || null
     : null);
 
-  const companyId = selectedCompany?.id || undefined;
+  // Usar companyId numérico para chamadas ao backend; id é preservado como slug visual
+  const companyId = selectedCompany?.companyId
+    ? String(selectedCompany.companyId)
+    : undefined;
   // groupId via selectedCompany (empresa selecionada) OU via unidade resolvida (visão por área)
   const groupId = selectedCompany?.groupId
     ? selectedCompany.groupId

@@ -189,8 +189,8 @@ export default function SupplierForm({ id }: SupplierFormProps) {
       notes: sanitize(formData.notes),
       categoryId: formData.categoryId || undefined,
       companyId: selectedCompanyId === "all_grupo_arqueo_brasil"
-        ? String(grupoArqueoBrasilCompanies[0]?.id || selectedCompany?.id || "")
-        : (selectedCompanyId || selectedCompany?.id || undefined),
+        ? String(grupoArqueoBrasilCompanies[0]?.id || selectedCompany?.companyId || "")
+        : (selectedCompanyId || (selectedCompany?.companyId ? String(selectedCompany.companyId) : undefined)),
       groupId: selectedCompany?.groupId || undefined,
     };
 

@@ -108,7 +108,10 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const { activeUnit, setActiveUnitId } = useBusinessUnitContext();
   const { selectedCompany } = useSelectedCompany();
-  const companyId = selectedCompany?.id || undefined;
+  // Usar companyId numérico para chamadas ao backend; id é preservado como slug visual
+  const companyId = selectedCompany?.companyId
+    ? String(selectedCompany.companyId)
+    : undefined;
   // groupId via selectedCompany OU via activeUnit (visão por área)
   const groupId = selectedCompany?.groupId
     ? selectedCompany.groupId
