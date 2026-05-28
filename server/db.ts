@@ -1120,27 +1120,42 @@ export async function getSuppliersByCategory(companyId?: string, groupId?: numbe
   if (!db) return [];
 
   if (companyId) {
-    // Coleta IDs visíveis (diretos + vinculados)
-    const direct = await db.select({ id: suppliers.id }).from(suppliers).where(eq(suppliers.companyId, companyId));
-    const linked = await db.select({ supplierId: supplierLinks.supplierId }).from(supplierLinks)
-      .where(and(eq(supplierLinks.targetCompanyId, companyId), eq(supplierLinks.status, "active")));
-    const ids = new Set<number>();
-    direct.forEach(r => ids.add(r.id));
-    linked.forEach(r => ids.add(r.supplierId));
-    const visibleIds = Array.from(ids);
-    if (visibleIds.length === 0) return [];
+    // Fonte canônica: supplierCompanyLinks
+    const companyIdNum = parseInt(companyId, 10);
+    if (isNaN(companyIdNum)) return [];
     return db.select({
-      categoryId: suppliers.categoryId,
+      categoryId: supplierCompanyLinks.categoryId,
       categoryName: supplierCategories.name,
       categoryColor: supplierCategories.color,
-      count: sql<number>`count(*)`,
+      count: sql<number>`count(distinct ${supplierCompanyLinks.supplierId})`,
     })
-      .from(suppliers)
-      .leftJoin(supplierCategories, eq(suppliers.categoryId, supplierCategories.id))
-      .where(sql`${suppliers.id} IN (${sql.join(visibleIds.map(id => sql`${id}`), sql`, `)})`)
-      .groupBy(suppliers.categoryId, supplierCategories.name, supplierCategories.color);
+      .from(supplierCompanyLinks)
+      .leftJoin(supplierCategories, eq(supplierCompanyLinks.categoryId, supplierCategories.id))
+      .where(and(
+        eq(supplierCompanyLinks.companyId, companyIdNum),
+        eq(supplierCompanyLinks.status, "active")
+      ))
+      .groupBy(supplierCompanyLinks.categoryId, supplierCategories.name, supplierCategories.color);
   }
 
+  if (groupId) {
+    // Fonte canônica: supplierCompanyLinks por businessUnitId
+    return db.select({
+      categoryId: supplierCompanyLinks.categoryId,
+      categoryName: supplierCategories.name,
+      categoryColor: supplierCategories.color,
+      count: sql<number>`count(distinct ${supplierCompanyLinks.supplierId})`,
+    })
+      .from(supplierCompanyLinks)
+      .leftJoin(supplierCategories, eq(supplierCompanyLinks.categoryId, supplierCategories.id))
+      .where(and(
+        eq(supplierCompanyLinks.businessUnitId, groupId),
+        eq(supplierCompanyLinks.status, "active")
+      ))
+      .groupBy(supplierCompanyLinks.categoryId, supplierCategories.name, supplierCategories.color);
+  }
+
+  // Global (superadmin)
   let q = db.select({
     categoryId: suppliers.categoryId,
     categoryName: supplierCategories.name,
@@ -1149,7 +1164,6 @@ export async function getSuppliersByCategory(companyId?: string, groupId?: numbe
   })
     .from(suppliers)
     .leftJoin(supplierCategories, eq(suppliers.categoryId, supplierCategories.id));
-  if (groupId) q = q.where(eq(suppliers.groupId, groupId)) as any;
   return (q as any).groupBy(suppliers.categoryId, supplierCategories.name, supplierCategories.color);
 }
 export async function getSuppliersByCriticality(companyId?: string, groupId?: number) {
@@ -1157,30 +1171,42 @@ export async function getSuppliersByCriticality(companyId?: string, groupId?: nu
   if (!db) return [];
 
   if (companyId) {
-    const direct = await db.select({ id: suppliers.id }).from(suppliers).where(eq(suppliers.companyId, companyId));
-    const linked = await db.select({ supplierId: supplierLinks.supplierId }).from(supplierLinks)
-      .where(and(eq(supplierLinks.targetCompanyId, companyId), eq(supplierLinks.status, "active")));
-    const ids = new Set<number>();
-    direct.forEach(r => ids.add(r.id));
-    linked.forEach(r => ids.add(r.supplierId));
-    const visibleIds = Array.from(ids);
-    if (visibleIds.length === 0) return [];
+    // Fonte canônica: supplierCompanyLinks
+    const companyIdNum = parseInt(companyId, 10);
+    if (isNaN(companyIdNum)) return [];
     return db.select({
-      criticality: suppliers.criticality,
-      count: sql<number>`count(*)`,
+      criticality: supplierCompanyLinks.criticality,
+      count: sql<number>`count(distinct ${supplierCompanyLinks.supplierId})`,
     })
-      .from(suppliers)
-      .where(sql`${suppliers.id} IN (${sql.join(visibleIds.map(id => sql`${id}`), sql`, `)})`)
-      .groupBy(suppliers.criticality);
+      .from(supplierCompanyLinks)
+      .where(and(
+        eq(supplierCompanyLinks.companyId, companyIdNum),
+        eq(supplierCompanyLinks.status, "active")
+      ))
+      .groupBy(supplierCompanyLinks.criticality);
   }
 
-  let q = db.select({
+  if (groupId) {
+    // Fonte canônica: supplierCompanyLinks por businessUnitId
+    return db.select({
+      criticality: supplierCompanyLinks.criticality,
+      count: sql<number>`count(distinct ${supplierCompanyLinks.supplierId})`,
+    })
+      .from(supplierCompanyLinks)
+      .where(and(
+        eq(supplierCompanyLinks.businessUnitId, groupId),
+        eq(supplierCompanyLinks.status, "active")
+      ))
+      .groupBy(supplierCompanyLinks.criticality);
+  }
+
+  // Global (superadmin)
+  return db.select({
     criticality: suppliers.criticality,
     count: sql<number>`count(*)`,
   })
-    .from(suppliers);
-  if (groupId) q = q.where(eq(suppliers.groupId, groupId)) as any;
-  return (q as any).groupBy(suppliers.criticality);
+    .from(suppliers)
+    .groupBy(suppliers.criticality);
 }
 
 // ==================== CONTRACT FUNCTIONS ====================

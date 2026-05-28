@@ -1222,3 +1222,14 @@
 - [x] Criar script de diagnóstico de banco (somente leitura) + script de migração legada executado
 - [x] Criar testes obrigatórios (17 cenários em supplier-link-refactor.test.ts)
 - [x] 0 erros TypeScript. 440/441 testes passando (1 falho = Clicksign timeout externo pré-existente)
+
+## Auditoria Estrutural Completa — Visibilidade por supplier_company_links (v9.12)
+- [x] Auditar backend: getAllSuppliers, getSuppliersByCompanyLink, countByCompany, unitStats
+- [x] Auditar backend: suppliers.create, suppliers.saveViaAI, supplierCompanyLinks.create
+- [x] Auditar frontend: 13 arquivos — eliminar slug textual como companyId
+- [x] Corrigir backend: getSuppliersByCategory e getSuppliersByCriticality corrigidos
+- [x] Corrigir frontend: Approvals.tsx fallback eliminado, demais já corretos
+- [x] Criar/aprimorar diagnose-links.mjs com 7 relatórios completos
+- [x] Criar script idempotente backfill-links.mjs (--dry-run e --execute)
+- [x] Criar testes obrigatórios (40+ cenários em supplier-visibility-audit.test.ts)
+- [x] 0 erros TypeScript. 478/478 testes passando

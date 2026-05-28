@@ -40,7 +40,7 @@ export default function Approvals() {
   const [, setLocation] = useLocation();
   const { selectedCompany } = useSelectedCompany();
   const { data: pendingWorkflows, isLoading } = trpc.workflows.getPending.useQuery({
-    companyId: selectedCompany?.companyId ? String(selectedCompany.companyId) : selectedCompany?.id,
+    companyId: selectedCompany?.companyId ? String(selectedCompany.companyId) : undefined,
   });
 
   return (
