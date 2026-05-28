@@ -1,0 +1,18 @@
+{
+  "query": "SELECT scl.id, scl.supplierId, s.companyName, scl.companyId, c.legalName, scl.businessUnitId FROM supplier_company_links scl LEFT JOIN suppliers s ON s.id = scl.supplierId LEFT JOIN companies c ON c.id = scl.companyId;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4X2C2Km2DVLwNTk.64fd6baeb197 --database KbiCF9FN7rZHpjZqbGxEKZ --execute SELECT scl.id, scl.supplierId, s.companyName, scl.companyId, c.legalName, scl.businessUnitId FROM supplier_company_links scl LEFT JOIN suppliers s ON s.id = scl.supplierId LEFT JOIN companies c ON c.id = scl.companyId;",
+  "rows": [
+    {
+      "id": "60001",
+      "supplierId": "300001",
+      "companyName": "rfffdsfssf",
+      "companyId": "1",
+      "legalName": "Arqueogis Preventiva",
+      "businessUnitId": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tsupplierId\tcompanyName\tcompanyId\tlegalName\tbusinessUnitId\n60001\t300001\trfffdsfssf\t1\tArqueogis Preventiva\t1\n",
+  "stderr": "",
+  "execution_time_ms": 350
+}

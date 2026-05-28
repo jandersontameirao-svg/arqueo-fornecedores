@@ -1,16 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
-
-// Mapa de slug → companyId numérico real (tabela companies)
-const SLUG_TO_COMPANY_ID: Record<string, number> = {
-  "arqueogis-preventiva": 1,
-  "arqueoproject": 2,
-  "arqueogis-geoprocessamento": 3,
-  "arqueocean": 30001,
-};
-
-export function inferCompanyId(slug: string): number | undefined {
-  return SLUG_TO_COMPANY_ID[slug];
-}
+import { inferCompanyId } from "@/lib/companies";
 
 export interface SelectedCompany {
   id: string;           // identificador único (slug) — preservado para uso visual

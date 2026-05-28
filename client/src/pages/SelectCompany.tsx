@@ -14,42 +14,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 
-// ─── Definição estática das empresas por grupo ────────────────────────────────
-interface CompanyDef {
-  id: string;          // slug visual
-  companyId?: number;  // ID numérico real na tabela companies
-  name: string;
-  color: string;
-  description?: string;
-  logoUrl?: string;
-}
+// ─── Importação do módulo centralizado de empresas ──────────────────────────────
+import {
+  COMPANIES_BY_GROUP,
+  hasCompanySelection,
+  getCompaniesForGroup,
+  type CompanyDef,
+} from "@/lib/companies";
 
-const COMPANIES_BY_GROUP: Record<string, CompanyDef[]> = {
-  "Grupo Arqueo Brasil": [
-    { id: "arqueogis-preventiva", companyId: 1, name: "Arqueogis Preventiva", color: "#F09327", description: "Arqueologia preventiva e licenciamento ambiental" },
-    { id: "arqueoproject", companyId: 2, name: "Arqueoproject", color: "#6E0F2B", description: "Gestão e execução de projetos arqueológicos" },
-    { id: "arqueogis-geoprocessamento", companyId: 3, name: "Arqueogis Geoprocessamento", color: "#D4A017", description: "Geoprocessamento e análise espacial" },
-    { id: "arqueocean", companyId: 30001, name: "Arqueocean", color: "#3178C1", description: "Arqueologia subaquática e oceanografia" },
-  ],
-  "Foods and Drinks": [
-    { id: "vinho24hbsb", name: "Vinho24hBSB", color: "#6E0F2B", description: "Distribuição e varejo de vinhos e bebidas", logoUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310419663028979380/tpVGXZuyboWbtFfx.png" },
-  ],
-};
-
-const GROUPS_WITH_COMPANY_SELECTION = Object.keys(COMPANIES_BY_GROUP);
-
-export function hasCompanySelection(groupName: string): boolean {
-  return GROUPS_WITH_COMPANY_SELECTION.some(
-    (g) => groupName.toLowerCase().includes(g.toLowerCase()) || g.toLowerCase().includes(groupName.toLowerCase())
-  );
-}
-
-export function getCompaniesForGroup(groupName: string): CompanyDef[] {
-  const key = GROUPS_WITH_COMPANY_SELECTION.find(
-    (g) => groupName.toLowerCase().includes(g.toLowerCase()) || g.toLowerCase().includes(groupName.toLowerCase())
-  );
-  return key ? COMPANIES_BY_GROUP[key] : [];
-}
+// Re-exportar para manter compatibilidade com imports existentes
+export { hasCompanySelection, getCompaniesForGroup };
 
 // ─── Card individual de empresa (usado na vista Empresas) ─────────────────────
 function CompanyCard({

@@ -1369,6 +1369,13 @@ export async function getBusinessUnitById(id: number) {
   return rows[0] || null;
 }
 
+export async function getBusinessUnitIdByCompanyId(companyId: number): Promise<number | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select({ businessUnitId: companies.businessUnitId }).from(companies).where(eq(companies.id, companyId)).limit(1);
+  return rows[0]?.businessUnitId ?? null;
+}
+
 export async function createBusinessUnit(data: Omit<InsertBusinessUnit, "id" | "createdAt" | "updatedAt">) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

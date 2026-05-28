@@ -1206,3 +1206,19 @@
 - [x] Atualizar TemplatePlaceholderFiller.tsx para usar selectedCompany.companyId (não usa selectedCompany.id, usa selectedCompanyId local)
 - [x] Criar/atualizar testes: 12 cenários cobertos (selected-company-numeric-id.test.ts)
 - [x] 0 erros TypeScript. 424/424 testes passando
+
+## Correção estrutural SupplierLink.tsx — companyId numérico (v9.11)
+- [x] Criar módulo centralizado client/src/lib/companies.ts com definição canônica de empresas
+- [x] Refatorar SelectCompany.tsx para usar módulo centralizado
+- [x] Refatorar SelectedCompanyContext.tsx para usar módulo centralizado
+- [x] Refatorar SupplierLink.tsx para usar companyId numérico do módulo centralizado
+- [x] Corrigir query de fornecedores em SupplierLink: usar String(sourceCompany.companyId)
+- [x] Corrigir criação de vínculo: usar targetCompany.companyId numérico
+- [x] Garantir idempotência: não duplicar vínculo existente, reativar inactive
+- [x] Corrigir backend: supplierCompanyLinks.create aceitar todos os campos necessários
+- [x] Corrigir backend: derivar businessUnitId da tabela companies quando não vier do frontend
+- [x] Corrigir SupplierForm.tsx: eliminar fallback "grupo-arqueo" em companyId
+- [x] Corrigir AddSupplierAI.tsx: eliminar fallback inválido em companyId
+- [x] Criar script de diagnóstico de banco (somente leitura) + script de migração legada executado
+- [x] Criar testes obrigatórios (17 cenários em supplier-link-refactor.test.ts)
+- [x] 0 erros TypeScript. 440/441 testes passando (1 falho = Clicksign timeout externo pré-existente)

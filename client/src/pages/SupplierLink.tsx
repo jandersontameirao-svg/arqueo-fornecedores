@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
+import { COMPANIES_BY_GROUP, type CompanyDef, hasValidCompanyId } from "@/lib/companies";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -43,25 +44,6 @@ import {
   Info,
 } from "lucide-react";
 
-// ─── Definição de grupos e empresas (mesma estrutura do SelectCompany) ─────────
-interface CompanyDef {
-  id: string;
-  name: string;
-  color: string;
-}
-
-const GROUPS: Record<string, CompanyDef[]> = {
-  "Grupo Arqueo Brasil": [
-    { id: "arqueogis-preventiva", name: "Arqueogis Preventiva", color: "#F09327" },
-    { id: "arqueoproject", name: "Arqueoproject", color: "#6E0F2B" },
-    { id: "arqueogis-geoprocessamento", name: "Arqueogis Geoprocessamento", color: "#D4A017" },
-    { id: "arqueocean", name: "Arqueocean", color: "#3178C1" },
-  ],
-  "Foods and Drinks": [
-    { id: "vinho24hbsb", name: "Vinho24hBSB", color: "#6E0F2B" },
-  ],
-};
-
 // ─── Tipos de etapas do fluxo ─────────────────────────────────────────────────
 type Step = "select-group" | "select-source" | "select-supplier" | "select-target" | "confirm";
 
@@ -81,7 +63,7 @@ export default function SupplierLink() {
 
   // Empresas disponíveis no grupo selecionado
   const companiesInGroup = useMemo(() => {
-    return selectedGroup ? (GROUPS[selectedGroup] || []) : [];
+    return selectedGroup ? (COMPANIES_BY_GROUP[selectedGroup] || []) : [];
   }, [selectedGroup]);
 
   // Empresas de destino: mesmo grupo, excluindo a empresa de origem
@@ -90,10 +72,10 @@ export default function SupplierLink() {
     return companiesInGroup.filter((c) => c.id !== sourceCompany.id);
   }, [companiesInGroup, sourceCompany, selectedGroup]);
 
-  // Query: fornecedores da empresa de origem
+  // Query: fornecedores da empresa de origem — usa companyId NUMÉRICO
   const { data: suppliersData, isLoading: loadingSuppliers } = trpc.suppliers.list.useQuery(
-    { companyId: sourceCompany?.id },
-    { enabled: !!sourceCompany }
+    { companyId: sourceCompany ? String(sourceCompany.companyId) : undefined },
+    { enabled: !!sourceCompany && hasValidCompanyId(sourceCompany) }
   );
 
   const suppliers = suppliersData || [];
@@ -103,20 +85,25 @@ export default function SupplierLink() {
     if (!supplierSearch.trim()) return suppliers;
     const q = supplierSearch.toLowerCase();
     return suppliers.filter(
-      (s) =>
+      (s: any) =>
         s.supplier.companyName?.toLowerCase().includes(q) ||
+        s.supplier.tradeName?.toLowerCase().includes(q) ||
         s.supplier.cnpj?.toLowerCase().includes(q) ||
-        s.supplier.email?.toLowerCase().includes(q)
+        s.supplier.email?.toLowerCase().includes(q) ||
+        s.supplier.phone?.toLowerCase().includes(q) ||
+        s.supplier.city?.toLowerCase().includes(q) ||
+        s.supplier.state?.toLowerCase().includes(q) ||
+        s.supplier.notes?.toLowerCase().includes(q)
     );
   }, [suppliers, supplierSearch]);
 
   // Fornecedor selecionado
   const selectedSupplier = useMemo(() => {
-    return suppliers.find((s) => s.supplier.id === selectedSupplierId)?.supplier || null;
+    return suppliers.find((s: any) => s.supplier.id === selectedSupplierId)?.supplier || null;
   }, [suppliers, selectedSupplierId]);
 
-  // Mutation: criar vínculo
-  const createLinkMutation = trpc.supplierLinks.create.useMutation({
+  // Mutation: criar vínculo canônico em supplierCompanyLinks
+  const createLinkMutation = trpc.supplierCompanyLinks.create.useMutation({
     onSuccess: () => {
       toast.success("Fornecedor vinculado com sucesso!", {
         description: `${selectedSupplier?.companyName} foi vinculado à ${targetCompany?.name}.`,
@@ -139,14 +126,20 @@ export default function SupplierLink() {
 
   const handleConfirmLink = () => {
     if (!selectedSupplierId || !sourceCompany || !targetCompany || !selectedGroup) return;
+
+    // Validação: empresa de destino deve ter companyId numérico válido
+    if (!hasValidCompanyId(targetCompany)) {
+      toast.error("Empresa de destino sem ID numérico válido", {
+        description: "Não é possível vincular a esta empresa. Contate o administrador.",
+      });
+      setConfirmOpen(false);
+      return;
+    }
+
     createLinkMutation.mutate({
       supplierId: selectedSupplierId,
-      sourceCompanyId: sourceCompany.id,
-      sourceCompanyName: sourceCompany.name,
-      targetCompanyId: targetCompany.id,
-      targetCompanyName: targetCompany.name,
-      groupName: selectedGroup,
-      notes: notes || undefined,
+      companyId: targetCompany.companyId,
+      internalNotes: notes || undefined,
     });
   };
 
@@ -166,7 +159,7 @@ export default function SupplierLink() {
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-              {Object.keys(GROUPS).map((groupName) => (
+              {Object.keys(COMPANIES_BY_GROUP).map((groupName) => (
                 <button
                   key={groupName}
                   className={`p-4 rounded-xl border-2 text-left transition-all duration-200 hover:-translate-y-0.5 ${
@@ -186,7 +179,7 @@ export default function SupplierLink() {
                     <span className="font-semibold text-sm text-foreground">{groupName}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {GROUPS[groupName].length} empresa{GROUPS[groupName].length !== 1 ? "s" : ""}
+                    {COMPANIES_BY_GROUP[groupName].length} empresa{COMPANIES_BY_GROUP[groupName].length !== 1 ? "s" : ""}
                   </p>
                 </button>
               ))}
@@ -213,42 +206,55 @@ export default function SupplierLink() {
             </p>
 
             <div className="grid gap-3 md:grid-cols-2">
-              {companiesInGroup.map((company) => (
-                <button
-                  key={company.id}
-                  className={`p-4 rounded-xl border-2 text-left transition-all duration-200 hover:-translate-y-0.5 ${
-                    sourceCompany?.id === company.id
-                      ? "border-2"
-                      : "border-border bg-white hover:border-primary/50"
-                  }`}
-                  style={
-                    sourceCompany?.id === company.id
-                      ? { borderColor: company.color, backgroundColor: `${company.color}08` }
-                      : {}
-                  }
-                  onClick={() => {
-                    setSourceCompany(company);
-                    setSelectedSupplierId(null);
-                    setSupplierSearch("");
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: `${company.color}18`, color: company.color }}
-                    >
-                      <Building2 size={16} />
+              {companiesInGroup.map((company) => {
+                const valid = hasValidCompanyId(company);
+                return (
+                  <button
+                    key={company.id}
+                    disabled={!valid}
+                    className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${
+                      !valid
+                        ? "opacity-50 cursor-not-allowed border-border bg-muted"
+                        : sourceCompany?.id === company.id
+                        ? "border-2 hover:-translate-y-0.5"
+                        : "border-border bg-white hover:border-primary/50 hover:-translate-y-0.5"
+                    }`}
+                    style={
+                      sourceCompany?.id === company.id
+                        ? { borderColor: company.color, backgroundColor: `${company.color}08` }
+                        : {}
+                    }
+                    onClick={() => {
+                      if (!valid) {
+                        toast.error("Empresa sem ID numérico válido no banco");
+                        return;
+                      }
+                      setSourceCompany(company);
+                      setSelectedSupplierId(null);
+                      setSupplierSearch("");
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: `${company.color}18`, color: company.color }}
+                      >
+                        <Building2 size={16} />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm text-foreground">{company.name}</p>
+                        <p className="text-xs text-muted-foreground">{selectedGroup}</p>
+                      </div>
+                      {sourceCompany?.id === company.id && (
+                        <CheckCircle2 size={16} className="ml-auto shrink-0" style={{ color: company.color }} />
+                      )}
+                      {!valid && (
+                        <AlertCircle size={16} className="ml-auto shrink-0 text-destructive" />
+                      )}
                     </div>
-                    <div>
-                      <p className="font-semibold text-sm text-foreground">{company.name}</p>
-                      <p className="text-xs text-muted-foreground">{selectedGroup}</p>
-                    </div>
-                    {sourceCompany?.id === company.id && (
-                      <CheckCircle2 size={16} className="ml-auto shrink-0" style={{ color: company.color }} />
-                    )}
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="flex justify-between pt-2">
@@ -280,74 +286,75 @@ export default function SupplierLink() {
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
-                className="pl-9"
-                placeholder="Buscar por razão social, CNPJ ou e-mail..."
+                placeholder="Buscar por razão social, nome fantasia, CNPJ, e-mail, telefone, cidade, estado..."
                 value={supplierSearch}
                 onChange={(e) => setSupplierSearch(e.target.value)}
+                className="pl-9"
               />
             </div>
 
             {/* Lista de fornecedores */}
-            {loadingSuppliers ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-              </div>
-            ) : filteredSuppliers.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Building2 size={32} className="mx-auto mb-2 opacity-30" />
-                <p className="text-sm">
-                  {suppliers.length === 0
-                    ? "Nenhum fornecedor cadastrado nesta empresa."
-                    : "Nenhum fornecedor encontrado para a busca."}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {filteredSuppliers.map((supplier) => (
-                  <button
-                    key={supplier.supplier.id}
-                    className={`w-full p-3 rounded-xl border text-left transition-all duration-150 ${
-                      selectedSupplierId === supplier.supplier.id
-                        ? "border-primary bg-primary/5"
-                        : "border-border bg-white hover:border-primary/40 hover:bg-muted/30"
-                    }`}
-                    onClick={() => setSelectedSupplierId(supplier.supplier.id)}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-sm text-foreground truncate">
-                          {supplier.supplier.companyName}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          CNPJ: {supplier.supplier.cnpj} · {supplier.supplier.email}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] ${
-                            supplier.supplier.status === "approved"
-                              ? "border-emerald-300 text-emerald-700 bg-emerald-50"
-                              : supplier.supplier.status === "pending"
-                              ? "border-amber-300 text-amber-700 bg-amber-50"
-                              : "border-gray-300 text-gray-600 bg-gray-50"
-                          }`}
-                        >
-                          {supplier.supplier.status === "approved"
-                            ? "Aprovado"
-                            : supplier.supplier.status === "pending"
-                            ? "Pendente"
-                            : supplier.supplier.status}
-                        </Badge>
-                        {selectedSupplierId === supplier.supplier.id && (
-                          <CheckCircle2 size={16} className="text-primary" />
+            <div className="max-h-[300px] overflow-y-auto space-y-2 border rounded-xl p-3">
+              {loadingSuppliers ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  Carregando fornecedores...
+                </div>
+              ) : filteredSuppliers.length === 0 ? (
+                <div className="text-center py-8">
+                  <AlertCircle size={24} className="mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    {suppliers.length === 0
+                      ? "Nenhum fornecedor cadastrado nesta empresa."
+                      : "Nenhum fornecedor encontrado com esse filtro."}
+                  </p>
+                </div>
+              ) : (
+                filteredSuppliers.map((item: any) => {
+                  const s = item.supplier;
+                  return (
+                    <button
+                      key={s.id}
+                      className={`w-full p-3 rounded-lg border text-left transition-all ${
+                        selectedSupplierId === s.id
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50 hover:bg-muted/30"
+                      }`}
+                      onClick={() => setSelectedSupplierId(s.id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-sm text-foreground">
+                            {s.companyName || s.tradeName || "Sem nome"}
+                          </p>
+                          {s.tradeName && s.companyName && s.tradeName !== s.companyName && (
+                            <p className="text-xs text-muted-foreground">{s.tradeName}</p>
+                          )}
+                          <div className="flex gap-3 mt-1">
+                            {s.cnpj && (
+                              <span className="text-xs text-muted-foreground">
+                                CNPJ: {s.cnpj}
+                              </span>
+                            )}
+                            {s.email && (
+                              <span className="text-xs text-muted-foreground">
+                                {s.email}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {selectedSupplierId === s.id && (
+                          <CheckCircle2 size={16} className="text-primary shrink-0" />
                         )}
                       </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              {filteredSuppliers.length} fornecedor{filteredSuppliers.length !== 1 ? "es" : ""} encontrado{filteredSuppliers.length !== 1 ? "s" : ""}
+            </p>
 
             <div className="flex justify-between pt-2">
               <Button variant="outline" onClick={() => setStep("select-source")} className="gap-2">
@@ -369,34 +376,36 @@ export default function SupplierLink() {
         return (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Selecione a empresa de destino para vincular{" "}
-              <strong>{selectedSupplier?.companyName}</strong>. Apenas empresas do mesmo grupo (
-              <strong>{selectedGroup}</strong>) são permitidas.
+              Selecione a empresa que receberá o vínculo com{" "}
+              <strong>{selectedSupplier?.companyName}</strong>.
             </p>
 
-            {targetCompanies.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <AlertCircle size={32} className="mx-auto mb-2 opacity-30" />
-                <p className="text-sm">
-                  Não há outras empresas disponíveis neste grupo para vincular.
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3 md:grid-cols-2">
-                {targetCompanies.map((company) => (
+            <div className="grid gap-3 md:grid-cols-2">
+              {targetCompanies.map((company) => {
+                const valid = hasValidCompanyId(company);
+                return (
                   <button
                     key={company.id}
-                    className={`p-4 rounded-xl border-2 text-left transition-all duration-200 hover:-translate-y-0.5 ${
-                      targetCompany?.id === company.id
-                        ? "border-2"
-                        : "border-border bg-white hover:border-primary/50"
+                    disabled={!valid}
+                    className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${
+                      !valid
+                        ? "opacity-50 cursor-not-allowed border-border bg-muted"
+                        : targetCompany?.id === company.id
+                        ? "border-2 hover:-translate-y-0.5"
+                        : "border-border bg-white hover:border-primary/50 hover:-translate-y-0.5"
                     }`}
                     style={
                       targetCompany?.id === company.id
                         ? { borderColor: company.color, backgroundColor: `${company.color}08` }
                         : {}
                     }
-                    onClick={() => setTargetCompany(company)}
+                    onClick={() => {
+                      if (!valid) {
+                        toast.error("Empresa sem ID numérico válido no banco");
+                        return;
+                      }
+                      setTargetCompany(company);
+                    }}
                   >
                     <div className="flex items-center gap-3">
                       <div
@@ -412,21 +421,23 @@ export default function SupplierLink() {
                       {targetCompany?.id === company.id && (
                         <CheckCircle2 size={16} className="ml-auto shrink-0" style={{ color: company.color }} />
                       )}
+                      {!valid && (
+                        <AlertCircle size={16} className="ml-auto shrink-0 text-destructive" />
+                      )}
                     </div>
                   </button>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
 
-            {/* Observações */}
-            <div className="space-y-1.5">
-              <Label className="text-sm">Observações (opcional)</Label>
+            {/* Notas/observações */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Observações (opcional)</Label>
               <Textarea
-                placeholder="Motivo do vínculo, contexto ou informações adicionais..."
+                placeholder="Motivo da vinculação, contexto, etc."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                rows={2}
-                className="resize-none"
+                rows={3}
               />
             </div>
 
@@ -439,7 +450,7 @@ export default function SupplierLink() {
                 onClick={() => setStep("confirm")}
                 className="gap-2"
               >
-                Revisar <ChevronRight size={16} />
+                Próximo <ChevronRight size={16} />
               </Button>
             </div>
           </div>
@@ -448,55 +459,30 @@ export default function SupplierLink() {
       // ── Etapa 5: Confirmação ──
       case "confirm":
         return (
-          <div className="space-y-5">
-            <p className="text-sm text-muted-foreground">
-              Revise as informações antes de confirmar o vínculo.
-            </p>
-
-            {/* Resumo */}
-            <div className="bg-muted/40 rounded-xl p-5 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Link2 size={18} className="text-primary" />
-                </div>
-                <div>
-                  <p className="font-bold text-foreground">{selectedSupplier?.companyName}</p>
-                  <p className="text-xs text-muted-foreground">CNPJ: {selectedSupplier?.cnpj}</p>
-                </div>
+          <div className="space-y-4">
+            <div className="bg-muted/30 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground w-20">Grupo:</span>
+                <span className="font-medium">{selectedGroup}</span>
               </div>
-
-              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                {/* Origem */}
-                <div
-                  className="rounded-xl p-3 text-center"
-                  style={{ backgroundColor: `${sourceCompany?.color}12`, borderColor: `${sourceCompany?.color}40` }}
-                >
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Origem</p>
-                  <p className="font-semibold text-sm" style={{ color: sourceCompany?.color }}>
-                    {sourceCompany?.name}
-                  </p>
-                </div>
-
-                {/* Seta */}
-                <div className="flex items-center justify-center">
-                  <ChevronRight size={20} className="text-muted-foreground" />
-                </div>
-
-                {/* Destino */}
-                <div
-                  className="rounded-xl p-3 text-center"
-                  style={{ backgroundColor: `${targetCompany?.color}12`, borderColor: `${targetCompany?.color}40` }}
-                >
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Destino</p>
-                  <p className="font-semibold text-sm" style={{ color: targetCompany?.color }}>
-                    {targetCompany?.name}
-                  </p>
-                </div>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground w-20">Origem:</span>
+                <Badge variant="outline" style={{ borderColor: sourceCompany?.color, color: sourceCompany?.color }}>
+                  {sourceCompany?.name}
+                </Badge>
               </div>
-
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="outline" className="text-[10px]">{selectedGroup}</Badge>
-                <span>Vínculo dentro do mesmo grupo empresarial</span>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground w-20">Fornecedor:</span>
+                <span className="font-medium">{selectedSupplier?.companyName}</span>
+                {selectedSupplier?.cnpj && (
+                  <span className="text-xs text-muted-foreground">({selectedSupplier.cnpj})</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground w-20">Destino:</span>
+                <Badge variant="outline" style={{ borderColor: targetCompany?.color, color: targetCompany?.color }}>
+                  {targetCompany?.name}
+                </Badge>
               </div>
 
               {notes && (

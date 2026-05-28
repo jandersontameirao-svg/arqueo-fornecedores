@@ -4006,7 +4006,7 @@ REGRAS CRÍTICAS:
         internalNotes: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        // Verificar duplicata
+        // Verificar duplicata (idempotência)
         const exists = await db.checkSupplierCompanyLinkExists(input.supplierId, input.companyId);
         if (exists) {
           throw new TRPCError({
@@ -4015,10 +4015,19 @@ REGRAS CRÍTICAS:
           });
         }
 
+        // Derivar businessUnitId automaticamente do companyId quando não fornecido
+        let businessUnitId = input.businessUnitId;
+        if (!businessUnitId) {
+          const derivedBuId = await db.getBusinessUnitIdByCompanyId(input.companyId);
+          if (derivedBuId) {
+            businessUnitId = derivedBuId;
+          }
+        }
+
         const id = await db.createSupplierCompanyLink({
           supplierId: input.supplierId,
           companyId: input.companyId,
-          businessUnitId: input.businessUnitId,
+          businessUnitId,
           categoryId: input.categoryId,
           criticality: input.criticality || "medium",
           serviceScope: input.serviceScope,

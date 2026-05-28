@@ -389,7 +389,7 @@ export default function AddSupplierAI() {
           criticality: criticality as "low" | "medium" | "high" | "critical",
           companyId: selectedCompanyId === "all_grupo_arqueo_brasil"
             ? String(grupoArqueoBrasilCompanies[0]?.id || "")
-            : (selectedCompanyId || (selectedCompany?.companyId ? String(selectedCompany.companyId) : undefined) || "grupo-arqueo"),
+            : (selectedCompanyId || (selectedCompany?.companyId ? String(selectedCompany.companyId) : undefined) || ""),
           groupId: selectedCompany?.groupId || 1,
         },
         extractionRunId: extractionResult.runId,
@@ -427,7 +427,7 @@ export default function AddSupplierAI() {
         criticality: criticality as "low" | "medium" | "high" | "critical",
         companyId: selectedCompanyId === "all_grupo_arqueo_brasil"
           ? String(grupoArqueoBrasilCompanies[0]?.id || "")
-          : (selectedCompanyId || (selectedCompany?.companyId ? String(selectedCompany.companyId) : undefined) || "grupo-arqueo"),
+          : (selectedCompanyId || (selectedCompany?.companyId ? String(selectedCompany.companyId) : undefined) || ""),
         groupId: selectedCompany?.groupId || 1,
       });
     }
