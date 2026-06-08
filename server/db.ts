@@ -723,6 +723,46 @@ export async function updateWorkflowStep(id: number, data: Partial<InsertApprova
   await db.update(approvalSteps).set(data).where(eq(approvalSteps.id, id));
 }
 
+// =============================================================================
+// SSOT: helper único para resolver "quais fornecedores devem aparecer nesta empresa/BU"
+// -----------------------------------------------------------------------------
+// Fonte canônica = supplier_company_links com status='active'. Substitui o padrão
+// legado (suppliers.companyId + supplier_links tabela) que ainda existia em 6
+// pontos do código.
+// Retorno:
+//   - null  → sem filtro por escopo (caller decide se aplica algum fallback)
+//   - []    → escopo solicitado existe mas não há fornecedores → caller deve devolver vazio
+//   - num[] → IDs visíveis no escopo
+// =============================================================================
+export async function getVisibleSupplierIdsByScope(companyId?: string, groupId?: number): Promise<number[] | null> {
+  if (!companyId && !groupId) return null;
+  const db = await getDb();
+  if (!db) return [];
+
+  if (companyId) {
+    const companyIdNum = Number(companyId);
+    if (!Number.isFinite(companyIdNum)) return [];
+    const rows = await db
+      .select({ supplierId: supplierCompanyLinks.supplierId })
+      .from(supplierCompanyLinks)
+      .where(and(
+        eq(supplierCompanyLinks.companyId, companyIdNum),
+        eq(supplierCompanyLinks.status, "active"),
+      ));
+    return Array.from(new Set(rows.map((r: { supplierId: number }) => r.supplierId)));
+  }
+
+  // groupId aqui representa businessUnitId (legado de naming) — escopo por área.
+  const rows = await db
+    .select({ supplierId: supplierCompanyLinks.supplierId })
+    .from(supplierCompanyLinks)
+    .where(and(
+      eq(supplierCompanyLinks.businessUnitId, groupId!),
+      eq(supplierCompanyLinks.status, "active"),
+    ));
+  return Array.from(new Set(rows.map((r: { supplierId: number }) => r.supplierId)));
+}
+
 export async function getPendingWorkflows(companyId?: string) {
   const db = await getDb();
   if (!db) return [];
@@ -730,9 +770,13 @@ export async function getPendingWorkflows(companyId?: string) {
     eq(approvalWorkflows.status, "pending"),
     eq(approvalWorkflows.status, "in_progress")
   );
-  const whereCond = companyId
-    ? and(statusCond, eq(suppliers.companyId, companyId))
-    : statusCond;
+  // SSOT via supplier_company_links — substitui filtro legado por suppliers.companyId.
+  const visibleIds = await getVisibleSupplierIdsByScope(companyId, undefined);
+  let whereCond: any = statusCond;
+  if (visibleIds !== null) {
+    if (visibleIds.length === 0) return [];
+    whereCond = and(statusCond, inArray(approvalWorkflows.supplierId, visibleIds));
+  }
   return db.select({
     workflow: approvalWorkflows,
     supplier: suppliers,
@@ -868,28 +912,8 @@ export async function deleteInteraction(id: number) {
 export async function getRecentInteractions(limit: number = 50, companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return [];
-
-  if (companyId) {
-    const direct = await db.select({ id: suppliers.id }).from(suppliers).where(eq(suppliers.companyId, companyId));
-    const linked = await db.select({ supplierId: supplierLinks.supplierId }).from(supplierLinks)
-      .where(and(eq(supplierLinks.targetCompanyId, companyId), eq(supplierLinks.status, "active")));
-    const ids = new Set<number>();
-    direct.forEach(r => ids.add(r.id));
-    linked.forEach(r => ids.add(r.supplierId));
-    const visibleIds = Array.from(ids);
-    if (visibleIds.length === 0) return [];
-    return db.select({
-      interaction: interactions,
-      supplier: suppliers,
-      createdBy: users,
-    })
-      .from(interactions)
-      .leftJoin(suppliers, eq(interactions.supplierId, suppliers.id))
-      .leftJoin(users, eq(interactions.createdById, users.id))
-      .where(sql`${interactions.supplierId} IN (${sql.join(visibleIds.map(id => sql`${id}`), sql`, `)})`)
-      .orderBy(desc(interactions.interactionDate))
-      .limit(limit);
-  }
+  // SSOT: resolve via supplier_company_links (substitui suppliers.companyId + supplierLinks legado).
+  const visibleIds = await getVisibleSupplierIdsByScope(companyId, groupId);
 
   let q = db.select({
     interaction: interactions,
@@ -899,7 +923,11 @@ export async function getRecentInteractions(limit: number = 50, companyId?: stri
     .from(interactions)
     .leftJoin(suppliers, eq(interactions.supplierId, suppliers.id))
     .leftJoin(users, eq(interactions.createdById, users.id));
-  if (groupId) q = q.where(eq(suppliers.groupId, groupId)) as any;
+
+  if (visibleIds !== null) {
+    if (visibleIds.length === 0) return [];
+    q = q.where(inArray(interactions.supplierId, visibleIds)) as any;
+  }
   return (q as any).orderBy(desc(interactions.interactionDate)).limit(limit);
 }
 
@@ -933,26 +961,8 @@ export async function updateEvaluation(id: number, data: Partial<InsertPerforman
 export async function getLatestEvaluations(limit: number = 10, companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return [];
-
-  if (companyId) {
-    const direct = await db.select({ id: suppliers.id }).from(suppliers).where(eq(suppliers.companyId, companyId));
-    const linked = await db.select({ supplierId: supplierLinks.supplierId }).from(supplierLinks)
-      .where(and(eq(supplierLinks.targetCompanyId, companyId), eq(supplierLinks.status, "active")));
-    const ids = new Set<number>();
-    direct.forEach(r => ids.add(r.id));
-    linked.forEach(r => ids.add(r.supplierId));
-    const visibleIds = Array.from(ids);
-    if (visibleIds.length === 0) return [];
-    return db.select({
-      evaluation: performanceEvaluations,
-      supplier: suppliers,
-    })
-      .from(performanceEvaluations)
-      .innerJoin(suppliers, eq(performanceEvaluations.supplierId, suppliers.id))
-      .where(sql`${performanceEvaluations.supplierId} IN (${sql.join(visibleIds.map(id => sql`${id}`), sql`, `)})`)
-      .orderBy(desc(performanceEvaluations.createdAt))
-      .limit(limit);
-  }
+  // SSOT: supplier_company_links.
+  const visibleIds = await getVisibleSupplierIdsByScope(companyId, groupId);
 
   let q = db.select({
     evaluation: performanceEvaluations,
@@ -960,7 +970,11 @@ export async function getLatestEvaluations(limit: number = 10, companyId?: strin
   })
     .from(performanceEvaluations)
     .innerJoin(suppliers, eq(performanceEvaluations.supplierId, suppliers.id));
-  if (groupId) q = q.where(eq(suppliers.groupId, groupId)) as any;
+
+  if (visibleIds !== null) {
+    if (visibleIds.length === 0) return [];
+    q = q.where(inArray(performanceEvaluations.supplierId, visibleIds)) as any;
+  }
   return (q as any).orderBy(desc(performanceEvaluations.createdAt)).limit(limit);
 }
 
@@ -978,40 +992,20 @@ export async function getActiveAlerts(companyId?: string, groupId?: number) {
   // Janela crítica: alertas de expiração só aparecem se dueDate é nulo, já vencido ou ≤15 dias
   const fifteenDaysFromNow = new Date();
   fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
-  // Condição: não é expiração OU (dueDate é nulo OU dueDate <= 15 dias a partir de agora)
   const expirationWindowCond = sql`(
     ${complianceAlerts.alertType} != 'expiration'
     OR ${complianceAlerts.dueDate} IS NULL
     OR ${complianceAlerts.dueDate} <= ${fifteenDaysFromNow}
   )`;
-
-  if (companyId) {
-    const direct = await db.select({ id: suppliers.id }).from(suppliers).where(eq(suppliers.companyId, companyId));
-    const linked = await db.select({ supplierId: supplierLinks.supplierId }).from(supplierLinks)
-      .where(and(eq(supplierLinks.targetCompanyId, companyId), eq(supplierLinks.status, "active")));
-    const ids = new Set<number>();
-    direct.forEach(r => ids.add(r.id));
-    linked.forEach(r => ids.add(r.supplierId));
-    const visibleIds = Array.from(ids);
-    const resolvedCond = eq(complianceAlerts.isResolved, false);
-    const supplierCond = visibleIds.length > 0
-      ? sql`${complianceAlerts.supplierId} IN (${sql.join(visibleIds.map(id => sql`${id}`), sql`, `)})`
-      : sql`1=0`;
-    const whereCond = and(resolvedCond, supplierCond, expirationWindowCond);
-    return db.select({
-      alert: complianceAlerts,
-      supplier: suppliers,
-      document: documents,
-    })
-      .from(complianceAlerts)
-      .leftJoin(suppliers, eq(complianceAlerts.supplierId, suppliers.id))
-      .leftJoin(documents, eq(complianceAlerts.documentId, documents.id))
-      .where(whereCond)
-      .orderBy(desc(complianceAlerts.severity), complianceAlerts.dueDate);
-  }
   const resolvedCond = eq(complianceAlerts.isResolved, false);
+
+  // SSOT: supplier_company_links.
+  const visibleIds = await getVisibleSupplierIdsByScope(companyId, groupId);
   let whereCond: any = and(resolvedCond, expirationWindowCond);
-  if (groupId) whereCond = and(resolvedCond, eq(suppliers.groupId, groupId), expirationWindowCond);
+  if (visibleIds !== null) {
+    if (visibleIds.length === 0) return [];
+    whereCond = and(resolvedCond, expirationWindowCond, inArray(complianceAlerts.supplierId, visibleIds));
+  }
   return db.select({
     alert: complianceAlerts,
     supplier: suppliers,
@@ -1046,28 +1040,10 @@ export async function getDashboardStats(companyId?: string, groupId?: number) {
   const db = await getDb();
   if (!db) return null;
 
-  // Helper: retorna IDs de todos os fornecedores visíveis para a empresa (diretos + vinculados)
-  async function getVisibleSupplierIds(): Promise<number[] | null> {
-    if (!companyId) return null; // null = sem filtro de empresa (usa groupId ou sem filtro)
-    const direct = await db!.select({ id: suppliers.id })
-      .from(suppliers)
-      .where(eq(suppliers.companyId, companyId));
-    const linked = await db!.select({ supplierId: supplierLinks.supplierId })
-      .from(supplierLinks)
-      .where(and(eq(supplierLinks.targetCompanyId, companyId), eq(supplierLinks.status, "active")));
-    const ids = new Set<number>();
-    direct.forEach(r => ids.add(r.id));
-    linked.forEach(r => ids.add(r.supplierId));
-    return Array.from(ids);
-  }
-
-  const visibleIds = await getVisibleSupplierIds();
-
-  // Condição de escopo: por IDs visíveis (empresa), por grupo, ou sem filtro
+  // SSOT: supplier_company_links substitui o tripe legado suppliers.companyId + supplier_links.
+  const visibleIds = await getVisibleSupplierIdsByScope(companyId, groupId);
   const scopeFilter = visibleIds !== null
-    ? (visibleIds.length > 0 ? sql`${suppliers.id} IN (${sql.join(visibleIds.map(id => sql`${id}`), sql`, `)})` : sql`1=0`)
-    : groupId
-    ? eq(suppliers.groupId, groupId)
+    ? (visibleIds.length > 0 ? inArray(suppliers.id, visibleIds) : sql`1=0`)
     : undefined;
 
   // Janela crítica: alertas de expiração só aparecem se dueDate é nulo, já vencido ou ≤15 dias
@@ -2624,7 +2600,14 @@ export async function getAllContracts(params: {
   if (params.supplierId) conditions.push(eq(contracts.supplierId, params.supplierId));
   if (params.status) conditions.push(eq(contracts.status, params.status as any));
   if (params.contractType) conditions.push(eq(contracts.contractType, params.contractType as any));
-  if (params.groupId) conditions.push(eq(suppliers.groupId, params.groupId));
+  // SSOT: groupId aqui representa businessUnitId. Filtrar por supplier_company_links
+  // garante que contratos de fornecedores com suppliers.groupId NULL mas vinculados
+  // por supplier_company_links.businessUnitId apareçam corretamente.
+  if (params.groupId) {
+    const visibleIds = await getVisibleSupplierIdsByScope(undefined, params.groupId);
+    if (visibleIds && visibleIds.length === 0) return [];
+    if (visibleIds && visibleIds.length > 0) conditions.push(inArray(contracts.supplierId, visibleIds));
+  }
   // ISOLAMENTO MULTI-GRUPO: se orgGroupIds fornecido, filtrar por contracts.organizationalGroupId
   if (params.orgGroupIds !== undefined) {
     if (params.orgGroupIds.length === 0) return [];
@@ -2649,9 +2632,13 @@ export async function getAllContracts(params: {
 export async function countContractsByBusinessUnit(businessUnitId: number) {
   const db = await getDb();
   if (!db) return 0;
-  const result = await db.select({ count: sql<number>`count(*)` }).from(contracts)
-    .innerJoin(suppliers, eq(contracts.supplierId, suppliers.id))
-    .where(eq(suppliers.groupId, businessUnitId));
+  // SSOT: supplier_company_links em vez de suppliers.groupId legado.
+  const visibleIds = await getVisibleSupplierIdsByScope(undefined, businessUnitId);
+  if (!visibleIds || visibleIds.length === 0) return 0;
+  const result = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(contracts)
+    .where(inArray(contracts.supplierId, visibleIds));
   return Number(result[0]?.count ?? 0);
 }
 
