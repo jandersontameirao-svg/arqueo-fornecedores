@@ -10,6 +10,13 @@ export const ENV = {
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   openaiApiKey: process.env.OPENAI_API_KEY ?? "",
+  // Anthropic (Claude) — opt-in. Só é usado quando AI_PROVIDER=anthropic E ANTHROPIC_API_KEY (ou CLAUDE_API_KEY) está setada.
+  // Com AI_PROVIDER vazio ou diferente de "anthropic", o fluxo continua igual (OpenAI direto se OPENAI_API_KEY, senão Manus Forge).
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? process.env.CLAUDE_API_KEY ?? "",
+  anthropicApiUrl: process.env.ANTHROPIC_API_URL ?? "https://api.anthropic.com",
+  anthropicModel: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6",
+  anthropicVersion: process.env.ANTHROPIC_VERSION ?? "2023-06-01",
+  aiProvider: (process.env.AI_PROVIDER ?? "").toLowerCase(),
   clicksignApiKey: process.env.CLICKSIGN_API_KEY ?? "",
   clicksignApiUrl: process.env.CLICKSIGN_API_URL ?? "https://app.clicksign.com/api/v3",
   clicksignWebhookSecret: process.env.CLICKSIGN_WEBHOOK_SECRET ?? "",

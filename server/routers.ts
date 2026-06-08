@@ -23,16 +23,21 @@ async function extractTextFromBuffer(buffer: Buffer, ext: string): Promise<strin
     try {
       const parser = new PDFParse({ data: buffer });
       const result = await parser.getText();
-      return result.text?.substring(0, 12000) || "";
+      const text = result.text?.substring(0, 12000) || "";
+      console.log(`[ai-extract] extractTextFromBuffer: ext=pdf, bufferBytes=${buffer.length}, textChars=${text.length}`);
+      return text;
     } catch (e) {
-      console.error("PDF text extraction failed:", e);
+      console.error("[ai-extract] PDF text extraction failed:", e);
       return "";
     }
   }
   if (["txt", "md"].includes(ext)) {
-    return buffer.toString("utf-8").substring(0, 12000);
+    const text = buffer.toString("utf-8").substring(0, 12000);
+    console.log(`[ai-extract] extractTextFromBuffer: ext=${ext}, bufferBytes=${buffer.length}, textChars=${text.length}`);
+    return text;
   }
   // For docx/doc/other binary formats, return empty (LLM will handle with text prompt only)
+  console.warn(`[ai-extract] extractTextFromBuffer: ext=${ext} not supported by text extractor (returning empty). bufferBytes=${buffer.length}`);
   return "";
 }
 
@@ -834,6 +839,12 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const startTime = Date.now();
+        console.log(`[ai-extract] extractFromDocs: start userId=${ctx.user.id} fileCount=${input.files.length} groupId=${input.groupId ?? "none"}`);
+        for (const f of input.files) {
+          const ext = f.fileName.split(".").pop()?.toLowerCase() || "bin";
+          const sizeKb = Math.round((f.base64?.length ?? 0) * 0.75 / 1024);
+          console.log(`[ai-extract]   file: name="${f.fileName}" ext=${ext} mime=${f.mimeType} ~${sizeKb}KB preUploaded=${!!(f.fileUrl && f.fileKey)}`);
+        }
 
         // Upload files to S3 if not already uploaded
         const filesWithUrls = [];
@@ -871,8 +882,10 @@ export const appRouter = router({
               fileTexts.push(`--- DOCUMENTO: ${file.fileName} ---\n${text}`);
             }
           }
+          console.log(`[ai-extract] extractFromDocs: text extraction done, filesWithText=${fileTexts.length}/${filesWithUrls.length}`);
 
           if (fileTexts.length === 0) {
+            console.warn(`[ai-extract] extractFromDocs: NO text extracted from any file -> falling back to multimodal file_url path (only works on Manus Forge/Gemini, NOT on OpenAI direct)`);
             // Try with LLM file_url for PDFs
             const fileContents: any[] = [];
             for (const file of filesWithUrls) {
@@ -891,6 +904,7 @@ export const appRouter = router({
               throw new TRPCError({ code: "BAD_REQUEST", message: "N\u00e3o foi poss\u00edvel extrair texto dos documentos enviados." });
             }
             // Use multimodal approach
+            console.log(`[ai-extract] extractFromDocs: invoking LLM (multimodal path) with ${fileContents.length} file_url parts`);
             const response = await invokeLLM({
               messages: [
                 {
@@ -910,11 +924,15 @@ export const appRouter = router({
 
             const rawContent = response.choices[0]?.message?.content || "{}";
             const contentStr = typeof rawContent === "string" ? rawContent : "{}";
+            console.log(`[ai-extract] extractFromDocs: LLM responded (multimodal), contentChars=${contentStr.length}, finish_reason=${response.choices[0]?.finish_reason ?? "n/a"}`);
             let parsed: any = {};
-            try { parsed = JSON.parse(contentStr); } catch {
+            try { parsed = JSON.parse(contentStr); } catch (parseErr) {
+              console.error(`[ai-extract] extractFromDocs: JSON.parse failed (multimodal). First 500 chars:`, contentStr.substring(0, 500));
               await db.updateExtractionRunStatus(runId, "failed", { errorMessage: "IA retornou resposta inválida (não é JSON). Tente novamente.", processingTimeMs: Date.now() - startTime });
               throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "IA retornou resposta inválida. Tente novamente." });
             }
+            const filledFromMM = parsed?.fields ? Object.values(parsed.fields).filter((f: any) => f?.value && String(f.value).trim().length > 0).length : 0;
+            console.log(`[ai-extract] extractFromDocs: multimodal parse ok, fieldsWithValue=${filledFromMM}`);
             const processingTimeMs = Date.now() - startTime;
 
             // Save extracted fields
@@ -944,6 +962,7 @@ export const appRouter = router({
 
           // Text-based extraction
           const combinedText = fileTexts.join("\n\n");
+          console.log(`[ai-extract] extractFromDocs: invoking LLM (text path), combinedTextChars=${combinedText.length}`);
           const response = await invokeLLM({
             messages: [
               {
@@ -960,11 +979,15 @@ export const appRouter = router({
 
           const rawContent = response.choices[0]?.message?.content || "{}";
           const contentStr = typeof rawContent === "string" ? rawContent : "{}";
+          console.log(`[ai-extract] extractFromDocs: LLM responded (text), contentChars=${contentStr.length}, finish_reason=${response.choices[0]?.finish_reason ?? "n/a"}`);
           let parsed: any = {};
-          try { parsed = JSON.parse(contentStr); } catch {
+          try { parsed = JSON.parse(contentStr); } catch (parseErr) {
+            console.error(`[ai-extract] extractFromDocs: JSON.parse failed (text). First 500 chars:`, contentStr.substring(0, 500));
             await db.updateExtractionRunStatus(runId, "failed", { errorMessage: "IA retornou resposta inválida (não é JSON). Tente novamente.", processingTimeMs: Date.now() - startTime });
             throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "IA retornou resposta inválida. Tente novamente." });
           }
+          const filledFromText = parsed?.fields ? Object.values(parsed.fields).filter((f: any) => f?.value && String(f.value).trim().length > 0).length : 0;
+          console.log(`[ai-extract] extractFromDocs: text parse ok, fieldsWithValue=${filledFromText}`);
           const processingTimeMs = Date.now() - startTime;
 
           // Save extracted fields
@@ -992,6 +1015,7 @@ export const appRouter = router({
           };
         } catch (err: any) {
           if (err instanceof TRPCError) throw err;
+          console.error(`[ai-extract] extractFromDocs: unhandled error runId=${runId} message="${err?.message}"`, err?.stack);
           await db.updateExtractionRunStatus(runId, "failed", {
             errorMessage: err?.message || "Erro desconhecido na extra\u00e7\u00e3o",
             processingTimeMs: Date.now() - startTime,
