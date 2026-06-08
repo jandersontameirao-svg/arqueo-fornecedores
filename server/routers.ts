@@ -14,10 +14,13 @@ import * as exportService from "./export";
 import * as clicksign from "./clicksign";
 import { orgRouter } from "./orgRouter";
 import { resolveOrgContext, buildScopeFilter } from "./orgContext";
-import { invokeLLM } from "./_core/llm";
+import { invokeLLM, useDirectOpenAI, useAnthropic, providerSupportsFileUrl } from "./_core/llm";
 import { PDFParse } from "pdf-parse";
+import mammoth from "mammoth";
 
-// Helper: extract text from file buffer based on extension
+// Helper: extract text from file buffer based on extension.
+// Supports: pdf (digital text), txt, md, docx (via mammoth). Returns "" for unsupported formats
+// (image/* and legacy doc are handled by the multimodal LLM path in extractFromDocs).
 async function extractTextFromBuffer(buffer: Buffer, ext: string): Promise<string> {
   if (ext === "pdf") {
     try {
@@ -36,9 +39,42 @@ async function extractTextFromBuffer(buffer: Buffer, ext: string): Promise<strin
     console.log(`[ai-extract] extractTextFromBuffer: ext=${ext}, bufferBytes=${buffer.length}, textChars=${text.length}`);
     return text;
   }
-  // For docx/doc/other binary formats, return empty (LLM will handle with text prompt only)
+  if (ext === "docx") {
+    try {
+      const { value } = await mammoth.extractRawText({ buffer });
+      const text = (value || "").substring(0, 12000);
+      console.log(`[ai-extract] extractTextFromBuffer: ext=docx, bufferBytes=${buffer.length}, textChars=${text.length}`);
+      return text;
+    } catch (e) {
+      console.error("[ai-extract] DOCX text extraction failed:", e);
+      return "";
+    }
+  }
   console.warn(`[ai-extract] extractTextFromBuffer: ext=${ext} not supported by text extractor (returning empty). bufferBytes=${buffer.length}`);
   return "";
+}
+
+// Build the multimodal content parts for a file when text extraction failed.
+// Images use the standard OpenAI/Anthropic-compatible `image_url` with a data URL.
+// PDFs fall back to `file_url` only on providers that accept it (Manus Forge / Gemini).
+function buildMultimodalParts(file: { base64: string; fileName: string; mimeType: string; fileUrl: string }):
+  Array<
+    | { type: "image_url"; image_url: { url: string; detail?: "auto" | "low" | "high" } }
+    | { type: "file_url"; file_url: { url: string; mime_type: "application/pdf" } }
+  > {
+  if (file.mimeType.startsWith("image/")) {
+    return [{
+      type: "image_url",
+      image_url: { url: `data:${file.mimeType};base64,${file.base64}`, detail: "high" },
+    }];
+  }
+  if (file.mimeType === "application/pdf" && providerSupportsFileUrl()) {
+    return [{
+      type: "file_url",
+      file_url: { url: file.fileUrl, mime_type: "application/pdf" },
+    }];
+  }
+  return [];
 }
 
 // ==================== RBAC MIDDLEWARE ====================
@@ -808,11 +844,11 @@ export const appRouter = router({
     uploadDocsForExtraction: managerProcedure
       .input(z.object({
         files: z.array(z.object({
-          base64: z.string(),
-          fileName: z.string(),
-          mimeType: z.string(),
-          fileSize: z.number(),
-        })),
+          base64: z.string().max(22_000_000, "Arquivo excede 16MB"),
+          fileName: z.string().min(1).max(255),
+          mimeType: z.string().min(1).max(255),
+          fileSize: z.number().int().min(1).max(16 * 1024 * 1024),
+        })).min(1).max(10),
       }))
       .mutation(async ({ input, ctx }) => {
         const uploadedFiles: Array<{ fileUrl: string; fileKey: string; fileName: string; fileSize: number; mimeType: string }> = [];
@@ -828,13 +864,15 @@ export const appRouter = router({
 
     extractFromDocs: managerProcedure
       .input(z.object({
+        // Hard cap: 10 files of ~16MB base64 each = ~120MB total in memory worst case.
+        // Frontend (AddSupplierAI.tsx) enforces the same limits client-side.
         files: z.array(z.object({
-          base64: z.string(),
-          fileName: z.string(),
-          mimeType: z.string(),
+          base64: z.string().max(22_000_000, "Arquivo excede 16MB"),
+          fileName: z.string().min(1).max(255),
+          mimeType: z.string().min(1).max(255),
           fileUrl: z.string().optional().default(""),
           fileKey: z.string().optional().default(""),
-        })),
+        })).min(1).max(10),
         groupId: z.number().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
@@ -885,23 +923,26 @@ export const appRouter = router({
           console.log(`[ai-extract] extractFromDocs: text extraction done, filesWithText=${fileTexts.length}/${filesWithUrls.length}`);
 
           if (fileTexts.length === 0) {
-            console.warn(`[ai-extract] extractFromDocs: NO text extracted from any file -> falling back to multimodal file_url path (only works on Manus Forge/Gemini, NOT on OpenAI direct)`);
-            // Try with LLM file_url for PDFs
-            const fileContents: any[] = [];
+            console.warn(`[ai-extract] extractFromDocs: NO text extracted -> trying multimodal path`);
+            // Build multimodal parts: images via image_url data URL (works on OpenAI Vision and Anthropic),
+            // PDFs via file_url only on Manus Forge / Gemini.
+            const fileContents: Array<
+              | { type: "image_url"; image_url: { url: string; detail?: "auto" | "low" | "high" } }
+              | { type: "file_url"; file_url: { url: string; mime_type: "application/pdf" } }
+            > = [];
             for (const file of filesWithUrls) {
-              if (file.mimeType === "application/pdf") {
-                fileContents.push({
-                  type: "file_url" as const,
-                  file_url: { url: file.fileUrl, mime_type: "application/pdf" as const },
-                });
-              }
+              fileContents.push(...buildMultimodalParts(file));
             }
             if (fileContents.length === 0) {
+              // PDF scanned on OpenAI/Anthropic, or DOC/other unsupported binary
+              const hint = filesWithUrls.some(f => f.mimeType === "application/pdf")
+                ? "PDF parece estar escaneado (sem texto digital). Reenvie como imagem (JPG/PNG) de boa qualidade ou um PDF com texto selecion\u00e1vel."
+                : "Formato n\u00e3o suportado para extra\u00e7\u00e3o. Envie PDF (com texto), DOCX, TXT, JPG ou PNG.";
               await db.updateExtractionRunStatus(runId, "failed", {
-                errorMessage: "N\u00e3o foi poss\u00edvel extrair texto dos documentos enviados. Verifique se os arquivos s\u00e3o leg\u00edveis.",
+                errorMessage: hint,
                 processingTimeMs: Date.now() - startTime,
               });
-              throw new TRPCError({ code: "BAD_REQUEST", message: "N\u00e3o foi poss\u00edvel extrair texto dos documentos enviados." });
+              throw new TRPCError({ code: "BAD_REQUEST", message: hint });
             }
             // Use multimodal approach
             console.log(`[ai-extract] extractFromDocs: invoking LLM (multimodal path) with ${fileContents.length} file_url parts`);
@@ -4146,111 +4187,7 @@ REGRAS CRÍTICAS:
       }),
   }),
 
-  // ==================== EXTRAÇÃO IA ====================
-  aiExtraction: router({
-    // Extrair dados de fornecedor a partir de documento
-    extractSupplierData: protectedProcedure
-      .input(z.object({
-        fileBase64: z.string(),
-        fileName: z.string(),
-        mimeType: z.string(),
-      }))
-      .mutation(async ({ input }) => {
-        // Extrair texto do documento
-        const buffer = Buffer.from(input.fileBase64, "base64");
-        const ext = input.fileName.split(".").pop()?.toLowerCase() || "";
-        const text = await extractTextFromBuffer(buffer, ext);
-
-        if (!text || text.trim().length < 10) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Não foi possível extrair texto do documento. Tente um arquivo PDF ou TXT.",
-          });
-        }
-
-        // Usar LLM para extrair dados estruturados
-        const response = await invokeLLM({
-          messages: [
-            {
-              role: "system",
-              content: `Você é um assistente especializado em extrair dados cadastrais de fornecedores a partir de documentos.
-Extraia os seguintes campos quando disponíveis. Retorne APENAS JSON válido, sem markdown.
-Campos: companyName, tradeName, cnpj, stateRegistration, municipalRegistration, email, phone, website, street, number, complement, neighborhood, city, state, zipCode, country, bankName, bankAgency, bankAccount, bankAccountType (checking ou savings), pixKey, legalRepresentatives (array de {name, cpf, role}).
-Se um campo não for encontrado, omita-o do JSON. Sanitize o CNPJ para apenas números.`,
-            },
-            {
-              role: "user",
-              content: `Extraia os dados do fornecedor a partir do seguinte documento:\n\n${text.substring(0, 8000)}`,
-            },
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "supplier_extraction",
-              strict: false,
-              schema: {
-                type: "object",
-                properties: {
-                  companyName: { type: "string" },
-                  tradeName: { type: "string" },
-                  cnpj: { type: "string" },
-                  stateRegistration: { type: "string" },
-                  municipalRegistration: { type: "string" },
-                  email: { type: "string" },
-                  phone: { type: "string" },
-                  website: { type: "string" },
-                  street: { type: "string" },
-                  number: { type: "string" },
-                  complement: { type: "string" },
-                  neighborhood: { type: "string" },
-                  city: { type: "string" },
-                  state: { type: "string" },
-                  zipCode: { type: "string" },
-                  country: { type: "string" },
-                  bankName: { type: "string" },
-                  bankAgency: { type: "string" },
-                  bankAccount: { type: "string" },
-                  bankAccountType: { type: "string" },
-                  pixKey: { type: "string" },
-                  legalRepresentatives: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string" },
-                        cpf: { type: "string" },
-                        role: { type: "string" },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        });
-
-        const rawContent = response.choices?.[0]?.message?.content;
-        const content = typeof rawContent === "string" ? rawContent : "{}";
-        let extracted;
-        try {
-          extracted = JSON.parse(content);
-        } catch {
-          extracted = {};
-        }
-
-        // Verificar se já existe na base geral
-        let existingSupplier = null;
-        if (extracted.cnpj) {
-          existingSupplier = await db.findSupplierByCnpj(extracted.cnpj);
-        }
-
-        return {
-          extracted,
-          existingSupplier,
-          fieldsFound: Object.keys(extracted).filter(k => extracted[k] !== null && extracted[k] !== undefined && extracted[k] !== ""),
-        };
-      }),
-  }),
+  // Rota legada `aiExtraction.extractSupplierData` removida — substituída por suppliers.extractFromDocs.
 
   // ==================== SUPPLIER LINKS (LEGADO) ====================
   supplierLinks: router({

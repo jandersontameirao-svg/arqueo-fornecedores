@@ -221,13 +221,18 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const useAnthropic = () =>
+export const useAnthropic = () =>
   ENV.aiProvider === "anthropic" &&
-  ENV.anthropicApiKey &&
+  !!ENV.anthropicApiKey &&
   ENV.anthropicApiKey.trim().length > 0;
 
-const useDirectOpenAI = () =>
-  !useAnthropic() && ENV.openaiApiKey && ENV.openaiApiKey.trim().length > 0;
+export const useDirectOpenAI = () =>
+  !useAnthropic() && !!ENV.openaiApiKey && ENV.openaiApiKey.trim().length > 0;
+
+// True for providers that accept arbitrary file URLs (Manus Forge / Gemini).
+// False for OpenAI and Anthropic — those need image_url (data URL) or Files API.
+export const providerSupportsFileUrl = () =>
+  !useAnthropic() && !useDirectOpenAI();
 
 const resolveApiUrl = () => {
   if (useDirectOpenAI()) {

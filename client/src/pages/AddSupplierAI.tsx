@@ -551,7 +551,7 @@ export default function AddSupplierAI() {
                 id="file-upload-ai"
                 type="file"
                 className="hidden"
-                accept=".pdf,.png,.jpg,.jpeg,.txt,.doc,.docx"
+                accept=".pdf,.png,.jpg,.jpeg,.txt,.docx"
                 multiple
                 onChange={handleFileChange}
               />
@@ -559,7 +559,7 @@ export default function AddSupplierAI() {
               <p className="font-medium">Arraste e solte os documentos aqui</p>
               <p className="text-sm text-muted-foreground mt-1">ou clique para selecionar arquivos</p>
               <p className="text-xs text-muted-foreground mt-2">
-                PDF, PNG, JPG, TXT, DOC, DOCX — até {MAX_FILES} arquivos, 16MB cada
+                PDF (com texto), DOCX, TXT, PNG, JPG — até {MAX_FILES} arquivos, 16MB cada
               </p>
             </div>
 
