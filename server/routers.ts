@@ -32,6 +32,32 @@ import { canAccessGroup, canAccessCompany } from "./orgContext";
 import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 
+// =============================================================================
+// Rate-limit helpers — in-memory, per-process. Resets on restart. Sufficient for
+// public endpoints in a single-instance PM2 deploy. For a clustered deploy use Redis.
+// =============================================================================
+const rateLimitBuckets: Map<string, { count: number; resetAt: number }> = new Map();
+function checkRateLimit(bucketKey: string, maxPerWindow: number, windowMs: number): boolean {
+  const now = Date.now();
+  const entry = rateLimitBuckets.get(bucketKey);
+  if (!entry || entry.resetAt <= now) {
+    rateLimitBuckets.set(bucketKey, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= maxPerWindow) return false;
+  entry.count += 1;
+  return true;
+}
+function checkOnboardingRateLimit(ip: string) {
+  // 5 onboarding submits / hour per IP.
+  return checkRateLimit(`onboarding:${ip}`, 5, 60 * 60 * 1000);
+}
+function checkLlmRateLimit(userId: number) {
+  // 30 LLM-backed extractions/hour per authenticated user. Protege contra estouro
+  // de quota OpenAI/Anthropic se um manager comprometido (ou bot) for usado.
+  return checkRateLimit(`llm:${userId}`, 30, 60 * 60 * 1000);
+}
+
 // Helper: extract text from file buffer based on extension.
 // Supports: pdf (digital text), txt, md, docx (via mammoth). Returns "" for unsupported formats
 // (image/* and legacy doc are handled by the multimodal LLM path in extractFromDocs).
@@ -368,8 +394,10 @@ export const appRouter = router({
         if (token) {
           const session = await sdk.verifySession(token);
           if (session?.jti) {
-            // Blocklist until 1 year from now (max token lifetime)
-            revokeToken(session.jti, Date.now() + 365 * 24 * 60 * 60 * 1000);
+            // Blocklist ate o TTL maximo do token (7 dias). Suficiente para garantir
+            // que o token nao volte a ser aceito mesmo se a blocklist em memoria
+            // persistir alem do tempo de vida real.
+            revokeToken(session.jti, Date.now() + 7 * 24 * 60 * 60 * 1000);
           }
         }
       }
@@ -891,6 +919,9 @@ export const appRouter = router({
         groupId: z.number().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        if (!checkLlmRateLimit(ctx.user.id)) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Limite de extracoes por IA atingido. Tente novamente em 1h." });
+        }
         const startTime = Date.now();
         console.log(`[ai-extract] extractFromDocs: start userId=${ctx.user.id} fileCount=${input.files.length} groupId=${input.groupId ?? "none"}`);
         for (const f of input.files) {
@@ -1528,7 +1559,7 @@ export const appRouter = router({
     uploadAttachment: managerProcedure
       .input(z.object({
         interactionId: z.number(),
-        fileBase64: z.string(),
+        fileBase64: z.string().max(22_000_000, "Arquivo excede 16MB"),
         fileName: z.string(),
         mimeType: z.string(),
       }))
@@ -1797,9 +1828,22 @@ export const appRouter = router({
   onboarding: router({
     submit: publicProcedure
       .input(supplierSchema)
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        // Rate-limit basico em memoria por IP (resetado a cada restart).
+        // 5 submissoes/hora por IP. Sem isto, qualquer atacante na internet
+        // poderia floodar a tabela de suppliers e disparar notificacoes em massa.
+        const ip = (ctx.req.headers["x-forwarded-for"]?.toString().split(",")[0].trim() || ctx.req.ip || "unknown");
+        if (!checkOnboardingRateLimit(ip)) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Muitas tentativas. Tente novamente em 1 hora." });
+        }
+        // Sanitiza CNPJ (so digitos) e valida tamanho
+        const sanitizedCnpj = input.cnpj.replace(/\D/g, "");
+        if (sanitizedCnpj.length !== 14) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "CNPJ invalido" });
+        }
         const id = await db.createSupplier({
           ...input,
+          cnpj: sanitizedCnpj,
           status: "pending",
         });
         // Create approval workflow
@@ -3261,7 +3305,7 @@ Estruture o contrato com:
         name: z.string().min(1),
         description: z.string().optional(),
         contractType: z.enum(["service", "supply", "lease", "consulting", "maintenance", "other"]).optional(),
-        fileBase64: z.string(),
+        fileBase64: z.string().max(22_000_000, "Arquivo excede 16MB"),
         fileName: z.string(),
       }))
       .mutation(async ({ input, ctx }) => {
@@ -3391,7 +3435,7 @@ Estruture o contrato com:
 
     analyzeFileForAutofill: managerProcedure
       .input(z.object({
-        fileBase64: z.string(),
+        fileBase64: z.string().max(22_000_000, "Arquivo excede 16MB"),
         fileName: z.string(),
         mimeType: z.string(),
         templateId: z.number(),
@@ -3518,7 +3562,7 @@ REGRAS CRÍTICAS:
     // ==================== TEMPLATE AUTO-INSERT ====================
     analyzeFileForTemplate: managerProcedure
       .input(z.object({
-        fileBase64: z.string(),
+        fileBase64: z.string().max(22_000_000, "Arquivo excede 16MB"),
         fileName: z.string(),
         mimeType: z.string(),
       }))
@@ -3708,7 +3752,7 @@ REGRAS CRÍTICAS:
        // ==================== EXTRAÇÃO POR IA VIA PDF PARA PREENCHIMENTO ===========================
     extractFromPdf: protectedProcedure
       .input(z.object({
-        fileBase64: z.string(),
+        fileBase64: z.string().max(22_000_000, "Arquivo excede 16MB"),
         fileName: z.string(),
         mimeType: z.string(),
         templateId: z.number().optional(),

@@ -39,10 +39,14 @@ export function getSessionCookieOptions(
   //       ? hostname
   //       : undefined;
 
+  // SameSite=Lax como default. Bloqueia CSRF via formularios cross-origin sem
+  // quebrar navegacao normal (link top-level GET continua enviando o cookie).
+  // Antes era "none" para todos os ambientes, o que combinado com a ausencia de
+  // CSRF token deixava todas as mutations vulneraveis a CSRF.
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "none",
+    sameSite: "lax",
     secure: isSecureRequest(req),
   };
 }

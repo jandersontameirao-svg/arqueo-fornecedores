@@ -779,8 +779,12 @@ export async function resendSignerNotification(
 // ==================== WEBHOOK VERIFICATION ====================
 
 /**
- * Verify webhook signature from Clicksign
- * Clicksign sends HMAC-SHA256 signature in the header
+ * Verify webhook signature from Clicksign.
+ * Clicksign sends HMAC-SHA256 signature in the header.
+ *
+ * Em producao: falha fechado se CLICKSIGN_WEBHOOK_SECRET nao estiver configurado.
+ * Em dev: continua liberando para facilitar testes locais.
+ * Compara com crypto.timingSafeEqual para evitar timing side-channels.
  */
 export function verifyWebhookSignature(
   payload: string,
@@ -788,17 +792,24 @@ export function verifyWebhookSignature(
 ): boolean {
   const secret = ENV.clicksignWebhookSecret;
   if (!secret) {
-    console.warn("[Clicksign] Webhook secret not configured, skipping verification");
-    return true; // Allow in dev mode
+    if (ENV.isProduction) {
+      console.error("[Clicksign] Webhook secret not configured in production — rejecting webhook");
+      return false;
+    }
+    console.warn("[Clicksign] Webhook secret not configured (dev mode), skipping verification");
+    return true;
   }
 
   try {
-    const crypto = require("crypto");
+    const crypto = require("crypto") as typeof import("crypto");
     const expectedSignature = crypto
       .createHmac("sha256", secret)
       .update(payload)
       .digest("hex");
-    return signature === expectedSignature;
+    const sigBuf = Buffer.from(signature, "utf8");
+    const expBuf = Buffer.from(expectedSignature, "utf8");
+    if (sigBuf.length !== expBuf.length) return false;
+    return crypto.timingSafeEqual(sigBuf, expBuf);
   } catch {
     return false;
   }
