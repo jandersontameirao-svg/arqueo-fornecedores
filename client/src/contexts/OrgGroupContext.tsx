@@ -60,6 +60,11 @@ const STORAGE_KEY = "arqueo_active_org_group_id";
 export function OrgGroupProvider({ children }: { children: ReactNode }) {
   // ERRO 5 FIX: só dispara queries quando o usuário está autenticado
   const { user } = useAuth();
+  // Utils para invalidar cache do React Query quando o grupo ativo muda.
+  // Sem isto, ao trocar de "Brasil" para "Foods and Drinks" o usuário continuaria
+  // vendo dados do grupo anterior por até 60s (staleTime), porque o backend
+  // muda o filtro (via header) mas o cache não é refetchado automaticamente.
+  const utils = trpc.useUtils();
 
   const [activeGroupId, setActiveGroupIdState] = useState<number | null>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -104,6 +109,9 @@ export function OrgGroupProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("arqueo_active_company_id");
     localStorage.removeItem("arqueo_active_unit_id");
     localStorage.removeItem("arqueo_selected_company");
+    // Invalida TODAS as queries: o header x-active-org-group-id muda o escopo
+    // no backend, então qualquer dado em cache é potencialmente do grupo errado.
+    utils.invalidate();
   };
 
   const activeGroup = groups.find((g: OrgGroup) => g.id === activeGroupId) || null;

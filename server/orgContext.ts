@@ -13,7 +13,7 @@
  *   A user can ONLY see data belonging to groups/companies/BUs where they have explicit roles
  *   OR where their globalRole grants implicit access (superadmin_global sees everything).
  */
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, isNull, or } from "drizzle-orm";
 import {
   users,
   organizationalGroups,
@@ -207,14 +207,17 @@ async function narrowToActiveOrgGroup(
     return ctx;
   }
   // Re-resolve companies e BUs filtrando pelo único grupo ativo.
+  // Inclui também empresas/BUs com organizationalGroupId IS NULL (legado pré-migração)
+  // — caso contrário registros que ainda não tiveram esse campo preenchido SUMIRIAM
+  // quando o usuário troca para qualquer Área de Negócio.
   const groupCompanies = await db
     .select({ id: companies.id })
     .from(companies)
-    .where(eq(companies.organizationalGroupId, activeOrgGroupId));
+    .where(or(eq(companies.organizationalGroupId, activeOrgGroupId), isNull(companies.organizationalGroupId)));
   const groupBUs = await db
     .select({ id: businessUnits.id })
     .from(businessUnits)
-    .where(eq(businessUnits.organizationalGroupId, activeOrgGroupId));
+    .where(or(eq(businessUnits.organizationalGroupId, activeOrgGroupId), isNull(businessUnits.organizationalGroupId)));
   return {
     ...ctx,
     accessibleGroupIds: [activeOrgGroupId],
