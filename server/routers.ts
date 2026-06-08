@@ -15,6 +15,20 @@ import * as clicksign from "./clicksign";
 import { orgRouter } from "./orgRouter";
 import { resolveOrgContext, buildScopeFilter } from "./orgContext";
 import { invokeLLM, useDirectOpenAI, useAnthropic, providerSupportsFileUrl } from "./_core/llm";
+import {
+  assertSupplierAccess,
+  assertDocumentAccess,
+  assertContractAccess,
+  assertAmendmentAccess,
+  assertCompanyAccess,
+  assertGroupAccess,
+  assertBusinessUnitAccess,
+  assertFileKeyAccess,
+  assertInteractionAccess,
+  assertEvaluationAccess,
+  assertScopeInput,
+} from "./_core/tenant-guard";
+import { canAccessGroup, canAccessCompany } from "./orgContext";
 import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 
@@ -329,10 +343,13 @@ export const appRouter = router({
      */
     getSignedUrl: protectedProcedure
       .input(z.object({
-        fileKey: z.string().min(1, "fileKey é obrigatório"),
+        fileKey: z.string().min(1, "fileKey é obrigatório").max(500),
         expiresIn: z.number().int().min(60).max(86400).optional().default(3600),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        // Sem este guard, qualquer usuário autenticado poderia listar fileKeys de
+        // documentos/contratos via getById e baixar arquivos de outros tenants.
+        await assertFileKeyAccess(ctx.user, input.fileKey);
         const { key, url } = await storageGet(input.fileKey, input.expiresIn);
         return { key, url, expiresIn: input.expiresIn };
       }),
@@ -658,10 +675,8 @@ export const appRouter = router({
 
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
-        const supplier = await db.getSupplierById(input.id);
-        if (!supplier) throw new TRPCError({ code: "NOT_FOUND", message: "Fornecedor n\u00e3o encontrado" });
-        return supplier;
+      .query(async ({ input, ctx }) => {
+        return assertSupplierAccess(ctx.user, input.id);
       }),
 
     create: managerProcedure
@@ -1206,8 +1221,8 @@ export const appRouter = router({
 
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
-        return db.getDocumentById(input.id);
+      .query(async ({ input, ctx }) => {
+        return assertDocumentAccess(ctx.user, input.id);
       }),
 
     create: managerProcedure
@@ -1273,6 +1288,7 @@ export const appRouter = router({
     delete: managerProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
+        await assertDocumentAccess(ctx.user, input.id);
         await db.deleteDocument(input.id);
         await db.createAuditLog({
           entityType: "document",
@@ -1386,7 +1402,8 @@ export const appRouter = router({
 
     getPending: managerProcedure
       .input(z.object({ companyId: z.string().optional() }).optional())
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertScopeInput(ctx.user, input);
         return db.getPendingWorkflows(input?.companyId);
       }),
 
@@ -1458,7 +1475,8 @@ export const appRouter = router({
 
     listRecent: protectedProcedure
       .input(z.object({ limit: z.number().optional(), companyId: z.string().optional(), groupId: z.number().optional() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertScopeInput(ctx.user, input);
         return db.getRecentInteractions(input.limit || 50, input.companyId, input.groupId);
       }),
 
@@ -1500,7 +1518,8 @@ export const appRouter = router({
 
     delete: managerProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await assertInteractionAccess(ctx.user, input.id);
         await db.deleteInteraction(input.id);
         return { success: true };
       }),
@@ -1661,6 +1680,7 @@ export const appRouter = router({
     delete: managerProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
+        await assertEvaluationAccess(ctx.user, input.id);
         await db.deleteEvaluation(input.id);
         await db.createAuditLog({
           entityType: "evaluation",
@@ -1675,7 +1695,8 @@ export const appRouter = router({
 
     getLatest: protectedProcedure
       .input(z.object({ limit: z.number().optional(), companyId: z.string().optional(), groupId: z.number().optional() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertScopeInput(ctx.user, input);
         return db.getLatestEvaluations(input.limit || 10, input.companyId, input.groupId);
       }),
   }),
@@ -1684,7 +1705,8 @@ export const appRouter = router({
   compliance: router({
     getAlerts: protectedProcedure
       .input(z.object({ companyId: z.string().optional(), groupId: z.number().optional() }).optional())
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertScopeInput(ctx.user, input);
         return db.getActiveAlerts(input?.companyId, input?.groupId);
       }),
 
@@ -1751,19 +1773,22 @@ export const appRouter = router({
   dashboard: router({
     stats: protectedProcedure
       .input(z.object({ companyId: z.string().optional(), groupId: z.number().optional() }).optional())
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertScopeInput(ctx.user, input);
         return db.getDashboardStats(input?.companyId, input?.groupId);
       }),
 
     suppliersByCategory: protectedProcedure
       .input(z.object({ companyId: z.string().optional(), groupId: z.number().optional() }).optional())
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertScopeInput(ctx.user, input);
         return db.getSuppliersByCategory(input?.companyId, input?.groupId);
       }),
 
     suppliersByCriticality: protectedProcedure
       .input(z.object({ companyId: z.string().optional(), groupId: z.number().optional() }).optional())
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertScopeInput(ctx.user, input);
         return db.getSuppliersByCriticality(input?.companyId, input?.groupId);
       }),
   }),
@@ -1921,11 +1946,9 @@ export const appRouter = router({
 
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
-        const contract = await db.getContractById(input.id);
-        if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+      .query(async ({ input, ctx }) => {
+        const contract = await assertContractAccess(ctx.user, input.id);
         const items = await db.getContractItems(input.id);
-        // Inclui vigência efetiva calculada
         const effective = await db.getContractEffectiveEndDate(input.id);
         return { contract, items, ...effective };
       }),
@@ -2058,6 +2081,7 @@ export const appRouter = router({
     delete: managerProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
+        await assertContractAccess(ctx.user, input.id);
         await db.deleteContract(input.id);
         await db.createAuditLog({
           entityType: "contract",
@@ -2914,9 +2938,8 @@ Estruture o contrato com:
 
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
-        const amendment = await db.getAmendmentById(input.id);
-        if (!amendment) throw new TRPCError({ code: "NOT_FOUND", message: "Aditivo não encontrado" });
+      .query(async ({ input, ctx }) => {
+        const amendment = await assertAmendmentAccess(ctx.user, input.id);
         const milestones = await db.getMilestonesByAmendment(input.id);
         return { amendment, milestones };
       }),
@@ -2983,6 +3006,7 @@ Estruture o contrato com:
     delete: managerProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
+        await assertAmendmentAccess(ctx.user, input.id);
         await db.deleteAmendment(input.id);
         await db.createAuditLog({
           entityType: "contract_amendment",
@@ -4164,26 +4188,29 @@ REGRAS CRÍTICAS:
 
   // ==================== BASE GERAL ====================
   baseGeral: router({
-    // Buscar fornecedor por CNPJ na base geral
     findByCnpj: protectedProcedure
-      .input(z.object({ cnpj: z.string() }))
-      .query(async ({ input }) => {
-        return db.findSupplierByCnpj(input.cnpj);
+      .input(z.object({ cnpj: z.string().min(11).max(20) }))
+      .query(async ({ input, ctx }) => {
+        const orgCtx = await resolveOrgContext(ctx.user);
+        const orgGroupIds = orgCtx.isSuperAdmin ? undefined : orgCtx.accessibleGroupIds;
+        return db.findSupplierByCnpj(input.cnpj, { orgGroupIds });
       }),
 
-    // Listar todos os fornecedores da base geral
-    list: protectedProcedure
-      .query(async () => {
-        return db.getAllSuppliersBaseGeral();
-      }),
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const orgCtx = await resolveOrgContext(ctx.user);
+      const orgGroupIds = orgCtx.isSuperAdmin ? undefined : orgCtx.accessibleGroupIds;
+      return db.getAllSuppliersBaseGeral({ orgGroupIds });
+    }),
   }),
 
   // ==================== BUSCA GLOBAL ====================
   globalSearch: router({
     search: protectedProcedure
-      .input(z.object({ query: z.string().min(2), limit: z.number().optional() }))
-      .query(async ({ input }) => {
-        return db.globalSearch(input.query, input.limit);
+      .input(z.object({ query: z.string().min(2).max(200), limit: z.number().int().min(1).max(100).optional() }))
+      .query(async ({ input, ctx }) => {
+        const orgCtx = await resolveOrgContext(ctx.user);
+        const orgGroupIds = orgCtx.isSuperAdmin ? undefined : orgCtx.accessibleGroupIds;
+        return db.globalSearch(input.query, input.limit, { orgGroupIds });
       }),
   }),
 

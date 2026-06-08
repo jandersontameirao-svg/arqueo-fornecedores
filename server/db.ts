@@ -2123,18 +2123,23 @@ export async function checkSupplierCompanyLinkExists(supplierId: number, company
 
 // ==================== BASE GERAL — BUSCA POR CNPJ ====================
 
-export async function findSupplierByCnpj(cnpj: string) {
+export async function findSupplierByCnpj(cnpj: string, opts?: { orgGroupIds?: number[] }) {
   const db = await getDb();
   if (!db) return null;
   const sanitized = cnpj.replace(/\D/g, "");
-  const rows = await db.select().from(suppliers).where(eq(suppliers.cnpj, sanitized)).limit(1);
+  const conds = [eq(suppliers.cnpj, sanitized)];
+  if (opts?.orgGroupIds !== undefined) {
+    if (opts.orgGroupIds.length === 0) return null;
+    conds.push(inArray(suppliers.organizationalGroupId, opts.orgGroupIds));
+  }
+  const rows = await db.select().from(suppliers).where(and(...conds)).limit(1);
   return rows[0] || null;
 }
 
-export async function getAllSuppliersBaseGeral() {
+export async function getAllSuppliersBaseGeral(opts?: { orgGroupIds?: number[] }) {
   const db = await getDb();
   if (!db) return [];
-  return db.select({
+  const query = db.select({
     supplier: suppliers,
     category: {
       id: supplierCategories.id,
@@ -2143,18 +2148,33 @@ export async function getAllSuppliersBaseGeral() {
     },
   })
     .from(suppliers)
-    .leftJoin(supplierCategories, eq(suppliers.categoryId, supplierCategories.id))
-    .orderBy(suppliers.companyName);
+    .leftJoin(supplierCategories, eq(suppliers.categoryId, supplierCategories.id));
+  // Restringe a base geral ao escopo organizacional do chamador. Sem este filtro,
+  // qualquer usuário autenticado lê PII (CNPJ, dados bancários) de todos os tenants.
+  if (opts?.orgGroupIds !== undefined) {
+    if (opts.orgGroupIds.length === 0) return [];
+    return query.where(inArray(suppliers.organizationalGroupId, opts.orgGroupIds)).orderBy(suppliers.companyName);
+  }
+  return query.orderBy(suppliers.companyName);
 }
 
 // ==================== BUSCA GLOBAL ====================
 
-export async function globalSearch(query: string, limit = 20) {
+export async function globalSearch(query: string, limit = 20, opts?: { orgGroupIds?: number[] }) {
   const db = await getDb();
   if (!db) return { suppliers: [], documents: [], contracts: [], companies: [] };
-  
+
   const searchTerm = `%${query}%`;
-  
+  const scopedGroupIds = opts?.orgGroupIds;
+  // Filtro de escopo: se nenhum grupo acessível, devolve vazio para todas as entidades.
+  if (scopedGroupIds !== undefined && scopedGroupIds.length === 0) {
+    return { suppliers: [], documents: [], contracts: [], companies: [] };
+  }
+  const supplierGroupCond = scopedGroupIds ? inArray(suppliers.organizationalGroupId, scopedGroupIds) : undefined;
+  const documentGroupCond = scopedGroupIds ? inArray(documents.organizationalGroupId, scopedGroupIds) : undefined;
+  const contractGroupCond = scopedGroupIds ? inArray(contracts.organizationalGroupId, scopedGroupIds) : undefined;
+  const companyGroupCond = scopedGroupIds ? inArray(companies.organizationalGroupId, scopedGroupIds) : undefined;
+
   const [supplierResults, documentResults, contractResults, companyResults] = await Promise.all([
     db.select({
       id: suppliers.id,
@@ -2165,14 +2185,17 @@ export async function globalSearch(query: string, limit = 20) {
       status: suppliers.status,
     })
       .from(suppliers)
-      .where(or(
-        like(suppliers.companyName, searchTerm),
-        like(suppliers.tradeName, searchTerm),
-        like(suppliers.cnpj, searchTerm),
-        like(suppliers.email, searchTerm),
+      .where(and(
+        or(
+          like(suppliers.companyName, searchTerm),
+          like(suppliers.tradeName, searchTerm),
+          like(suppliers.cnpj, searchTerm),
+          like(suppliers.email, searchTerm),
+        ),
+        ...(supplierGroupCond ? [supplierGroupCond] : []),
       ))
       .limit(limit),
-    
+
     db.select({
       id: documents.id,
       name: documents.name,
@@ -2181,12 +2204,15 @@ export async function globalSearch(query: string, limit = 20) {
       supplierId: documents.supplierId,
     })
       .from(documents)
-      .where(or(
-        like(documents.name, searchTerm),
-        like(documents.fileName, searchTerm),
+      .where(and(
+        or(
+          like(documents.name, searchTerm),
+          like(documents.fileName, searchTerm),
+        ),
+        ...(documentGroupCond ? [documentGroupCond] : []),
       ))
       .limit(limit),
-    
+
     db.select({
       id: contracts.id,
       title: contracts.title,
@@ -2195,12 +2221,15 @@ export async function globalSearch(query: string, limit = 20) {
       supplierId: contracts.supplierId,
     })
       .from(contracts)
-      .where(or(
-        like(contracts.title, searchTerm),
-        like(contracts.number, searchTerm),
+      .where(and(
+        or(
+          like(contracts.title, searchTerm),
+          like(contracts.number, searchTerm),
+        ),
+        ...(contractGroupCond ? [contractGroupCond] : []),
       ))
       .limit(limit),
-    
+
     db.select({
       id: companies.id,
       legalName: companies.legalName,
@@ -2208,14 +2237,17 @@ export async function globalSearch(query: string, limit = 20) {
       cnpj: companies.cnpj,
     })
       .from(companies)
-      .where(or(
-        like(companies.legalName, searchTerm),
-        like(companies.tradeName, searchTerm),
-        like(companies.cnpj, searchTerm),
+      .where(and(
+        or(
+          like(companies.legalName, searchTerm),
+          like(companies.tradeName, searchTerm),
+          like(companies.cnpj, searchTerm),
+        ),
+        ...(companyGroupCond ? [companyGroupCond] : []),
       ))
       .limit(limit),
   ]);
-  
+
   return {
     suppliers: supplierResults,
     documents: documentResults,
