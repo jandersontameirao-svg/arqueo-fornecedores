@@ -55,7 +55,11 @@ const buRoleEnum = z.enum(["bu_admin", "bu_operator", "bu_viewer"]);
 export const orgRouter = router({
   // ==================== CONTEXT ====================
   context: protectedProcedure.query(async ({ ctx }) => {
-    return resolveOrgContext(ctx.user);
+    // IMPORTANTE: este endpoint serve o dropdown "Área de Negócio" do topo.
+    // Por isso precisa retornar a lista COMPLETA de grupos acessíveis, não a
+    // versão estreitada pelo activeOrgGroupId — senão o dropdown só listaria
+    // o próprio grupo já selecionado e o usuário não conseguiria trocar.
+    return resolveOrgContext(ctx.user, null);
   }),
 
   // ==================== MY ROLES ====================
@@ -81,7 +85,8 @@ export const orgRouter = router({
   groups: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
-      const orgCtx = await resolveOrgContext(ctx.user);
+      // Lista do dropdown — também precisa do conjunto COMPLETO de grupos.
+      const orgCtx = await resolveOrgContext(ctx.user, null);
       const allGroups = await db.select().from(organizationalGroups);
       // Filter to only accessible groups
       return allGroups.filter((g: { id: number }) => orgCtx.accessibleGroupIds.includes(g.id));

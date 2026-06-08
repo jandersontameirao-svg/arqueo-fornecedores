@@ -28,8 +28,15 @@ import {
 
 export type AuthedUser = { id: number; email: string | null; role: string; [k: string]: any };
 
-async function getOrgCtxFor(user: AuthedUser): Promise<OrgContext> {
-  return resolveOrgContext(user as any);
+/**
+ * Resolve org context para um usuário autenticado. Aceita opcionalmente o
+ * `activeOrgGroupId` (vindo do header HTTP via TrpcContext). Quando os call
+ * sites no router passam `ctx.user` direto, o `activeOrgGroupId` fica null
+ * e o contexto retorna com TODOS os grupos acessíveis — fail-safe para
+ * helpers internos que não conhecem a sessão.
+ */
+async function getOrgCtxFor(user: AuthedUser, activeOrgGroupId?: number | null): Promise<OrgContext> {
+  return resolveOrgContext(user as any, activeOrgGroupId);
 }
 
 function forbidden(message = "Você não tem acesso a este recurso"): never {

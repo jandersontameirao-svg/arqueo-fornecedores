@@ -695,7 +695,7 @@ export const appRouter = router({
         }
 
         // ISOLAMENTO MULTI-GRUPO: resolver contexto organizacional e aplicar filtro de escopo
-        const orgCtx = await resolveOrgContext(ctx.user);
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         const scope = buildScopeFilter(orgCtx);
         // orgGroupIds vazio = sem acesso a nenhum grupo; undefined = sem restrição (legado)
         const orgGroupIds = orgCtx.isSuperAdmin ? undefined : scope.groupIds;
@@ -715,7 +715,7 @@ export const appRouter = router({
         // Sanitizar CNPJ: remover pontos, barra e hífen
         const sanitizedCnpj = input.cnpj.replace(/[.\/\-]/g, "");
         // Injetar escopo organizacional do usuário criador
-        const orgCtxCreate = await resolveOrgContext(ctx.user);
+        const orgCtxCreate = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         const activeGroupId = orgCtxCreate.isSuperAdmin
           ? (ctx.user.defaultOrgGroupId ?? orgCtxCreate.accessibleGroupIds[0] ?? null)
           : (orgCtxCreate.accessibleGroupIds[0] ?? null);
@@ -1144,7 +1144,7 @@ export const appRouter = router({
         // Sem isto, o supplier criado por IA fica orfao e e invisivel para todos
         // (assertSupplierAccess cai no fallback de links — se nao houver link nesta
         // mutation, o supplier some).
-        const orgCtxSave = await resolveOrgContext(ctx.user);
+        const orgCtxSave = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         const activeGroupIdSave = orgCtxSave.isSuperAdmin
           ? (ctx.user.defaultOrgGroupId ?? orgCtxSave.accessibleGroupIds[0] ?? null)
           : (orgCtxSave.accessibleGroupIds[0] ?? null);
@@ -1260,7 +1260,7 @@ export const appRouter = router({
       }))
       .query(async ({ input, ctx }) => {
         // ISOLAMENTO MULTI-GRUPO: resolver contexto organizacional e aplicar filtro de escopo
-        const orgCtx = await resolveOrgContext(ctx.user);
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         const scope = buildScopeFilter(orgCtx);
         const orgGroupIds = orgCtx.isSuperAdmin ? undefined : scope.groupIds;
         return db.getAllDocuments({ ...input, orgGroupIds });
@@ -1277,7 +1277,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         await assertSupplierAccess(ctx.user, input.supplierId);
         // Injetar escopo organizacional do usuário criador
-        const orgCtxDocCreate = await resolveOrgContext(ctx.user);
+        const orgCtxDocCreate = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         const docActiveGroupId = orgCtxDocCreate.isSuperAdmin
           ? (ctx.user.defaultOrgGroupId ?? orgCtxDocCreate.accessibleGroupIds[0] ?? null)
           : (orgCtxDocCreate.accessibleGroupIds[0] ?? null);
@@ -1352,7 +1352,7 @@ export const appRouter = router({
     getExpiring: protectedProcedure
       .input(z.object({ daysAhead: z.number().optional() }))
       .query(async ({ input, ctx }) => {
-        const orgCtx = await resolveOrgContext(ctx.user);
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         const orgGroupIds = orgCtx.isSuperAdmin ? undefined : orgCtx.accessibleGroupIds;
         return db.getExpiringDocuments(input.daysAhead || 30, { orgGroupIds });
       }),
@@ -1848,7 +1848,12 @@ export const appRouter = router({
       .input(z.object({ companyId: z.string().optional(), groupId: z.number().optional() }).optional())
       .query(async ({ input, ctx }) => {
         await assertScopeInput(ctx.user, input);
-        return db.getDashboardStats(input?.companyId, input?.groupId);
+        // Sem companyId/groupId no input: respeita o activeOrgGroup ativo
+        // (vindo do header). Isso garante que o dashboard "Grupo Arqueo Brasil"
+        // NÃO conte fornecedores do "Grupo Arqueo Africa".
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
+        const orgGroupIds = orgCtx.isSuperAdmin && !ctx.activeOrgGroupId ? undefined : orgCtx.accessibleGroupIds;
+        return db.getDashboardStats(input?.companyId, input?.groupId, { orgGroupIds });
       }),
 
     suppliersByCategory: protectedProcedure
@@ -2083,7 +2088,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const { items, startDate, endDate, ...contractData } = input;
         // Injetar escopo organizacional do usuário criador
-        const orgCtxContractCreate = await resolveOrgContext(ctx.user);
+        const orgCtxContractCreate = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         const contractActiveGroupId = orgCtxContractCreate.isSuperAdmin
           ? (ctx.user.defaultOrgGroupId ?? orgCtxContractCreate.accessibleGroupIds[0] ?? null)
           : (orgCtxContractCreate.accessibleGroupIds[0] ?? null);
@@ -2848,7 +2853,7 @@ Estruture o contrato com:
       }))
       .query(async ({ input, ctx }) => {
         // ISOLAMENTO MULTI-GRUPO: resolver contexto organizacional e aplicar filtro de escopo
-        const orgCtx = await resolveOrgContext(ctx.user);
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         const scope = buildScopeFilter(orgCtx);
         const orgGroupIds = orgCtx.isSuperAdmin ? undefined : scope.groupIds;
         return db.getAllContracts({ ...input, orgGroupIds });
@@ -4169,33 +4174,38 @@ REGRAS CRÍTICAS:
     // Lista vínculos de um fornecedor
     getBySupplier: protectedProcedure
       .input(z.object({ supplierId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
         return db.getSupplierCompanyLinks(input.supplierId);
       }),
 
     // Lista fornecedores vinculados a uma empresa
     getByCompany: protectedProcedure
       .input(z.object({ companyId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertCompanyAccess(ctx.user, input.companyId);
         return db.getSuppliersByCompanyLink(input.companyId);
       }),
 
     // Lista fornecedores por área de negócio
     getByBusinessUnit: protectedProcedure
       .input(z.object({ businessUnitId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertBusinessUnitAccess(ctx.user, input.businessUnitId);
         return db.getSuppliersByBusinessUnit(input.businessUnitId);
       }),
     // Conta fornecedores por área de negócio
     countByBusinessUnit: protectedProcedure
       .input(z.object({ businessUnitId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertBusinessUnitAccess(ctx.user, input.businessUnitId);
         return db.countSuppliersByBusinessUnit(input.businessUnitId);
       }),
     // Contar fornecedores por companyId string (campo direto na tabela suppliers)
     countByCompanyStringId: protectedProcedure
       .input(z.object({ companyId: z.string() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertScopeInput(ctx.user, { companyId: input.companyId });
         return db.countSuppliersByCompanyStringId(input.companyId);
       }),
 
@@ -4226,6 +4236,27 @@ REGRAS CRÍTICAS:
         internalNotes: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        // Guards de tenant: usuário precisa ter acesso ao fornecedor E à empresa.
+        const supplierRow = await assertSupplierAccess(ctx.user, input.supplierId);
+        await assertCompanyAccess(ctx.user, input.companyId);
+
+        // BLOQUEIO CROSS-GRUPO: fornecedor e empresa devem pertencer ao mesmo
+        // organizationalGroup. Sem este check, um vínculo cria visibilidade
+        // cross-tenant — fornecedor do "Grupo Arqueo Brasil" passa a aparecer
+        // em telas do "Grupo Arqueo Africa".
+        const company = await db.getCompanyById(input.companyId);
+        if (!company) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Empresa não encontrada" });
+        }
+        const supplierOrgId = supplierRow.supplier.organizationalGroupId;
+        const companyOrgId = company.organizationalGroupId;
+        if (supplierOrgId != null && companyOrgId != null && supplierOrgId !== companyOrgId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Não é possível vincular um fornecedor a uma empresa de outra Área de Negócio (organizationalGroup diferente).",
+          });
+        }
+
         // Verificar duplicata (idempotência)
         const exists = await db.checkSupplierCompanyLinkExists(input.supplierId, input.companyId);
         if (exists) {
@@ -4322,13 +4353,13 @@ REGRAS CRÍTICAS:
     findByCnpj: protectedProcedure
       .input(z.object({ cnpj: z.string().min(11).max(20) }))
       .query(async ({ input, ctx }) => {
-        const orgCtx = await resolveOrgContext(ctx.user);
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         const orgGroupIds = orgCtx.isSuperAdmin ? undefined : orgCtx.accessibleGroupIds;
         return db.findSupplierByCnpj(input.cnpj, { orgGroupIds });
       }),
 
     list: protectedProcedure.query(async ({ ctx }) => {
-      const orgCtx = await resolveOrgContext(ctx.user);
+      const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
       const orgGroupIds = orgCtx.isSuperAdmin ? undefined : orgCtx.accessibleGroupIds;
       return db.getAllSuppliersBaseGeral({ orgGroupIds });
     }),
@@ -4339,7 +4370,7 @@ REGRAS CRÍTICAS:
     search: protectedProcedure
       .input(z.object({ query: z.string().min(2).max(200), limit: z.number().int().min(1).max(100).optional() }))
       .query(async ({ input, ctx }) => {
-        const orgCtx = await resolveOrgContext(ctx.user);
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         const orgGroupIds = orgCtx.isSuperAdmin ? undefined : orgCtx.accessibleGroupIds;
         return db.globalSearch(input.query, input.limit, { orgGroupIds });
       }),

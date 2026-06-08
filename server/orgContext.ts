@@ -71,8 +71,17 @@ export function isRoleAtLeast(userRole: GlobalRole, requiredRole: GlobalRole): b
 /**
  * Resolves the organizational context for a given user.
  * This is the primary function called by middleware to determine what data a user can see.
+ *
+ * @param user — usuário autenticado.
+ * @param activeOrgGroupId — opcional. Quando definido E válido (pertence a
+ *   `accessibleGroupIds` do usuário), restringe TODA a visibilidade a este
+ *   único grupo organizacional. Vem do header `x-active-org-group-id`
+ *   injetado pelo cliente tRPC (dropdown "Área de Negócio"). Se inválido
+ *   (atacante tenta forjar grupo a que não tem acesso), é ignorado
+ *   silenciosamente — o contexto retornado segue com o conjunto completo
+ *   de grupos acessíveis (não há escalonamento).
  */
-export async function resolveOrgContext(user: User): Promise<OrgContext> {
+export async function resolveOrgContext(user: User, activeOrgGroupId?: number | null): Promise<OrgContext> {
   // LISTA BRANCA: o status superadmin_global é determinado pelo email, não pelo banco.
   // Mesmo que o banco tenha globalRole='superadmin_global' para um email não autorizado,
   // ele será rebaixado para 'viewer' aqui. Isso garante que nenhuma manipulação direta
@@ -95,7 +104,7 @@ export async function resolveOrgContext(user: User): Promise<OrgContext> {
     const allGroups = await db.select({ id: organizationalGroups.id }).from(organizationalGroups);
     const allCompanies = await db.select({ id: companies.id }).from(companies);
     const allBUs = await db.select({ id: businessUnits.id }).from(businessUnits);
-    return {
+    const fullCtx: OrgContext = {
       globalRole,
       defaultOrgGroupId: user.defaultOrgGroupId,
       accessibleGroupIds: allGroups.map((g: { id: number }) => g.id),
@@ -104,6 +113,7 @@ export async function resolveOrgContext(user: User): Promise<OrgContext> {
       effectiveLevel: "admin" as OrgPermissionLevel,
       isSuperAdmin: true,
     };
+    return narrowToActiveOrgGroup(fullCtx, activeOrgGroupId, db);
   }
 
   // For non-super-admins, resolve from role tables
@@ -145,7 +155,7 @@ export async function resolveOrgContext(user: User): Promise<OrgContext> {
       .select({ id: businessUnits.id })
       .from(businessUnits)
       .where(inArray(businessUnits.organizationalGroupId, implicitGroupIds));
-    return {
+    const fullCtx: OrgContext = {
       globalRole,
       defaultOrgGroupId: user.defaultOrgGroupId,
       accessibleGroupIds: implicitGroupIds,
@@ -154,6 +164,7 @@ export async function resolveOrgContext(user: User): Promise<OrgContext> {
       effectiveLevel: "admin" as OrgPermissionLevel,
       isSuperAdmin: false,
     };
+    return narrowToActiveOrgGroup(fullCtx, activeOrgGroupId, db);
   }
 
   // Determine effective permission level
@@ -166,7 +177,7 @@ export async function resolveOrgContext(user: User): Promise<OrgContext> {
     effectiveLevel = "viewer";
   }
 
-  return {
+  const fullCtx: OrgContext = {
     globalRole,
     defaultOrgGroupId: user.defaultOrgGroupId,
     accessibleGroupIds: implicitGroupIds,
@@ -174,6 +185,41 @@ export async function resolveOrgContext(user: User): Promise<OrgContext> {
     accessibleBusinessUnitIds,
     effectiveLevel,
     isSuperAdmin: false,
+  };
+  return narrowToActiveOrgGroup(fullCtx, activeOrgGroupId, db);
+}
+
+/**
+ * Restringe um OrgContext a um único organizationalGroup quando o usuário
+ * sinalizar (via header) que está navegando dentro desse grupo. Aplica fail-open:
+ * se o `activeOrgGroupId` for inválido (não está em accessibleGroupIds),
+ * mantém o contexto completo — nunca eleva privilégio.
+ */
+async function narrowToActiveOrgGroup(
+  ctx: OrgContext,
+  activeOrgGroupId: number | null | undefined,
+  db: Awaited<ReturnType<typeof getDb>>
+): Promise<OrgContext> {
+  if (!activeOrgGroupId) return ctx;
+  if (!ctx.accessibleGroupIds.includes(activeOrgGroupId)) {
+    // Tentativa de forjar grupo a que não tem acesso. Não escalonamos —
+    // ignoramos silenciosamente e seguimos com o contexto completo.
+    return ctx;
+  }
+  // Re-resolve companies e BUs filtrando pelo único grupo ativo.
+  const groupCompanies = await db
+    .select({ id: companies.id })
+    .from(companies)
+    .where(eq(companies.organizationalGroupId, activeOrgGroupId));
+  const groupBUs = await db
+    .select({ id: businessUnits.id })
+    .from(businessUnits)
+    .where(eq(businessUnits.organizationalGroupId, activeOrgGroupId));
+  return {
+    ...ctx,
+    accessibleGroupIds: [activeOrgGroupId],
+    accessibleCompanyIds: groupCompanies.map((c: { id: number }) => c.id),
+    accessibleBusinessUnitIds: groupBUs.map((b: { id: number }) => b.id),
   };
 }
 

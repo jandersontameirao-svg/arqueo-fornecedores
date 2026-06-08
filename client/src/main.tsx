@@ -61,11 +61,35 @@ queryClient.getMutationCache().subscribe(event => {
   }
 });
 
+/**
+ * Lê o organizationalGroup ativo selecionado pelo usuário no dropdown
+ * "Área de Negócio" do topo. O valor é persistido em localStorage pelo
+ * OrgGroupContext e injetado em todas as requests tRPC via header
+ * `x-active-org-group-id`. O backend usa esse header para restringir o
+ * escopo de visibilidade (resolveOrgContext.narrowToActiveOrgGroup).
+ */
+function getActiveOrgGroupId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    // Chave alinhada com OrgGroupContext.STORAGE_KEY.
+    const raw = window.localStorage.getItem("arqueo_active_org_group_id");
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? String(Math.trunc(n)) : null;
+  } catch {
+    return null;
+  }
+}
+
 const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
       url: "/api/trpc",
       transformer: superjson,
+      headers() {
+        const id = getActiveOrgGroupId();
+        return id ? { "x-active-org-group-id": id } : {};
+      },
       fetch(input, init) {
         return globalThis.fetch(input, {
           ...(init ?? {}),

@@ -1042,15 +1042,35 @@ export async function resolveAlert(id: number, userId: number) {
 }
 
 // ==================== DASHBOARD STATS ====================
-export async function getDashboardStats(companyId?: string, groupId?: number) {
+export async function getDashboardStats(companyId?: string, groupId?: number, opts?: { orgGroupIds?: number[] }) {
   const db = await getDb();
   if (!db) return null;
 
-  // SSOT: supplier_company_links substitui o tripe legado suppliers.companyId + supplier_links.
+  // Camada 1 (organizationalGroup): se o usuário sinalizou um grupo ativo via
+  // header `x-active-org-group-id`, o router passa orgGroupIds restrito a esse
+  // único grupo. Sem isso, dashboard global de um usuário multi-grupo
+  // somaria fornecedores de todos os grupos acessíveis.
+  let orgScopeFilter: any = undefined;
+  if (opts?.orgGroupIds !== undefined) {
+    if (opts.orgGroupIds.length === 0) {
+      return {
+        totalSuppliers: 0, pendingSuppliers: 0, approvedSuppliers: 0,
+        totalDocuments: 0, expiringDocuments: 0, activeAlerts: 0,
+      };
+    }
+    orgScopeFilter = inArray(suppliers.organizationalGroupId, opts.orgGroupIds);
+  }
+
+  // Camada 2 (companyId/businessUnit): SSOT supplier_company_links.
   const visibleIds = await getVisibleSupplierIdsByScope(companyId, groupId);
-  const scopeFilter = visibleIds !== null
+  const companyScopeFilter = visibleIds !== null
     ? (visibleIds.length > 0 ? inArray(suppliers.id, visibleIds) : sql`1=0`)
     : undefined;
+
+  // Combinar: ambas as camadas se aplicáveis.
+  const scopeFilter = orgScopeFilter && companyScopeFilter
+    ? and(orgScopeFilter, companyScopeFilter)
+    : (orgScopeFilter || companyScopeFilter);
 
   // Janela crítica: alertas de expiração só aparecem se dueDate é nulo, já vencido ou ≤15 dias
   const fifteenDaysFromNow = new Date();
@@ -1062,10 +1082,18 @@ export async function getDashboardStats(companyId?: string, groupId?: number) {
   )`;
 
   // totalDocuments respeita scope (sem isso, total da Home diverge da lista).
-  const docCountQuery = visibleIds !== null
-    ? (visibleIds.length > 0
-        ? db.select({ count: sql<number>`count(*)` }).from(documents).where(inArray(documents.supplierId, visibleIds))
-        : db.select({ count: sql<number>`count(*)` }).from(documents).where(sql`1=0`))
+  // Aplica camada orgGroup tambem (documents tem organizationalGroupId proprio).
+  const docOrgFilter = opts?.orgGroupIds !== undefined
+    ? (opts.orgGroupIds.length > 0 ? inArray(documents.organizationalGroupId, opts.orgGroupIds) : sql`1=0`)
+    : undefined;
+  const docCompanyFilter = visibleIds !== null
+    ? (visibleIds.length > 0 ? inArray(documents.supplierId, visibleIds) : sql`1=0`)
+    : undefined;
+  const docFilter = docOrgFilter && docCompanyFilter
+    ? and(docOrgFilter, docCompanyFilter)
+    : (docOrgFilter || docCompanyFilter);
+  const docCountQuery = docFilter
+    ? db.select({ count: sql<number>`count(*)` }).from(documents).where(docFilter)
     : db.select({ count: sql<number>`count(*)` }).from(documents);
 
   const [
@@ -1086,7 +1114,7 @@ export async function getDashboardStats(companyId?: string, groupId?: number) {
       ? db.select({ count: sql<number>`count(*)` }).from(suppliers).where(and(scopeFilter, eq(suppliers.status, "approved")))
       : db.select({ count: sql<number>`count(*)` }).from(suppliers).where(eq(suppliers.status, "approved")),
     docCountQuery,
-    getExpiringDocuments(15),
+    getExpiringDocuments(15, opts?.orgGroupIds !== undefined ? { orgGroupIds: opts.orgGroupIds } : undefined),
     scopeFilter
       ? db.select({ count: sql<number>`count(*)` }).from(complianceAlerts)
           .innerJoin(suppliers, eq(complianceAlerts.supplierId, suppliers.id))
