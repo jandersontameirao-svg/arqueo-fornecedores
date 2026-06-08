@@ -167,7 +167,35 @@ export default function SelectCompany() {
   const { setSelectedCompany } = useSelectedCompany();
   const [view, setView] = useState<View>("menu");
 
-  const companies = activeUnit ? getCompaniesForGroup(activeUnit.name) : [];
+  // Fonte primária: backend (businessUnits.getCompanies por businessUnitId real).
+  // Sem isto, a lista vinha de um dicionário hardcoded que dependia do nome da
+  // Área bater EXATAMENTE com a chave "Grupo Arqueo Brasil"/"Foods and Drinks"
+  // — qualquer divergência (acento, renomeação) fazia a tela vir vazia.
+  const { data: backendCompanies } = trpc.businessUnits.getCompanies.useQuery(
+    { businessUnitId: activeUnit?.id ?? 0 },
+    { enabled: !!activeUnit?.id, staleTime: 30_000 }
+  );
+
+  // Dicionário hardcoded permanece como ENRIQUECIMENTO visual (cor/descrição/slug)
+  // para empresas conhecidas. Empresas novas no banco aparecem com defaults.
+  const fallbackList = activeUnit ? getCompaniesForGroup(activeUnit.name) : [];
+  const dictById = new Map<number, CompanyDef>(fallbackList.map(c => [c.companyId, c]));
+  const dictByName = new Map<string, CompanyDef>(fallbackList.map(c => [c.name.toLowerCase().trim(), c]));
+
+  const companies: CompanyDef[] = (backendCompanies && backendCompanies.length > 0)
+    ? backendCompanies.map((bc: any) => {
+        const fromDict = dictById.get(bc.id) || dictByName.get(String(bc.tradeName || bc.legalName || "").toLowerCase().trim());
+        return {
+          id: fromDict?.id || `empresa-${bc.id}`,
+          companyId: bc.id,
+          name: bc.tradeName || bc.legalName || `Empresa ${bc.id}`,
+          color: fromDict?.color || "#F09327",
+          description: fromDict?.description,
+          logoUrl: fromDict?.logoUrl || bc.logoUrl || undefined,
+          businessUnitId: bc.businessUnitId ?? activeUnit?.id,
+        };
+      })
+    : fallbackList;
 
   const { data: totalSuppliers } = trpc.supplierCompanyLinks.countByBusinessUnit.useQuery(
     { businessUnitId: activeUnit?.id ?? 0 },
