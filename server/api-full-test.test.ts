@@ -338,15 +338,11 @@ describe("5. tRPC — Verificação de Procedures Críticas", () => {
     "companies.update",
     "companies.delete",
     "companies.getById",
-    // Supplier Links
-    "supplierLinks.getBySupplier",
     // Base Geral
     "baseGeral.list",
     "baseGeral.findByCnpj",
     // Global Search
     "globalSearch.search",
-    // AI Extraction
-    "aiExtraction.extractSupplierData",
     // Users
     "users.list",
     "users.create",

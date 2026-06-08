@@ -44,9 +44,10 @@ describe("Reestruturação v6.0 — Base Geral + Vínculos + Busca Global", () =
     });
   });
 
-  describe("Router aiExtraction", () => {
-    it("deve ter a procedure extractSupplierData", () => {
-      expect(appRouter.aiExtraction.extractSupplierData).toBeDefined();
+  // Router aiExtraction removido no Bloco C — substituido por suppliers.extractFromDocs.
+  describe("Router suppliers (extracao IA)", () => {
+    it("deve ter a procedure extractFromDocs", () => {
+      expect(appRouter.suppliers.extractFromDocs).toBeDefined();
     });
   });
 

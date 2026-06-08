@@ -18,11 +18,12 @@ import {
   contracts,
   contractAmendments,
   interactions,
-  evaluations,
-  workflows,
-  workflowSteps,
+  performanceEvaluations,
+  approvalWorkflows,
+  approvalSteps,
   supplierDocumentLinks,
   extractionRuns,
+  contractTemplates,
 } from "../../drizzle/schema";
 
 export type AuthedUser = { id: number; email: string | null; role: string; [k: string]: any };
@@ -47,31 +48,37 @@ function notFound(message = "Recurso não encontrado"): never {
  *   - the supplier has an ACTIVE link in supplier_company_links pointing to a company
  *     the user can access.
  *
- * Returns the supplier record (so the caller doesn't need to re-fetch).
+ * Returns the full row `{ supplier, category }` (so the caller doesn't need to re-fetch).
+ *
+ * Importante: `db.getSupplierById` retorna `{ supplier, category }` (resultado de
+ * LEFT JOIN com supplier_categories). Os campos do fornecedor estão em `row.supplier`,
+ * NÃO em `row` direto. Acessos como `row.organizationalGroupId` retornam undefined
+ * e fazem todo usuário cair no fallback de supplier_company_links — bug do Bloco A.
  */
 export async function assertSupplierAccess(user: AuthedUser, supplierId: number) {
-  const supplier = await db.getSupplierById(supplierId);
-  if (!supplier) notFound("Fornecedor não encontrado");
+  const row = await db.getSupplierById(supplierId);
+  if (!row) notFound("Fornecedor não encontrado");
 
+  const supplier = row.supplier;
   const ctx = await getOrgCtxFor(user);
-  if (ctx.isSuperAdmin) return supplier;
+  if (ctx.isSuperAdmin) return row;
 
   if (supplier.organizationalGroupId && canAccessGroup(ctx, supplier.organizationalGroupId)) {
-    return supplier;
+    return row;
   }
 
   // Fall back to canonical visibility via supplier_company_links
   const dbConn = await db.getDb();
   if (!dbConn) forbidden();
   const links = await dbConn
-    .select({ companyId: supplierCompanyLinks.companyId })
+    .select({ companyId: supplierCompanyLinks.companyId, status: supplierCompanyLinks.status })
     .from(supplierCompanyLinks)
     .where(eq(supplierCompanyLinks.supplierId, supplierId));
-  const hasAccessibleLink = links.some((l: { companyId: number | null }) =>
-    l.companyId != null && canAccessCompany(ctx, l.companyId)
+  const hasAccessibleLink = links.some((l: { companyId: number | null; status: string | null }) =>
+    l.companyId != null && l.status === "active" && canAccessCompany(ctx, l.companyId)
   );
   if (!hasAccessibleLink) forbidden();
-  return supplier;
+  return row;
 }
 
 /**
@@ -172,15 +179,47 @@ export async function assertEvaluationAccess(user: AuthedUser, evaluationId: num
   const dbConn = await db.getDb();
   if (!dbConn) forbidden();
   const [row] = await dbConn
-    .select({ supplierId: evaluations.supplierId, organizationalGroupId: evaluations.organizationalGroupId })
-    .from(evaluations)
-    .where(eq(evaluations.id, evaluationId))
+    .select({ supplierId: performanceEvaluations.supplierId, organizationalGroupId: performanceEvaluations.organizationalGroupId })
+    .from(performanceEvaluations)
+    .where(eq(performanceEvaluations.id, evaluationId))
     .limit(1);
   if (!row) notFound("Avaliação não encontrada");
   const ctx = await getOrgCtxFor(user);
   if (ctx.isSuperAdmin) return row;
   if (row.organizationalGroupId && canAccessGroup(ctx, row.organizationalGroupId)) return row;
   await assertSupplierAccess(user, row.supplierId);
+  return row;
+}
+
+/**
+ * Assert access to an approval workflow by id. Resolves via supplier.
+ */
+export async function assertWorkflowAccess(user: AuthedUser, workflowId: number) {
+  const dbConn = await db.getDb();
+  if (!dbConn) forbidden();
+  const [row] = await dbConn
+    .select({ supplierId: approvalWorkflows.supplierId })
+    .from(approvalWorkflows)
+    .where(eq(approvalWorkflows.id, workflowId))
+    .limit(1);
+  if (!row) notFound("Workflow não encontrado");
+  await assertSupplierAccess(user, row.supplierId);
+  return row;
+}
+
+/**
+ * Assert access to an approval step by id (resolves via workflow → supplier).
+ */
+export async function assertWorkflowStepAccess(user: AuthedUser, stepId: number) {
+  const dbConn = await db.getDb();
+  if (!dbConn) forbidden();
+  const [row] = await dbConn
+    .select({ workflowId: approvalSteps.workflowId })
+    .from(approvalSteps)
+    .where(eq(approvalSteps.id, stepId))
+    .limit(1);
+  if (!row) notFound("Etapa não encontrada");
+  await assertWorkflowAccess(user, row.workflowId);
   return row;
 }
 
@@ -235,6 +274,43 @@ export async function assertFileKeyAccess(user: AuthedUser, fileKey: string) {
     .limit(1);
   if (amendment) {
     await assertContractAccess(user, amendment.contractId);
+    return;
+  }
+
+  // Anexos de interactions (anexo via uploadAttachment).
+  const [interaction] = await dbConn
+    .select({ supplierId: interactions.supplierId, organizationalGroupId: interactions.organizationalGroupId })
+    .from(interactions)
+    .where(eq(interactions.attachmentKey, fileKey))
+    .limit(1);
+  if (interaction) {
+    if (interaction.organizationalGroupId && canAccessGroup(ctx, interaction.organizationalGroupId)) return;
+    await assertSupplierAccess(user, interaction.supplierId);
+    return;
+  }
+
+  // Arquivos fonte de extraction_runs (PDFs subidos para extracao IA).
+  const [run] = await dbConn
+    .select({ createdById: extractionRuns.createdById })
+    .from(extractionRuns)
+    .where(eq(extractionRuns.sourceFileKey, fileKey))
+    .limit(1);
+  if (run) {
+    // Owner do run sempre pode ver — alem disso, qualquer admin do mesmo grupo.
+    if (run.createdById === (user as any).id) return;
+    // Sem dado de grupo no run; cair em forbidden para nao-owners.
+    forbidden();
+  }
+
+  // Templates de contrato (uploads DOCX).
+  const [template] = await dbConn
+    .select({ id: contractTemplates.id })
+    .from(contractTemplates)
+    .where(eq(contractTemplates.fileKey, fileKey))
+    .limit(1);
+  if (template) {
+    // Templates sao recurso global do tenant: qualquer usuario do tenant pode baixar.
+    // Se houver isolamento de templates por grupo no futuro, mudar aqui.
     return;
   }
 

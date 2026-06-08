@@ -26,6 +26,8 @@ import {
   assertFileKeyAccess,
   assertInteractionAccess,
   assertEvaluationAccess,
+  assertWorkflowAccess,
+  assertWorkflowStepAccess,
   assertScopeInput,
 } from "./_core/tenant-guard";
 import { canAccessGroup, canAccessCompany } from "./orgContext";
@@ -773,9 +775,10 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }).merge(supplierSchema.partial()))
       .mutation(async ({ input, ctx }) => {
         const { id, ...data } = input;
-        // Sanitizar CNPJ se fornecido: remover pontos, barra e hífen
+        await assertSupplierAccess(ctx.user, id);
+        // Sanitiza CNPJ se fornecido: padronizar para apenas digitos (mesma logica do onboarding/create).
         if (data.cnpj) {
-          data.cnpj = data.cnpj.replace(/[.\/-]/g, "");
+          data.cnpj = data.cnpj.replace(/\D/g, "");
         }
         await db.updateSupplier(id, data);
         await db.createAuditLog({
@@ -792,6 +795,7 @@ export const appRouter = router({
     delete: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.id);
         await db.deleteSupplier(input.id);
         await db.createAuditLog({
           entityType: "supplier",
@@ -806,6 +810,7 @@ export const appRouter = router({
     approve: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.id);
         await db.approveSupplier(input.id, ctx.user.id);
         await db.createAuditLog({
           entityType: "supplier",
@@ -820,6 +825,7 @@ export const appRouter = router({
     reject: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.id);
         await db.rejectSupplier(input.id);
         await db.createAuditLog({
           entityType: "supplier",
@@ -1131,15 +1137,24 @@ export const appRouter = router({
         })).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        // Sanitizar CNPJ
-        const sanitizedCnpj = input.supplierData.cnpj.replace(/[.\/-]/g, "");
+        // Sanitiza CNPJ (so digitos — alinhado com onboarding/create).
+        const sanitizedCnpj = input.supplierData.cnpj.replace(/\D/g, "");
 
-        // Create supplier with registrationOrigin = 'ai'
+        // Injeta organizationalGroupId igual ao cadastro manual (suppliers.create).
+        // Sem isto, o supplier criado por IA fica orfao e e invisivel para todos
+        // (assertSupplierAccess cai no fallback de links — se nao houver link nesta
+        // mutation, o supplier some).
+        const orgCtxSave = await resolveOrgContext(ctx.user);
+        const activeGroupIdSave = orgCtxSave.isSuperAdmin
+          ? (ctx.user.defaultOrgGroupId ?? orgCtxSave.accessibleGroupIds[0] ?? null)
+          : (orgCtxSave.accessibleGroupIds[0] ?? null);
+
         const supplierId = await db.createSupplier({
           ...input.supplierData,
           cnpj: sanitizedCnpj,
           registrationOrigin: "ai" as any,
           createdById: ctx.user.id,
+          organizationalGroupId: activeGroupIdSave,
         });
 
         // Create approval workflow
@@ -1232,7 +1247,8 @@ export const appRouter = router({
   documents: router({
     list: protectedProcedure
       .input(z.object({ supplierId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
         return db.getSupplierDocuments(input.supplierId);
       }),
 
@@ -1259,6 +1275,7 @@ export const appRouter = router({
     create: managerProcedure
       .input(documentSchema)
       .mutation(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
         // Injetar escopo organizacional do usuário criador
         const orgCtxDocCreate = await resolveOrgContext(ctx.user);
         const docActiveGroupId = orgCtxDocCreate.isSuperAdmin
@@ -1309,6 +1326,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const { id, ...data } = input;
+        await assertDocumentAccess(ctx.user, id);
         await db.updateDocument(id, {
           ...data,
           expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
@@ -1333,8 +1351,10 @@ export const appRouter = router({
 
     getExpiring: protectedProcedure
       .input(z.object({ daysAhead: z.number().optional() }))
-      .query(async ({ input }) => {
-        return db.getExpiringDocuments(input.daysAhead || 30);
+      .query(async ({ input, ctx }) => {
+        const orgCtx = await resolveOrgContext(ctx.user);
+        const orgGroupIds = orgCtx.isSuperAdmin ? undefined : orgCtx.accessibleGroupIds;
+        return db.getExpiringDocuments(input.daysAhead || 30, { orgGroupIds });
       }),
 
     getUploadUrl: managerProcedure
@@ -1352,19 +1372,23 @@ export const appRouter = router({
     upload: managerProcedure
       .input(z.object({
         supplierId: z.number(),
-        name: z.string(),
-        type: z.string(),
-        fileData: z.string(), // base64 encoded file data
-        fileName: z.string(),
-        mimeType: z.string(),
+        name: z.string().min(1).max(255),
+        type: z.string().min(1).max(50),
+        fileData: z.string().max(22_000_000, "Arquivo excede 16MB"),
+        fileName: z.string().min(1).max(255),
+        mimeType: z.string().min(1).max(255),
         expiresAt: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        // Guard de tenant: o supplierId pode ser de outro grupo. Sem este check,
+        // qualquer manager anexa documentos em fornecedores alheios.
+        await assertSupplierAccess(ctx.user, input.supplierId);
         // Upload file to S3
         const timestamp = Date.now();
         const randomSuffix = Math.random().toString(36).substring(2, 8);
-        const fileKey = `documents/${ctx.user.id}/${timestamp}-${randomSuffix}-${input.fileName}`;
-        
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const fileKey = `documents/${ctx.user.id}/${timestamp}-${randomSuffix}-${safeName}`;
+
         const fileBuffer = Buffer.from(input.fileData, "base64");
         const { url } = await storagePut(fileKey, fileBuffer, input.mimeType);
         
@@ -1440,7 +1464,8 @@ export const appRouter = router({
 
     getSteps: protectedProcedure
       .input(z.object({ workflowId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertWorkflowAccess(ctx.user, input.workflowId);
         return db.getWorkflowSteps(input.workflowId);
       }),
 
@@ -1451,6 +1476,10 @@ export const appRouter = router({
         comments: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        // Sem este guard, manager do tenant A aprovava etapas de homologacao do
+        // tenant B aleatoriamente — game-over de RBAC.
+        await assertWorkflowAccess(ctx.user, input.workflowId);
+        await assertWorkflowStepAccess(ctx.user, input.stepId);
         await db.updateWorkflowStep(input.stepId, {
           status: "approved",
           approvedById: ctx.user.id,
@@ -1482,6 +1511,8 @@ export const appRouter = router({
         comments: z.string(),
       }))
       .mutation(async ({ input, ctx }) => {
+        await assertWorkflowAccess(ctx.user, input.workflowId);
+        await assertWorkflowStepAccess(ctx.user, input.stepId);
         await db.updateWorkflowStep(input.stepId, {
           status: "rejected",
           approvedById: ctx.user.id,
@@ -1500,7 +1531,8 @@ export const appRouter = router({
   interactions: router({
     list: protectedProcedure
       .input(z.object({ supplierId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
         return db.getSupplierInteractions(input.supplierId);
       }),
 
@@ -1538,8 +1570,9 @@ export const appRouter = router({
         description: z.string().optional(),
         followUpDate: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { id, ...data } = input;
+        await assertInteractionAccess(ctx.user, id);
         await db.updateInteraction(id, {
           ...data,
           followUpDate: data.followUpDate ? new Date(data.followUpDate) : undefined,
@@ -1560,13 +1593,19 @@ export const appRouter = router({
       .input(z.object({
         interactionId: z.number(),
         fileBase64: z.string().max(22_000_000, "Arquivo excede 16MB"),
-        fileName: z.string(),
-        mimeType: z.string(),
+        fileName: z.string().min(1).max(255),
+        mimeType: z.string().min(1).max(255),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await assertInteractionAccess(ctx.user, input.interactionId);
+        if (!checkLlmRateLimit(ctx.user.id)) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Limite de processamento por IA atingido. Tente novamente em 1h." });
+        }
         const buffer = Buffer.from(input.fileBase64, "base64");
         const ext = input.fileName.split(".").pop()?.toLowerCase() || "bin";
-        const fileKey = `interactions/attachments/${Date.now()}-${input.fileName}`;
+        // Sanitiza nome do arquivo (impede traversal nos prefixos do bucket).
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const fileKey = `interactions/attachments/${Date.now()}-${safeName}`;
         const mimeMap: Record<string, string> = {
           pdf: "application/pdf",
           docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -1622,13 +1661,15 @@ export const appRouter = router({
   evaluations: router({
     list: protectedProcedure
       .input(z.object({ supplierId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
         return db.getSupplierEvaluations(input.supplierId);
       }),
 
     create: managerProcedure
       .input(evaluationSchema)
       .mutation(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
         // Calculate overall score
         const scores = [
           input.qualityScore,
@@ -1678,6 +1719,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const { id, ...rest } = input;
+        await assertEvaluationAccess(ctx.user, id);
         const scores = [
           rest.qualityScore,
           rest.deliveryScore,
@@ -2100,6 +2142,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const { id, items, startDate, endDate, ...contractData } = input;
+        await assertContractAccess(ctx.user, id);
         await db.updateContract(id, {
           ...contractData,
           startDate: startDate ? new Date(startDate) : undefined,
@@ -2141,9 +2184,13 @@ export const appRouter = router({
     generateWithAI: managerProcedure
       .input(z.object({
         supplierId: z.number(),
-        prompt: z.string().min(1, "Descreva o contrato que deseja gerar"),
+        prompt: z.string().min(1, "Descreva o contrato que deseja gerar").max(8000),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
+        if (!checkLlmRateLimit(ctx.user.id)) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Limite de geracoes por IA atingido. Tente novamente em 1h." });
+        }
         // Fetch supplier data to enrich the AI prompt
         const supplierData = await db.getSupplierById(input.supplierId);
         const supplier = supplierData?.supplier;
@@ -2325,6 +2372,7 @@ Estruture o contrato com:
         signOrder: z.number().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        await assertContractAccess(ctx.user, input.contractId);
         const id = await db.createContractSigner(input);
         await db.createAuditLog({
           entityType: "contract_signer",
@@ -2346,8 +2394,12 @@ Estruture o contrato com:
         role: z.enum(["contractor", "contracted", "witness", "guarantor"]).optional(),
         signOrder: z.number().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { id, ...data } = input;
+        // Recupera o signer para resolver o contractId e validar tenant.
+        const signer = await db.getContractSignerById(id);
+        if (!signer) throw new TRPCError({ code: "NOT_FOUND", message: "Signatário não encontrado" });
+        await assertContractAccess(ctx.user, signer.contractId);
         await db.updateContractSigner(id, data);
         return { success: true };
       }),
@@ -2355,6 +2407,9 @@ Estruture o contrato com:
     removeSigner: managerProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
+        const signer = await db.getContractSignerById(input.id);
+        if (!signer) throw new TRPCError({ code: "NOT_FOUND", message: "Signatário não encontrado" });
+        await assertContractAccess(ctx.user, signer.contractId);
         await db.deleteContractSigner(input.id);
         await db.createAuditLog({
           entityType: "contract_signer",
@@ -2375,9 +2430,8 @@ Estruture o contrato com:
 
     getSignatureStatus: protectedProcedure
       .input(z.object({ contractId: z.number() }))
-      .query(async ({ input }) => {
-        const contract = await db.getContractById(input.contractId);
-        if (!contract) throw new TRPCError({ code: "NOT_FOUND" });
+      .query(async ({ input, ctx }) => {
+        const contract = await assertContractAccess(ctx.user, input.contractId);
         const signers = await db.getContractSigners(input.contractId);
         const events = await db.getContractClicksignEvents(input.contractId);
         return {
@@ -2406,8 +2460,7 @@ Estruture o contrato com:
         contractId: z.number(),
       }))
       .mutation(async ({ input, ctx }) => {
-        const contract = await db.getContractById(input.contractId);
-        if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        const contract = await assertContractAccess(ctx.user, input.contractId);
 
         // Validações de pré-envio
         const signers = await db.getContractSigners(input.contractId);
@@ -2605,8 +2658,7 @@ Estruture o contrato com:
         message: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        const contract = await db.getContractById(input.contractId);
-        if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        const contract = await assertContractAccess(ctx.user, input.contractId);
 
         if (!contract.clicksignEnvelopeId) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Este contrato ainda não foi enviado para o Clicksign." });
@@ -2670,8 +2722,7 @@ Estruture o contrato com:
     cancelClicksign: managerProcedure
       .input(z.object({ contractId: z.number() }))
       .mutation(async ({ input, ctx }) => {
-        const contract = await db.getContractById(input.contractId);
-        if (!contract) throw new TRPCError({ code: "NOT_FOUND" });
+        const contract = await assertContractAccess(ctx.user, input.contractId);
 
         if (!contract.clicksignEnvelopeId) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Contrato não possui envelope Clicksign." });
@@ -2746,8 +2797,7 @@ Estruture o contrato com:
     syncClicksignStatus: managerProcedure
       .input(z.object({ contractId: z.number() }))
       .mutation(async ({ input, ctx }) => {
-        const contract = await db.getContractById(input.contractId);
-        if (!contract) throw new TRPCError({ code: "NOT_FOUND" });
+        const contract = await assertContractAccess(ctx.user, input.contractId);
 
         if (!contract.clicksignEnvelopeId) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Contrato não possui envelope Clicksign." });
@@ -3039,6 +3089,7 @@ Estruture o contrato com:
       }))
       .mutation(async ({ input, ctx }) => {
         const { id, newEndDate, signedAt, ...rest } = input;
+        await assertAmendmentAccess(ctx.user, id);
         await db.updateAmendment(id, {
           ...rest,
           newEndDate: newEndDate ? new Date(newEndDate) : undefined,
@@ -3066,13 +3117,18 @@ Estruture o contrato com:
     extractFromPDF: managerProcedure
       .input(z.object({
         contractId: z.number(),
-        pdfBase64: z.string(),
-        fileName: z.string(),
+        pdfBase64: z.string().max(22_000_000, "Arquivo excede 16MB"),
+        fileName: z.string().min(1).max(255),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await assertContractAccess(ctx.user, input.contractId);
+        if (!checkLlmRateLimit(ctx.user.id)) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Limite de extracoes por IA atingido. Tente novamente em 1h." });
+        }
         // Upload PDF to S3
         const buffer = Buffer.from(input.pdfBase64, "base64");
-        const fileKey = `amendments/pdf/${Date.now()}-${input.fileName}`;
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const fileKey = `amendments/pdf/${Date.now()}-${safeName}`;
         const { url: pdfUrl } = await storagePut(fileKey, buffer, "application/pdf");
 
         // Extract text from PDF
@@ -3258,11 +3314,14 @@ Estruture o contrato com:
 
     generateWithAI: managerProcedure
       .input(z.object({
-        name: z.string().min(1),
+        name: z.string().min(1).max(200),
         contractType: z.enum(["service", "supply", "lease", "consulting", "maintenance", "other"]),
-        description: z.string().min(1),
+        description: z.string().min(1).max(8000),
       }))
       .mutation(async ({ input, ctx }) => {
+        if (!checkLlmRateLimit(ctx.user.id)) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Limite de geracoes por IA atingido. Tente novamente em 1h." });
+        }
         const typeLabels: Record<string, string> = {
           service: "Prestação de Serviços",
           supply: "Fornecimento",
@@ -3331,13 +3390,19 @@ Estruture o contrato com:
       .input(z.object({
         supplierId: z.number(),
         contractId: z.number().optional(),
-        pdfBase64: z.string(),
-        fileName: z.string(),
+        pdfBase64: z.string().max(22_000_000, "Arquivo excede 16MB"),
+        fileName: z.string().min(1).max(255),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
+        if (input.contractId) await assertContractAccess(ctx.user, input.contractId);
+        if (!checkLlmRateLimit(ctx.user.id)) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Limite de extracoes por IA atingido. Tente novamente em 1h." });
+        }
         // Upload PDF to S3 first
         const buffer = Buffer.from(input.pdfBase64, "base64");
-        const fileKey = `contracts/pdf/${Date.now()}-${input.fileName}`;
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const fileKey = `contracts/pdf/${Date.now()}-${safeName}`;
         const { url: pdfUrl } = await storagePut(fileKey, buffer, "application/pdf");
 
         // Extract text from PDF for LLM processing
@@ -3436,17 +3501,21 @@ Estruture o contrato com:
     analyzeFileForAutofill: managerProcedure
       .input(z.object({
         fileBase64: z.string().max(22_000_000, "Arquivo excede 16MB"),
-        fileName: z.string(),
-        mimeType: z.string(),
+        fileName: z.string().min(1).max(255),
+        mimeType: z.string().min(1).max(255),
         templateId: z.number(),
-        templateName: z.string(),
+        templateName: z.string().max(255),
         templateContent: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        if (!checkLlmRateLimit(ctx.user.id)) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Limite de analises por IA atingido. Tente novamente em 1h." });
+        }
         // Upload file to S3
         const buffer = Buffer.from(input.fileBase64, "base64");
         const ext = input.fileName.split(".").pop()?.toLowerCase() || "bin";
-        const fileKey = `contracts/autofill/${Date.now()}-${input.fileName}`;
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const fileKey = `contracts/autofill/${Date.now()}-${safeName}`;
         const mimeMap: Record<string, string> = {
           pdf: "application/pdf",
           docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -3563,13 +3632,17 @@ REGRAS CRÍTICAS:
     analyzeFileForTemplate: managerProcedure
       .input(z.object({
         fileBase64: z.string().max(22_000_000, "Arquivo excede 16MB"),
-        fileName: z.string(),
-        mimeType: z.string(),
+        fileName: z.string().min(1).max(255),
+        mimeType: z.string().min(1).max(255),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        if (!checkLlmRateLimit(ctx.user.id)) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Limite de analises por IA atingido. Tente novamente em 1h." });
+        }
         const buffer = Buffer.from(input.fileBase64, "base64");
         const ext = input.fileName.split(".").pop()?.toLowerCase() || "bin";
-        const fileKey = `templates/autofill/${Date.now()}-${input.fileName}`;
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const fileKey = `templates/autofill/${Date.now()}-${safeName}`;
         const mimeMap: Record<string, string> = {
           pdf: "application/pdf",
           docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -3750,17 +3823,21 @@ REGRAS CRÍTICAS:
       }),
 
        // ==================== EXTRAÇÃO POR IA VIA PDF PARA PREENCHIMENTO ===========================
-    extractFromPdf: protectedProcedure
+    extractFromPdf: managerProcedure
       .input(z.object({
         fileBase64: z.string().max(22_000_000, "Arquivo excede 16MB"),
-        fileName: z.string(),
-        mimeType: z.string(),
+        fileName: z.string().min(1).max(255),
+        mimeType: z.string().min(1).max(255),
         templateId: z.number().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        if (!checkLlmRateLimit(ctx.user.id)) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Limite de extracoes por IA atingido. Tente novamente em 1h." });
+        }
         const buffer = Buffer.from(input.fileBase64, "base64");
         const ext = input.fileName.split(".").pop()?.toLowerCase() || "bin";
-        const fileKey = `extraction-runs/${Date.now()}-${input.fileName}`;
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const fileKey = `extraction-runs/${Date.now()}-${safeName}`;
         const { url: fileUrl } = await storagePut(fileKey, buffer, input.mimeType);
         const runId = await db.createExtractionRun({
           sourceFileUrl: fileUrl,
@@ -3885,6 +3962,13 @@ REGRAS CRÍTICAS:
         reviewNotes: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        // O extraction run pertence ao usuario criador. Sem este guard, qualquer
+        // autenticado podia reescrever campos extraidos de runs alheios.
+        const run = await db.getExtractionRun(input.extractionRunId);
+        if (!run) throw new TRPCError({ code: "NOT_FOUND", message: "Extraction run não encontrada" });
+        if (run.createdById !== ctx.user.id && ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
         await db.confirmExtractedFields(input.extractionRunId, input.fields);
         if (input.reviewNotes) {
           await db.updateExtractionRun(input.extractionRunId, {
@@ -3899,9 +3983,12 @@ REGRAS CRÍTICAS:
     // ==================== OBTER EXTRACTION RUN ====================
     getExtractionRun: protectedProcedure
       .input(z.object({ runId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         const run = await db.getExtractionRun(input.runId);
         if (!run) throw new TRPCError({ code: "NOT_FOUND", message: "Extraction run nao encontrada" });
+        if (run.createdById !== ctx.user.id && ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
         const fields = await db.getExtractedFieldsByRun(input.runId);
         return { ...run, fields };
       }),

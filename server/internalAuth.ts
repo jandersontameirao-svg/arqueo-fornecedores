@@ -4,7 +4,7 @@
  */
 import type { Express, Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import { COOKIE_NAME, SESSION_TTL_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { sdk } from "./_core/sdk";
 import * as db from "./db";
@@ -67,12 +67,12 @@ export function registerInternalAuthRoutes(app: Express) {
       // Criar session JWT (mesmo formato do OAuth)
       const sessionToken = await sdk.createSessionToken(user.openId, {
         name: user.name || "",
-        expiresInMs: ONE_YEAR_MS,
+        expiresInMs: SESSION_TTL_MS,
       });
 
       // Setar cookie
       const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: SESSION_TTL_MS });
 
       // Retornar dados do usuário (sem passwordHash)
       res.json({

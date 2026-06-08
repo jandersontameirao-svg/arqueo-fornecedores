@@ -590,12 +590,24 @@ export async function deleteDocument(id: number) {
  * Use daysAhead=365 para a janela preventiva (sem alerta crítico).
  * Documentos já vencidos não são incluídos aqui (use getExpiredDocuments).
  */
-export async function getExpiringDocuments(daysAhead: number = 15) {
+export async function getExpiringDocuments(daysAhead: number = 15, opts?: { orgGroupIds?: number[] }) {
   const db = await getDb();
   if (!db) return [];
 
   const futureDate = new Date();
   futureDate.setDate(futureDate.getDate() + daysAhead);
+
+  const conds: any[] = [
+    lte(documents.expiresAt, futureDate),
+    gte(documents.expiresAt, new Date()),
+    eq(documents.expirationAlertSent, false),
+  ];
+  // Filtro de escopo organizacional. Sem este, notifications e relatorios vazam
+  // documentos de outros tenants.
+  if (opts?.orgGroupIds !== undefined) {
+    if (opts.orgGroupIds.length === 0) return [];
+    conds.push(inArray(documents.organizationalGroupId, opts.orgGroupIds));
+  }
 
   return db.select({
     document: documents,
@@ -603,13 +615,7 @@ export async function getExpiringDocuments(daysAhead: number = 15) {
   })
     .from(documents)
     .innerJoin(suppliers, eq(documents.supplierId, suppliers.id))
-    .where(
-      and(
-        lte(documents.expiresAt, futureDate),
-        gte(documents.expiresAt, new Date()),
-        eq(documents.expirationAlertSent, false)
-      )
-    )
+    .where(and(...conds))
     .orderBy(documents.expiresAt);
 }
 
@@ -1055,12 +1061,19 @@ export async function getDashboardStats(companyId?: string, groupId?: number) {
     OR ${complianceAlerts.dueDate} <= ${fifteenDaysFromNow}
   )`;
 
+  // totalDocuments respeita scope (sem isso, total da Home diverge da lista).
+  const docCountQuery = visibleIds !== null
+    ? (visibleIds.length > 0
+        ? db.select({ count: sql<number>`count(*)` }).from(documents).where(inArray(documents.supplierId, visibleIds))
+        : db.select({ count: sql<number>`count(*)` }).from(documents).where(sql`1=0`))
+    : db.select({ count: sql<number>`count(*)` }).from(documents);
+
   const [
     totalSuppliers,
     pendingSuppliers,
     approvedSuppliers,
     totalDocuments,
-    expiringDocs,
+    expiringDocsAll,
     activeAlerts,
   ] = await Promise.all([
     scopeFilter
@@ -1072,15 +1085,22 @@ export async function getDashboardStats(companyId?: string, groupId?: number) {
     scopeFilter
       ? db.select({ count: sql<number>`count(*)` }).from(suppliers).where(and(scopeFilter, eq(suppliers.status, "approved")))
       : db.select({ count: sql<number>`count(*)` }).from(suppliers).where(eq(suppliers.status, "approved")),
-    db.select({ count: sql<number>`count(*)` }).from(documents),
+    docCountQuery,
     getExpiringDocuments(15),
-    // Aplicar scopeFilter aos alertas: contar apenas alertas de fornecedores visiveis
     scopeFilter
       ? db.select({ count: sql<number>`count(*)` }).from(complianceAlerts)
           .innerJoin(suppliers, eq(complianceAlerts.supplierId, suppliers.id))
           .where(and(scopeFilter, eq(complianceAlerts.isResolved, false), expirationWindowCond))
       : db.select({ count: sql<number>`count(*)` }).from(complianceAlerts).where(and(eq(complianceAlerts.isResolved, false), expirationWindowCond)),
   ]);
+
+  // expiringDocuments filtrado por scope. Faz pos-filtro em memoria pq a query
+  // ja retorna o supplierId. Para volumes pequenos (~dezenas) e aceitavel; se
+  // crescer, mover filtro para a query via orgGroupIds.
+  const expiringDocs = visibleIds !== null
+    ? expiringDocsAll.filter((d: any) => visibleIds.includes(d.document.supplierId))
+    : expiringDocsAll;
+
   return {
     totalSuppliers: totalSuppliers[0]?.count || 0,
     pendingSuppliers: pendingSuppliers[0]?.count || 0,
@@ -1852,6 +1872,13 @@ export async function getContractSigners(contractId: number) {
   return db.select().from(contractSigners)
     .where(eq(contractSigners.contractId, contractId))
     .orderBy(contractSigners.signOrder);
+}
+
+export async function getContractSignerById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(contractSigners).where(eq(contractSigners.id, id)).limit(1);
+  return rows[0] || null;
 }
 
 export async function createContractSigner(data: InsertContractSigner): Promise<number> {

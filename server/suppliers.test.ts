@@ -217,7 +217,9 @@ describe("suppliers router", () => {
       const result = await caller.suppliers.getById({ id: 1 });
 
       expect(result).toBeDefined();
-      expect(result?.companyName).toBe("Fornecedor Teste");
+      // Shape pos-Bloco A/G: getById retorna { supplier, category } (resultado do
+      // LEFT JOIN com supplier_categories), nao mais o supplier direto.
+      expect(result?.supplier?.companyName).toBe("Fornecedor Teste");
     });
   });
 
