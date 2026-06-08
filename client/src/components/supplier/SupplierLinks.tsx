@@ -168,8 +168,8 @@ export default function SupplierLinks({ supplierId }: SupplierLinksProps) {
                       </SelectTrigger>
                       <SelectContent>
                         {availableCompanies.map((company: any) => (
-                          <SelectItem key={company.id} value={company.id}>
-                            {company.name}
+                          <SelectItem key={company.id} value={String(company.id)}>
+                            {company.tradeName || company.legalName || `Empresa ${company.id}`}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -248,7 +248,7 @@ export default function SupplierLinks({ supplierId }: SupplierLinksProps) {
                       <Building2 className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-medium">{item.company?.name || item.link.companyId}</p>
+                      <p className="font-medium">{item.company?.tradeName || item.company?.legalName || `Empresa ${item.link.companyId}`}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <Badge className={statusColors[item.link.status] || "bg-gray-100 text-gray-800"} variant="secondary">
                           {statusLabels[item.link.status] || item.link.status}
@@ -270,7 +270,7 @@ export default function SupplierLinks({ supplierId }: SupplierLinksProps) {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Desvincular empresa?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            O fornecedor será desvinculado de {item.company?.name || item.link.companyId}. 
+                            O fornecedor será desvinculado de {item.company?.tradeName || item.company?.legalName || `Empresa ${item.link.companyId}`}.
                             Esta ação pode ser revertida criando um novo vínculo.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
