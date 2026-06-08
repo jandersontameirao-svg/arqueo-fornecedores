@@ -1,4 +1,29 @@
 import { eq, desc, asc, and, or, like, gte, lte, sql, isNull, inArray } from "drizzle-orm";
+
+/**
+ * Filtro de escopo organizacional que INCLUI registros com `organizationalGroupId IS NULL`.
+ *
+ * Por que: muitos registros legados foram criados antes do campo `organizationalGroupId`
+ * existir e ficaram com NULL. O Bloco H aplicou `inArray(col, [grupoAtivo])` que exclui
+ * NULLs — resultado: usuário ativo no "Grupo Arqueo Brasil" deixou de ver fornecedores
+ * (e documentos, contratos) que existiam antes da migração.
+ *
+ * Comportamento desta função:
+ *   - orgGroupIds === undefined → sem filtro (caller decide)
+ *   - orgGroupIds === []       → sem acesso a nenhum grupo, retorna `sql\`1=0\``
+ *   - orgGroupIds === [N, ...] → `(col IN (N,...) OR col IS NULL)`
+ *
+ * AVISO de segurança: aceitar NULL significa que registros órfãos aparecem em
+ * QUALQUER grupo selecionado. Hoje isso é seguro porque só o "Grupo Arqueo Brasil"
+ * está populado. Quando outros grupos forem populados, rodar backfill:
+ *   UPDATE suppliers SET organizationalGroupId = 1 WHERE organizationalGroupId IS NULL;
+ *   (e equivalentes em documents, contracts, etc.)
+ */
+function orgScopeOrNull(col: any, orgGroupIds: number[] | undefined) {
+  if (orgGroupIds === undefined) return undefined;
+  if (orgGroupIds.length === 0) return sql`1=0`;
+  return or(inArray(col, orgGroupIds), isNull(col));
+}
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users,
@@ -429,7 +454,8 @@ export async function getAllSuppliers(filters?: {
   // ISOLAMENTO MULTI-GRUPO: se orgGroupIds fornecido, filtrar por organizationalGroupId
   if (filters?.orgGroupIds !== undefined) {
     if (filters.orgGroupIds.length === 0) return []; // sem acesso a nenhum grupo
-    conditions.push(inArray(suppliers.organizationalGroupId, filters.orgGroupIds));
+    // Inclui registros legados com organizationalGroupId IS NULL (pré-migração).
+    conditions.push(orgScopeOrNull(suppliers.organizationalGroupId, filters.orgGroupIds)!);
   }
   if (searchCond) conditions.push(searchCond);
 
@@ -606,7 +632,7 @@ export async function getExpiringDocuments(daysAhead: number = 15, opts?: { orgG
   // documentos de outros tenants.
   if (opts?.orgGroupIds !== undefined) {
     if (opts.orgGroupIds.length === 0) return [];
-    conds.push(inArray(documents.organizationalGroupId, opts.orgGroupIds));
+    conds.push(orgScopeOrNull(documents.organizationalGroupId, opts.orgGroupIds)!);
   }
 
   return db.select({
@@ -664,7 +690,7 @@ export async function getAllDocuments(filters?: {
   // ISOLAMENTO MULTI-GRUPO: se orgGroupIds fornecido, filtrar por organizationalGroupId
   if (filters?.orgGroupIds !== undefined) {
     if (filters.orgGroupIds.length === 0) return []; // sem acesso a nenhum grupo
-    conditions.push(inArray(documents.organizationalGroupId, filters.orgGroupIds));
+    conditions.push(orgScopeOrNull(documents.organizationalGroupId, filters.orgGroupIds)!);
   }
 
   let query = db.select({
@@ -1058,7 +1084,7 @@ export async function getDashboardStats(companyId?: string, groupId?: number, op
         totalDocuments: 0, expiringDocuments: 0, activeAlerts: 0,
       };
     }
-    orgScopeFilter = inArray(suppliers.organizationalGroupId, opts.orgGroupIds);
+    orgScopeFilter = orgScopeOrNull(suppliers.organizationalGroupId, opts.orgGroupIds);
   }
 
   // Camada 2 (companyId/businessUnit): SSOT supplier_company_links.
@@ -1083,9 +1109,7 @@ export async function getDashboardStats(companyId?: string, groupId?: number, op
 
   // totalDocuments respeita scope (sem isso, total da Home diverge da lista).
   // Aplica camada orgGroup tambem (documents tem organizationalGroupId proprio).
-  const docOrgFilter = opts?.orgGroupIds !== undefined
-    ? (opts.orgGroupIds.length > 0 ? inArray(documents.organizationalGroupId, opts.orgGroupIds) : sql`1=0`)
-    : undefined;
+  const docOrgFilter = orgScopeOrNull(documents.organizationalGroupId, opts?.orgGroupIds);
   const docCompanyFilter = visibleIds !== null
     ? (visibleIds.length > 0 ? inArray(documents.supplierId, visibleIds) : sql`1=0`)
     : undefined;
@@ -2161,7 +2185,7 @@ export async function findSupplierByCnpj(cnpj: string, opts?: { orgGroupIds?: nu
   const conds = [eq(suppliers.cnpj, sanitized)];
   if (opts?.orgGroupIds !== undefined) {
     if (opts.orgGroupIds.length === 0) return null;
-    conds.push(inArray(suppliers.organizationalGroupId, opts.orgGroupIds));
+    conds.push(orgScopeOrNull(suppliers.organizationalGroupId, opts.orgGroupIds)!);
   }
   const rows = await db.select().from(suppliers).where(and(...conds)).limit(1);
   return rows[0] || null;
@@ -2184,7 +2208,7 @@ export async function getAllSuppliersBaseGeral(opts?: { orgGroupIds?: number[] }
   // qualquer usuário autenticado lê PII (CNPJ, dados bancários) de todos os tenants.
   if (opts?.orgGroupIds !== undefined) {
     if (opts.orgGroupIds.length === 0) return [];
-    return query.where(inArray(suppliers.organizationalGroupId, opts.orgGroupIds)).orderBy(suppliers.companyName);
+    return query.where(orgScopeOrNull(suppliers.organizationalGroupId, opts.orgGroupIds)!).orderBy(suppliers.companyName);
   }
   return query.orderBy(suppliers.companyName);
 }
@@ -2201,10 +2225,10 @@ export async function globalSearch(query: string, limit = 20, opts?: { orgGroupI
   if (scopedGroupIds !== undefined && scopedGroupIds.length === 0) {
     return { suppliers: [], documents: [], contracts: [], companies: [] };
   }
-  const supplierGroupCond = scopedGroupIds ? inArray(suppliers.organizationalGroupId, scopedGroupIds) : undefined;
-  const documentGroupCond = scopedGroupIds ? inArray(documents.organizationalGroupId, scopedGroupIds) : undefined;
-  const contractGroupCond = scopedGroupIds ? inArray(contracts.organizationalGroupId, scopedGroupIds) : undefined;
-  const companyGroupCond = scopedGroupIds ? inArray(companies.organizationalGroupId, scopedGroupIds) : undefined;
+  const supplierGroupCond = orgScopeOrNull(suppliers.organizationalGroupId, scopedGroupIds);
+  const documentGroupCond = orgScopeOrNull(documents.organizationalGroupId, scopedGroupIds);
+  const contractGroupCond = orgScopeOrNull(contracts.organizationalGroupId, scopedGroupIds);
+  const companyGroupCond = orgScopeOrNull(companies.organizationalGroupId, scopedGroupIds);
 
   const [supplierResults, documentResults, contractResults, companyResults] = await Promise.all([
     db.select({
@@ -2666,7 +2690,7 @@ export async function getAllContracts(params: {
   // ISOLAMENTO MULTI-GRUPO: se orgGroupIds fornecido, filtrar por contracts.organizationalGroupId
   if (params.orgGroupIds !== undefined) {
     if (params.orgGroupIds.length === 0) return [];
-    conditions.push(inArray(contracts.organizationalGroupId, params.orgGroupIds));
+    conditions.push(orgScopeOrNull(contracts.organizationalGroupId, params.orgGroupIds)!);
   }
   if (params.search) {
     const like = `%${params.search}%`;

@@ -74,6 +74,16 @@ export async function assertSupplierAccess(user: AuthedUser, supplierId: number)
     return row;
   }
 
+  // Fornecedor legado: organizationalGroupId IS NULL e nenhum vinculo em
+  // supplier_company_links. Antes do Bloco H esses suppliers eram visiveis a
+  // qualquer usuario autenticado. Tratamos como acessivel para nao quebrar
+  // visualizacao pos-migracao — quando o backfill (UPDATE suppliers SET
+  // organizationalGroupId=1 WHERE NULL) rodar, este caminho deixa de ser
+  // exercitado.
+  if (!supplier.organizationalGroupId) {
+    return row;
+  }
+
   // Fall back to canonical visibility via supplier_company_links
   const dbConn = await db.getDb();
   if (!dbConn) forbidden();
