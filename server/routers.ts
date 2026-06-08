@@ -14,7 +14,7 @@ import * as exportService from "./export";
 import * as clicksign from "./clicksign";
 import { orgRouter } from "./orgRouter";
 import { resolveOrgContext, buildScopeFilter } from "./orgContext";
-import { invokeLLM, useDirectOpenAI, useAnthropic, providerSupportsFileUrl } from "./_core/llm";
+import { invokeLLM, useDirectOpenAI, useAnthropic, providerSupportsFileUrl, uploadFileToOpenAI } from "./_core/llm";
 import {
   assertSupplierAccess,
   assertDocumentAccess,
@@ -962,150 +962,124 @@ export const appRouter = router({
         });
 
         try {
-          // Extract text from all files
-          const fileTexts: string[] = [];
+          // Caminho unificado: para cada arquivo decidimos a melhor representação
+          // individualmente (texto inline, image_url, file_url ou file_id via
+          // Files API). Antes havia dois caminhos paralelos (text path vs
+          // multimodal) que se ignoravam: PDF escaneado caía no multimodal,
+          // mas OpenAI direto não aceita file_url para PDF, então a IA recebia
+          // prompt vazio e devolvia JSON com tudo not_found sem erro.
+          const TEXT_USEFUL_THRESHOLD = 100;
+          const messageContentParts: any[] = [{ type: "text" as const, text: "" }];
+          const textBlocks: string[] = [];
+          const pathTags: string[] = [];
+
           for (const file of filesWithUrls) {
             const buffer = Buffer.from(file.base64, "base64");
             const ext = file.fileName.split(".").pop()?.toLowerCase() || "bin";
             const text = await extractTextFromBuffer(buffer, ext);
-            if (text) {
-              fileTexts.push(`--- DOCUMENTO: ${file.fileName} ---\n${text}`);
-            }
-          }
-          console.log(`[ai-extract] extractFromDocs: text extraction done, filesWithText=${fileTexts.length}/${filesWithUrls.length}`);
+            const usefulText = text && text.trim().length >= TEXT_USEFUL_THRESHOLD;
 
-          if (fileTexts.length === 0) {
-            console.warn(`[ai-extract] extractFromDocs: NO text extracted -> trying multimodal path`);
-            // Build multimodal parts: images via image_url data URL (works on OpenAI Vision and Anthropic),
-            // PDFs via file_url only on Manus Forge / Gemini.
-            const fileContents: Array<
-              | { type: "image_url"; image_url: { url: string; detail?: "auto" | "low" | "high" } }
-              | { type: "file_url"; file_url: { url: string; mime_type: "application/pdf" } }
-            > = [];
-            for (const file of filesWithUrls) {
-              fileContents.push(...buildMultimodalParts(file));
+            if (usefulText) {
+              textBlocks.push(`--- DOCUMENTO: ${file.fileName} ---\n${text}`);
+              pathTags.push(`${file.fileName}:text(${text.length})`);
+              continue;
             }
-            if (fileContents.length === 0) {
-              // PDF scanned on OpenAI/Anthropic, or DOC/other unsupported binary
-              const hint = filesWithUrls.some(f => f.mimeType === "application/pdf")
-                ? "PDF parece estar escaneado (sem texto digital). Reenvie como imagem (JPG/PNG) de boa qualidade ou um PDF com texto selecion\u00e1vel."
-                : "Formato n\u00e3o suportado para extra\u00e7\u00e3o. Envie PDF (com texto), DOCX, TXT, JPG ou PNG.";
-              await db.updateExtractionRunStatus(runId, "failed", {
-                errorMessage: hint,
-                processingTimeMs: Date.now() - startTime,
+
+            const lowText = text ? `lowtext(${text.length})` : "notext";
+
+            if (file.mimeType.startsWith("image/")) {
+              messageContentParts.push({
+                type: "image_url" as const,
+                image_url: { url: `data:${file.mimeType};base64,${file.base64}`, detail: "high" as const },
               });
-              throw new TRPCError({ code: "BAD_REQUEST", message: hint });
+              textBlocks.push(`(Imagem "${file.fileName}" anexada para analise visual.)`);
+              pathTags.push(`${file.fileName}:image_url`);
+            } else if (file.mimeType === "application/pdf" && useDirectOpenAI()) {
+              try {
+                console.log(`[ai-extract] extractFromDocs: uploading "${file.fileName}" to OpenAI Files API (${lowText})`);
+                const fileId = await uploadFileToOpenAI(buffer, file.fileName, file.mimeType);
+                messageContentParts.push({ type: "file" as const, file: { file_id: fileId } });
+                textBlocks.push(`(PDF "${file.fileName}" anexado via OpenAI Files API.)`);
+                pathTags.push(`${file.fileName}:files_api(${fileId})`);
+              } catch (uploadErr: any) {
+                console.error(`[ai-extract] extractFromDocs: Files API upload failed for "${file.fileName}":`, uploadErr?.message);
+                pathTags.push(`${file.fileName}:upload_failed`);
+              }
+            } else if (file.mimeType === "application/pdf" && providerSupportsFileUrl()) {
+              messageContentParts.push({
+                type: "file_url" as const,
+                file_url: { url: file.fileUrl, mime_type: "application/pdf" as const },
+              });
+              textBlocks.push(`(PDF "${file.fileName}" anexado como file_url.)`);
+              pathTags.push(`${file.fileName}:file_url`);
+            } else {
+              console.warn(`[ai-extract] extractFromDocs: NAO foi possivel representar "${file.fileName}" (mime=${file.mimeType}, ext=${ext}, ${lowText})`);
+              pathTags.push(`${file.fileName}:skipped`);
             }
-            // Use multimodal approach
-            console.log(`[ai-extract] extractFromDocs: invoking LLM (multimodal path) with ${fileContents.length} file_url parts`);
-            const response = await invokeLLM({
-              messages: [
-                {
-                  role: "system",
-                  content: SUPPLIER_EXTRACTION_SYSTEM_PROMPT,
-                },
-                {
-                  role: "user",
-                  content: [
-                    { type: "text" as const, text: SUPPLIER_EXTRACTION_USER_PROMPT },
-                    ...fileContents,
-                  ],
-                },
-              ],
-              response_format: SUPPLIER_EXTRACTION_RESPONSE_FORMAT,
-            });
-
-            const rawContent = response.choices[0]?.message?.content || "{}";
-            const contentStr = typeof rawContent === "string" ? rawContent : "{}";
-            console.log(`[ai-extract] extractFromDocs: LLM responded (multimodal), contentChars=${contentStr.length}, finish_reason=${response.choices[0]?.finish_reason ?? "n/a"}`);
-            let parsed: any = {};
-            try { parsed = JSON.parse(contentStr); } catch (parseErr) {
-              console.error(`[ai-extract] extractFromDocs: JSON.parse failed (multimodal). First 500 chars:`, contentStr.substring(0, 500));
-              await db.updateExtractionRunStatus(runId, "failed", { errorMessage: "IA retornou resposta inválida (não é JSON). Tente novamente.", processingTimeMs: Date.now() - startTime });
-              throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "IA retornou resposta inválida. Tente novamente." });
-            }
-            const filledFromMM = parsed?.fields ? Object.values(parsed.fields).filter((f: any) => f?.value && String(f.value).trim().length > 0).length : 0;
-            console.log(`[ai-extract] extractFromDocs: multimodal parse ok, fieldsWithValue=${filledFromMM}`);
-            const processingTimeMs = Date.now() - startTime;
-
-            // Save extracted fields
-            const extractedFieldsList = buildExtractedFields(runId, parsed);
-            await db.createExtractedFieldsBatch(extractedFieldsList);
-
-            // Calculate overall confidence
-            const avgConfidence = extractedFieldsList.length > 0
-              ? extractedFieldsList.reduce((sum, f) => sum + Number(f.confidence || 0), 0) / extractedFieldsList.length
-              : 0;
-
-            await db.updateExtractionRunStatus(runId, "completed", {
-              overallConfidence: String(avgConfidence) as any,
-              rawResponse: contentStr,
-              processingTimeMs,
-            });
-
-            return {
-              runId,
-              extracted: parsed,
-              fields: extractedFieldsList,
-              overallConfidence: avgConfidence,
-              processingTimeMs,
-              uploadedFiles: filesWithUrls.map(f => ({ fileUrl: f.fileUrl, fileKey: f.fileKey, fileName: f.fileName, fileSize: 0, mimeType: f.mimeType })),
-            };
           }
 
-          // Text-based extraction
-          const combinedText = fileTexts.join("\n\n");
-          console.log(`[ai-extract] extractFromDocs: invoking LLM (text path), combinedTextChars=${combinedText.length}`);
-          const response = await invokeLLM({
+          console.log(`[ai-extract] extractFromDocs: paths=[${pathTags.join(", ")}]`);
+
+          if (textBlocks.length === 0 && messageContentParts.length === 1) {
+            const hint = filesWithUrls.some(f => f.mimeType === "application/pdf")
+              ? "Nao foi possivel ler o(s) PDF(s) enviado(s). Reenvie como JPG/PNG (foto nitida) ou um PDF com texto selecionavel."
+              : "Formato nao suportado. Envie PDF, DOCX, TXT, JPG ou PNG.";
+            await db.updateExtractionRunStatus(runId, "failed", {
+              errorMessage: hint,
+              processingTimeMs: Date.now() - startTime,
+            });
+            throw new TRPCError({ code: "BAD_REQUEST", message: hint });
+          }
+
+          const finalPromptText = textBlocks.length > 0
+            ? SUPPLIER_EXTRACTION_USER_PROMPT + "\n\n" + textBlocks.join("\n\n")
+            : SUPPLIER_EXTRACTION_USER_PROMPT;
+          messageContentParts[0] = { type: "text" as const, text: finalPromptText };
+
+          console.log(`[ai-extract] extractFromDocs: invoking LLM (unified), parts=${messageContentParts.length}, promptChars=${finalPromptText.length}`);
+          const unifiedResponse = await invokeLLM({
             messages: [
-              {
-                role: "system",
-                content: SUPPLIER_EXTRACTION_SYSTEM_PROMPT,
-              },
-              {
-                role: "user",
-                content: SUPPLIER_EXTRACTION_USER_PROMPT + "\n\n" + combinedText,
-              },
+              { role: "system", content: SUPPLIER_EXTRACTION_SYSTEM_PROMPT },
+              { role: "user", content: messageContentParts },
             ],
             response_format: SUPPLIER_EXTRACTION_RESPONSE_FORMAT,
           });
 
-          const rawContent = response.choices[0]?.message?.content || "{}";
-          const contentStr = typeof rawContent === "string" ? rawContent : "{}";
-          console.log(`[ai-extract] extractFromDocs: LLM responded (text), contentChars=${contentStr.length}, finish_reason=${response.choices[0]?.finish_reason ?? "n/a"}`);
-          let parsed: any = {};
-          try { parsed = JSON.parse(contentStr); } catch (parseErr) {
-            console.error(`[ai-extract] extractFromDocs: JSON.parse failed (text). First 500 chars:`, contentStr.substring(0, 500));
-            await db.updateExtractionRunStatus(runId, "failed", { errorMessage: "IA retornou resposta inválida (não é JSON). Tente novamente.", processingTimeMs: Date.now() - startTime });
-            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "IA retornou resposta inválida. Tente novamente." });
+          const unifiedRaw = unifiedResponse.choices[0]?.message?.content || "{}";
+          const unifiedContentStr = typeof unifiedRaw === "string" ? unifiedRaw : "{}";
+          console.log(`[ai-extract] extractFromDocs: LLM responded, contentChars=${unifiedContentStr.length}, finish_reason=${unifiedResponse.choices[0]?.finish_reason ?? "n/a"}`);
+          let unifiedParsed: any = {};
+          try { unifiedParsed = JSON.parse(unifiedContentStr); } catch (parseErr) {
+            console.error(`[ai-extract] extractFromDocs: JSON.parse failed. First 500 chars:`, unifiedContentStr.substring(0, 500));
+            await db.updateExtractionRunStatus(runId, "failed", { errorMessage: "IA retornou resposta invalida. Tente novamente.", processingTimeMs: Date.now() - startTime });
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "IA retornou resposta invalida. Tente novamente." });
           }
-          const filledFromText = parsed?.fields ? Object.values(parsed.fields).filter((f: any) => f?.value && String(f.value).trim().length > 0).length : 0;
-          console.log(`[ai-extract] extractFromDocs: text parse ok, fieldsWithValue=${filledFromText}`);
-          const processingTimeMs = Date.now() - startTime;
+          const filledFinal = unifiedParsed?.fields ? Object.values(unifiedParsed.fields).filter((f: any) => f?.value && String(f.value).trim().length > 0).length : 0;
+          console.log(`[ai-extract] extractFromDocs: parse ok, fieldsWithValue=${filledFinal}`);
 
-          // Save extracted fields
-          const extractedFieldsList = buildExtractedFields(runId, parsed);
-          await db.createExtractedFieldsBatch(extractedFieldsList);
+          const unifiedProcessingTimeMs = Date.now() - startTime;
+          const unifiedFieldsList = buildExtractedFields(runId, unifiedParsed);
+          await db.createExtractedFieldsBatch(unifiedFieldsList);
 
-          // Calculate overall confidence
-          const avgConfidence = extractedFieldsList.length > 0
-            ? extractedFieldsList.reduce((sum, f) => sum + Number(f.confidence || 0), 0) / extractedFieldsList.length
+          const unifiedAvgConfidence = unifiedFieldsList.length > 0
+            ? unifiedFieldsList.reduce((sum, f) => sum + Number(f.confidence || 0), 0) / unifiedFieldsList.length
             : 0;
 
           await db.updateExtractionRunStatus(runId, "completed", {
-            overallConfidence: String(avgConfidence) as any,
-            rawResponse: contentStr,
-            processingTimeMs,
+            overallConfidence: String(unifiedAvgConfidence) as any,
+            rawResponse: unifiedContentStr,
+            processingTimeMs: unifiedProcessingTimeMs,
           });
 
           return {
             runId,
-            extracted: parsed,
-            fields: extractedFieldsList,
-            overallConfidence: avgConfidence,
-            processingTimeMs,
+            extracted: unifiedParsed,
+            fields: unifiedFieldsList,
+            overallConfidence: unifiedAvgConfidence,
+            processingTimeMs: unifiedProcessingTimeMs,
             uploadedFiles: filesWithUrls.map(f => ({ fileUrl: f.fileUrl, fileKey: f.fileKey, fileName: f.fileName, fileSize: 0, mimeType: f.mimeType })),
           };
+
         } catch (err: any) {
           if (err instanceof TRPCError) throw err;
           console.error(`[ai-extract] extractFromDocs: unhandled error runId=${runId} message="${err?.message}"`, err?.stack);
