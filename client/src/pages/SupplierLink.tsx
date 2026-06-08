@@ -102,9 +102,15 @@ export default function SupplierLink() {
     return suppliers.find((s: any) => s.supplier.id === selectedSupplierId)?.supplier || null;
   }, [suppliers, selectedSupplierId]);
 
+  const utils = trpc.useUtils();
   // Mutation: criar vínculo canônico em supplierCompanyLinks
   const createLinkMutation = trpc.supplierCompanyLinks.create.useMutation({
     onSuccess: () => {
+      // Refletir o novo vínculo nas listas e contagens sem F5.
+      utils.suppliers.list.invalidate();
+      utils.supplierCompanyLinks.countByCompanyStringId.invalidate();
+      utils.supplierCompanyLinks.countByBusinessUnit.invalidate();
+      utils.dashboard.stats.invalidate();
       toast.success("Fornecedor vinculado com sucesso!", {
         description: `${selectedSupplier?.companyName} foi vinculado à ${targetCompany?.name}.`,
       });
@@ -119,6 +125,7 @@ export default function SupplierLink() {
       setConfirmOpen(false);
     },
     onError: (error) => {
+      console.error("[supplierCompanyLinks.create] mutation failed", error);
       toast.error("Erro ao vincular fornecedor", { description: error.message });
       setConfirmOpen(false);
     },

@@ -91,6 +91,7 @@ export default function SupplierForm({ id }: SupplierFormProps) {
     notes: "",
   });
 
+  const utils = trpc.useUtils();
   const { data: categories } = trpc.categories.list.useQuery();
   const { data: existingSupplier, isLoading: loadingSupplier } = trpc.suppliers.getById.useQuery(
     { id: id! },
@@ -99,6 +100,11 @@ export default function SupplierForm({ id }: SupplierFormProps) {
 
   const createMutation = trpc.suppliers.create.useMutation({
     onSuccess: (data) => {
+      // Invalidar lista e contagens para refletir o novo fornecedor sem F5.
+      utils.suppliers.list.invalidate();
+      utils.dashboard.stats.invalidate();
+      utils.supplierCompanyLinks.countByCompanyStringId.invalidate();
+      utils.supplierCompanyLinks.countByBusinessUnit.invalidate();
       toast.success("Fornecedor cadastrado com sucesso!");
       if (selectedCompanyId) {
         linkSupplierToCompanies(data.id);
@@ -106,6 +112,7 @@ export default function SupplierForm({ id }: SupplierFormProps) {
       setLocation(`/suppliers/${data.id}`);
     },
     onError: (error) => {
+      console.error("[suppliers.create] mutation failed", error);
       const msg = error.message;
       if (msg.includes("CNPJ") || msg.includes("cnpj") || msg.includes("Duplicate") || msg.includes("duplicado") || msg.includes("já existe") || msg.includes("Já existe")) {
         toast.error("Já existe um fornecedor cadastrado com este CNPJ no sistema.");
@@ -117,10 +124,13 @@ export default function SupplierForm({ id }: SupplierFormProps) {
 
   const updateMutation = trpc.suppliers.update.useMutation({
     onSuccess: () => {
+      utils.suppliers.list.invalidate();
+      utils.suppliers.getById.invalidate({ id: id! });
       toast.success("Fornecedor atualizado com sucesso!");
       setLocation(`/suppliers/${id}`);
     },
     onError: (error) => {
+      console.error("[suppliers.update] mutation failed", error);
       toast.error(error.message);
     },
   });

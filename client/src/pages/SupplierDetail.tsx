@@ -113,28 +113,41 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
 
   const approveMutation = trpc.suppliers.approve.useMutation({
     onSuccess: () => {
-      toast.success("Fornecedor aprovado com sucesso!");
       utils.suppliers.getById.invalidate({ id });
+      utils.suppliers.list.invalidate();
+      utils.workflows.getPending.invalidate();
+      utils.dashboard.stats.invalidate();
+      toast.success("Fornecedor aprovado com sucesso!");
     },
     onError: (error) => {
+      console.error("[suppliers.approve] mutation failed", error);
       toast.error(error.message);
     },
   });
   const rejectMutation = trpc.suppliers.reject.useMutation({
     onSuccess: () => {
-      toast.success("Fornecedor rejeitado");
       utils.suppliers.getById.invalidate({ id });
+      utils.suppliers.list.invalidate();
+      utils.workflows.getPending.invalidate();
+      utils.dashboard.stats.invalidate();
+      toast.success("Fornecedor rejeitado");
     },
     onError: (error) => {
+      console.error("[suppliers.reject] mutation failed", error);
       toast.error(error.message);
     },
   });
   const deleteMutation = trpc.suppliers.delete.useMutation({
     onSuccess: () => {
+      utils.suppliers.list.invalidate();
+      utils.dashboard.stats.invalidate();
+      utils.supplierCompanyLinks.countByCompanyStringId.invalidate();
+      utils.supplierCompanyLinks.countByBusinessUnit.invalidate();
       toast.success("Fornecedor excluído");
       setLocation("/suppliers");
     },
     onError: (error) => {
+      console.error("[suppliers.delete] mutation failed", error);
       toast.error(error.message);
     },
   });
