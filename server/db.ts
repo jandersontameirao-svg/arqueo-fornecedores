@@ -491,6 +491,31 @@ export async function getSupplierById(id: number) {
   return result.length > 0 ? result[0] : null;
 }
 
+// Mapa nome-do-estado → sigla UF (a coluna suppliers.state é varchar(2)).
+// A extração por IA às vezes retorna o nome completo ("Minas Gerais"), que
+// estoura a coluna e derruba o INSERT. Normalizamos para a sigla antes de gravar.
+const UF_BY_NAME: Record<string, string> = {
+  "acre": "AC", "alagoas": "AL", "amapa": "AP", "amazonas": "AM", "bahia": "BA",
+  "ceara": "CE", "distrito federal": "DF", "espirito santo": "ES", "goias": "GO",
+  "maranhao": "MA", "mato grosso": "MT", "mato grosso do sul": "MS", "minas gerais": "MG",
+  "para": "PA", "paraiba": "PB", "parana": "PR", "pernambuco": "PE", "piaui": "PI",
+  "rio de janeiro": "RJ", "rio grande do norte": "RN", "rio grande do sul": "RS",
+  "rondonia": "RO", "roraima": "RR", "santa catarina": "SC", "sao paulo": "SP",
+  "sergipe": "SE", "tocantins": "TO",
+};
+function normalizeUF(state: string | null | undefined): string | null | undefined {
+  if (state == null) return state;
+  const raw = String(state).trim();
+  if (!raw) return raw;
+  if (raw.length <= 2) return raw.toUpperCase();
+  const key = raw.toLowerCase().normalize("NFD").split("")
+    .filter((c) => { const code = c.charCodeAt(0); return code < 0x300 || code > 0x36f; })
+    .join("");
+  if (UF_BY_NAME[key]) return UF_BY_NAME[key];
+  // Rede de segurança: nunca estoura varchar(2). Se for nome desconhecido, trunca.
+  return raw.slice(0, 2).toUpperCase();
+}
+
 export async function createSupplier(data: InsertSupplier) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -509,6 +534,7 @@ export async function createSupplier(data: InsertSupplier) {
 
   const supplierData: InsertSupplier = {
     ...data,
+    state: normalizeUF(data.state) as any,
     criticality: data.criticality || "medium",
     status: data.status || "pending",
   };
@@ -519,7 +545,8 @@ export async function createSupplier(data: InsertSupplier) {
 export async function updateSupplier(id: number, data: Partial<InsertSupplier>) {
   const db = await getDb();
   if (!db) return;
-  await db.update(suppliers).set(data).where(eq(suppliers.id, id));
+  const normalized = data.state !== undefined ? { ...data, state: normalizeUF(data.state) as any } : data;
+  await db.update(suppliers).set(normalized).where(eq(suppliers.id, id));
 }
 
 export async function deleteSupplier(id: number) {
