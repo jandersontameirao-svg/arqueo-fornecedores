@@ -632,6 +632,53 @@ export async function deleteSupplier(id: number) {
   await db.delete(suppliers).where(eq(suppliers.id, id));
 }
 
+/**
+ * Exclusão COMPLETA de um fornecedor e tudo que pertence a ele (documentos,
+ * contratos e seus aditivos/marcos/versões/assinantes, vínculos, contatos,
+ * interações, avaliações, alertas, workflows, runs de extração da IA).
+ * Faz a remoção em ordem (filhos antes dos pais) para não esbarrar em FK que
+ * não tenha ON DELETE CASCADE (ex.: extraction_runs). Cada statement é tolerante
+ * a tabela/coluna ausente.
+ */
+export async function hardDeleteSupplier(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const sid = Number(id);
+  if (!Number.isFinite(sid)) throw new Error("ID de fornecedor inválido");
+
+  const stmts = [
+    // Extração por IA (extraction_runs não tem cascade)
+    `DELETE ef FROM extracted_fields ef JOIN extraction_runs er ON ef.extractionRunId = er.id WHERE er.supplierId = ${sid}`,
+    `DELETE FROM extraction_runs WHERE supplierId = ${sid}`,
+    // Filhos de contratos
+    `DELETE FROM contract_clicksign_events WHERE contractId IN (SELECT id FROM contracts WHERE supplierId = ${sid})`,
+    `DELETE FROM contract_signers WHERE contractId IN (SELECT id FROM contracts WHERE supplierId = ${sid})`,
+    `DELETE FROM contract_versions WHERE contractId IN (SELECT id FROM contracts WHERE supplierId = ${sid})`,
+    `DELETE FROM financial_milestones WHERE contractId IN (SELECT id FROM contracts WHERE supplierId = ${sid})`,
+    `DELETE FROM contract_amendments WHERE contractId IN (SELECT id FROM contracts WHERE supplierId = ${sid})`,
+    `DELETE FROM contract_expiration_notifications WHERE contractId IN (SELECT id FROM contracts WHERE supplierId = ${sid})`,
+    `DELETE FROM contracts WHERE supplierId = ${sid}`,
+    // Filhos de workflows
+    `DELETE FROM approval_steps WHERE workflowId IN (SELECT id FROM approval_workflows WHERE supplierId = ${sid})`,
+    `DELETE FROM approval_workflows WHERE supplierId = ${sid}`,
+    // Filhos de documentos
+    `DELETE FROM document_expiration_notifications WHERE documentId IN (SELECT id FROM documents WHERE supplierId = ${sid})`,
+    `DELETE FROM documents WHERE supplierId = ${sid}`,
+    // Dependentes diretos
+    `DELETE FROM supplier_document_links WHERE supplierId = ${sid}`,
+    `DELETE FROM compliance_alerts WHERE supplierId = ${sid}`,
+    `DELETE FROM performance_evaluations WHERE supplierId = ${sid}`,
+    `DELETE FROM interactions WHERE supplierId = ${sid}`,
+    `DELETE FROM supplier_contacts WHERE supplierId = ${sid}`,
+    `DELETE FROM supplier_company_links WHERE supplierId = ${sid}`,
+    `DELETE FROM supplier_links WHERE supplierId = ${sid}`,
+  ];
+  for (const s of stmts) {
+    try { await db.execute(sql.raw(s)); } catch { /* tabela/coluna ausente — ignora */ }
+  }
+  await db.delete(suppliers).where(eq(suppliers.id, sid));
+}
+
 export async function approveSupplier(id: number, userId: number) {
   const db = await getDb();
   if (!db) return;

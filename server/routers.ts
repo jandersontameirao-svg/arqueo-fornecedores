@@ -806,15 +806,18 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    delete: adminProcedure
+    delete: managerProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
         await assertSupplierAccess(ctx.user, input.id);
-        await db.deleteSupplier(input.id);
+        // Exclusão completa: remove o fornecedor e todos os registros dependentes
+        // (documentos, contratos, vínculos, etc.). Permitido a gestores e admins.
+        await db.hardDeleteSupplier(input.id);
         await db.createAuditLog({
           entityType: "supplier",
           entityId: input.id,
           action: "delete",
+          changes: { hardDelete: true },
           userId: ctx.user.id,
           userEmail: ctx.user.email,
         });

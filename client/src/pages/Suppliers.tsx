@@ -40,6 +40,17 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExportDialog } from "@/components/ExportDialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import {
   Plus,
   Search,
   Building2,
@@ -57,6 +68,7 @@ import {
   XCircle,
   Pause,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 
 const statusLabels: Record<string, string> = {
@@ -108,6 +120,17 @@ export default function Suppliers() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [criticalityFilter, setCriticalityFilter] = useState<string>("all");
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [deletingSupplier, setDeletingSupplier] = useState<any>(null);
+  const utils = trpc.useUtils();
+
+  const deleteSupplierMutation = trpc.suppliers.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Fornecedor excluído com sucesso!");
+      utils.suppliers.list.invalidate();
+      setDeletingSupplier(null);
+    },
+    onError: (e) => toast.error(e.message || "Erro ao excluir fornecedor."),
+  });
 
   // Debounce da busca: só dispara query após 400ms sem digitar
   useEffect(() => {
@@ -464,6 +487,18 @@ export default function Suppliers() {
                               <Users className="h-4 w-4 mr-2" />
                               Contatos
                             </DropdownMenuItem>
+                            {canEdit && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={(e) => { e.stopPropagation(); setDeletingSupplier(item.supplier); }}
+                                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Excluir
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -503,6 +538,26 @@ export default function Suppliers() {
         onOpenChange={setExportDialogOpen}
         categories={categories}
       />
+
+      <AlertDialog open={!!deletingSupplier} onOpenChange={(open) => !open && setDeletingSupplier(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir fornecedor?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O fornecedor <strong>{deletingSupplier?.companyName}</strong> será excluído permanentemente, junto com seus documentos, contratos, vínculos, contatos e demais registros. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingSupplier && deleteSupplierMutation.mutate({ id: deletingSupplier.id })}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteSupplierMutation.isPending ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
