@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
+import { useOrgGroupContext } from "@/hooks/useOrgGroupContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,6 +142,7 @@ export default function AddSupplierAI() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { selectedCompany } = useSelectedCompany();
+  const { activeGroupId } = useOrgGroupContext();
 
   const [step, setStep] = useState<Step>("upload");
   const [files, setFiles] = useState<UploadedFile[]>([]);
@@ -195,9 +197,9 @@ export default function AddSupplierAI() {
     onSuccess: (result: any) => {
       toast.success("Fornecedor cadastrado via I.A. com sucesso!");
       // If "all companies" was selected, link to all companies of Grupo Arqueo Brasil
-      if (selectedCompanyId === "all_grupo_arqueo_brasil" && result.supplierId) {
+      if (selectedCompanyId === "all_group_companies" && result.supplierId) {
         // Link to remaining companies (first one is already set as primary)
-        for (const company of grupoArqueoBrasilCompanies.slice(1)) {
+        for (const company of currentGroupCompanies.slice(1)) {
           linkMutation.mutate({
             supplierId: result.supplierId,
             companyId: company.id,
@@ -237,20 +239,21 @@ export default function AddSupplierAI() {
     },
   });
 
-  // Companies that belong to Grupo Arqueo Brasil (businessUnitId=1)
-  const grupoArqueoBrasilCompanies = useMemo(() => {
+  const currentGroupCompanies = useMemo(() => {
     if (!companies) return [];
-    return companies.filter((c: any) => c.businessUnitId === 1);
-  }, [companies]);
+    if (!selectedCompany?.groupId && !activeGroupId) return companies;
+    const gid = selectedCompany?.groupId ?? activeGroupId;
+    return companies.filter((c: any) => c.businessUnitId === gid || c.organizationalGroupId === gid);
+  }, [companies, selectedCompany?.groupId, activeGroupId]);
 
-  const isGrupoArqueoBrasil = selectedCompany?.groupId === 1;
+  const isMultiCompanyGroup = currentGroupCompanies.length > 1;
 
   const linkToCompany = (supplierId: number) => {
     if (!selectedCompanyId) return;
 
-    if (selectedCompanyId === "all_grupo_arqueo_brasil") {
+    if (selectedCompanyId === "all_group_companies") {
       // Link to all 4 companies of Grupo Arqueo Brasil
-      for (const company of grupoArqueoBrasilCompanies) {
+      for (const company of currentGroupCompanies) {
         linkMutation.mutate({
           supplierId,
           companyId: company.id,
@@ -387,10 +390,10 @@ export default function AddSupplierAI() {
           bankAccount: formData.bankAccount || "",
           notes: formData.notes || "",
           criticality: criticality as "low" | "medium" | "high" | "critical",
-          companyId: selectedCompanyId === "all_grupo_arqueo_brasil"
-            ? String(grupoArqueoBrasilCompanies[0]?.id || "")
+          companyId: selectedCompanyId === "all_group_companies"
+            ? String(currentGroupCompanies[0]?.id || "")
             : (selectedCompanyId || (selectedCompany?.companyId ? String(selectedCompany.companyId) : undefined) || ""),
-          groupId: selectedCompany?.groupId || 1,
+          groupId: selectedCompany?.groupId ?? activeGroupId ?? undefined,
         },
         extractionRunId: extractionResult.runId,
         uploadedFiles: files.filter(f => f.fileUrl).map(f => ({
@@ -425,10 +428,10 @@ export default function AddSupplierAI() {
         bankAgency: formData.bankAgency || "",
         bankAccount: formData.bankAccount || "",
         criticality: criticality as "low" | "medium" | "high" | "critical",
-        companyId: selectedCompanyId === "all_grupo_arqueo_brasil"
-          ? String(grupoArqueoBrasilCompanies[0]?.id || "")
+        companyId: selectedCompanyId === "all_group_companies"
+          ? String(currentGroupCompanies[0]?.id || "")
           : (selectedCompanyId || (selectedCompany?.companyId ? String(selectedCompany.companyId) : undefined) || ""),
-        groupId: selectedCompany?.groupId || 1,
+        groupId: selectedCompany?.groupId ?? activeGroupId ?? undefined,
       });
     }
   };
@@ -880,9 +883,9 @@ export default function AddSupplierAI() {
                         <SelectValue placeholder="Selecione a empresa (opcional)" />
                       </SelectTrigger>
                       <SelectContent>
-                        {isGrupoArqueoBrasil && grupoArqueoBrasilCompanies.length > 1 && (
-                          <SelectItem value="all_grupo_arqueo_brasil" className="font-semibold text-violet-700">
-                            Ambas as {grupoArqueoBrasilCompanies.length} empresas
+                        {isMultiCompanyGroup && currentGroupCompanies.length > 1 && (
+                          <SelectItem value="all_group_companies" className="font-semibold text-violet-700">
+                            Todas as {currentGroupCompanies.length} empresas do grupo
                           </SelectItem>
                         )}
                         {companies?.map((company: any) => (

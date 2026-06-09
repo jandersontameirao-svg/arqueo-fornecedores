@@ -4140,13 +4140,17 @@ REGRAS CRÍTICAS:
         return db.listCompaniesByUnit(input.businessUnitId);
       }),
 
-    listAll: protectedProcedure.query(async () => {
-      return db.listAllCompanies();
+    listAll: protectedProcedure.query(async ({ ctx }) => {
+      const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
+      if (orgCtx.isSuperAdmin) return db.listAllCompanies();
+      const allCompanies = await db.listAllCompanies();
+      return allCompanies.filter((c: any) => orgCtx.accessibleCompanyIds.includes(c.id));
     }),
 
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertCompanyAccess(ctx.user, input.id);
         return db.getCompanyById(input.id);
       }),
 

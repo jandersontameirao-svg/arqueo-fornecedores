@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
+import { useOrgGroupContext } from "@/hooks/useOrgGroupContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,17 +27,20 @@ export default function SupplierForm({ id }: SupplierFormProps) {
   const [, setLocation] = useLocation();
   const isEditing = !!id;
   const { selectedCompany } = useSelectedCompany();
+  const { activeGroupId } = useOrgGroupContext();
 
   // Company selection for linking
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const { data: companies } = trpc.companies.listAll.useQuery();
 
-  const grupoArqueoBrasilCompanies = useMemo(() => {
+  const currentGroupCompanies = useMemo(() => {
     if (!companies) return [];
-    return companies.filter((c: any) => c.businessUnitId === 1);
-  }, [companies]);
+    if (!selectedCompany?.groupId && !activeGroupId) return companies;
+    const gid = selectedCompany?.groupId ?? activeGroupId;
+    return companies.filter((c: any) => c.businessUnitId === gid || c.organizationalGroupId === gid);
+  }, [companies, selectedCompany?.groupId, activeGroupId]);
 
-  const isGrupoArqueoBrasil = selectedCompany?.groupId === 1;
+  const isMultiCompanyGroup = currentGroupCompanies.length > 1;
 
   const linkMutation = trpc.supplierCompanyLinks.create.useMutation({
     onError: (error: any) => {
@@ -47,8 +51,8 @@ export default function SupplierForm({ id }: SupplierFormProps) {
   const linkSupplierToCompanies = (supplierId: number) => {
     if (!selectedCompanyId) return;
 
-    if (selectedCompanyId === "all_grupo_arqueo_brasil") {
-      for (const company of grupoArqueoBrasilCompanies) {
+    if (selectedCompanyId === "all_group_companies") {
+      for (const company of currentGroupCompanies) {
         linkMutation.mutate({
           supplierId,
           companyId: company.id,
@@ -198,8 +202,8 @@ export default function SupplierForm({ id }: SupplierFormProps) {
       pixKey: sanitize(formData.pixKey),
       notes: sanitize(formData.notes),
       categoryId: formData.categoryId || undefined,
-      companyId: selectedCompanyId === "all_grupo_arqueo_brasil"
-        ? String(grupoArqueoBrasilCompanies[0]?.id || "")
+      companyId: selectedCompanyId === "all_group_companies"
+        ? String(currentGroupCompanies[0]?.id || "")
         : (selectedCompanyId || (selectedCompany?.companyId ? String(selectedCompany.companyId) : undefined)),
       groupId: selectedCompany?.groupId || undefined,
     };
@@ -374,9 +378,9 @@ export default function SupplierForm({ id }: SupplierFormProps) {
                     <SelectValue placeholder="Selecione a empresa (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {isGrupoArqueoBrasil && grupoArqueoBrasilCompanies.length > 1 && (
-                      <SelectItem value="all_grupo_arqueo_brasil" className="font-semibold text-violet-700">
-                        Ambas as {grupoArqueoBrasilCompanies.length} empresas
+                    {isMultiCompanyGroup && currentGroupCompanies.length > 1 && (
+                      <SelectItem value="all_group_companies" className="font-semibold text-violet-700">
+                        Todas as {currentGroupCompanies.length} empresas do grupo
                       </SelectItem>
                     )}
                     {companies?.map((company: any) => (
