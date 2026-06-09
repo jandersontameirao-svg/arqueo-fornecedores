@@ -195,7 +195,9 @@ export default function AddSupplierAI() {
 
   const saveMutation = trpc.suppliers.saveViaAI.useMutation({
     onSuccess: (result: any) => {
-      toast.success("Fornecedor cadastrado via I.A. com sucesso!");
+      toast.success(result?.reused
+        ? "Fornecedor já existia na base — vínculo e documentos atualizados."
+        : "Fornecedor cadastrado via I.A. com sucesso!");
       // If "all companies" was selected, link to all companies of Grupo Arqueo Brasil
       if (selectedCompanyId === "all_group_companies" && result.supplierId) {
         // Link to remaining companies (first one is already set as primary)

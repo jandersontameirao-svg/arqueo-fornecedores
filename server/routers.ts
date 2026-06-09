@@ -1133,22 +1133,37 @@ export const appRouter = router({
           ? (ctx.user.defaultOrgGroupId ?? orgCtxSave.accessibleGroupIds[0] ?? null)
           : (orgCtxSave.accessibleGroupIds[0] ?? null);
 
-        const supplierId = await db.createSupplier({
-          ...input.supplierData,
-          cnpj: sanitizedCnpj,
-          registrationOrigin: "ai" as any,
-          createdById: ctx.user.id,
-          organizationalGroupId: activeGroupIdSave,
+        // Base geral: reaproveita fornecedor existente (mesmo CNPJ no grupo) em vez
+        // de recriar. Antes, recadastrar via IA na MESMA empresa estourava o dedup de
+        // createSupplier ("Já existe ... nesta empresa") e só funcionava escolhendo
+        // outra empresa. Agora: se já existe → reusa e só garante o vínculo/documentos;
+        // se não existe → cria normalmente (com workflow de aprovação).
+        const existingSupplier = await db.findSupplierByCnpj(sanitizedCnpj, {
+          orgGroupIds: orgCtxSave.isSuperAdmin ? undefined : orgCtxSave.accessibleGroupIds,
         });
 
-        // Create approval workflow
-        const workflowId = await db.createWorkflow({
-          supplierId,
-          totalSteps: 2,
-          createdById: ctx.user.id,
-        });
-        await db.createWorkflowStep({ workflowId, stepNumber: 1, stepName: "Verificação de Documentos" });
-        await db.createWorkflowStep({ workflowId, stepNumber: 2, stepName: "Aprovação Final" });
+        let supplierId: number;
+        const reused = !!existingSupplier;
+        if (existingSupplier) {
+          supplierId = existingSupplier.id;
+        } else {
+          supplierId = await db.createSupplier({
+            ...input.supplierData,
+            cnpj: sanitizedCnpj,
+            registrationOrigin: "ai" as any,
+            createdById: ctx.user.id,
+            organizationalGroupId: activeGroupIdSave,
+          });
+
+          // Workflow de aprovação apenas para fornecedor novo
+          const workflowId = await db.createWorkflow({
+            supplierId,
+            totalSteps: 2,
+            createdById: ctx.user.id,
+          });
+          await db.createWorkflowStep({ workflowId, stepNumber: 1, stepName: "Verificação de Documentos" });
+          await db.createWorkflowStep({ workflowId, stepNumber: 2, stepName: "Aprovação Final" });
+        }
 
         // Criar vínculo em supplierCompanyLinks se companyId fornecido (mesmo comportamento do cadastro manual)
         if (input.supplierData.companyId) {
@@ -1217,13 +1232,13 @@ export const appRouter = router({
         await db.createAuditLog({
           entityType: "supplier",
           entityId: supplierId,
-          action: "create",
-          changes: { ...input.supplierData, registrationOrigin: "ai", extractionRunId: input.extractionRunId },
+          action: reused ? "update" : "create",
+          changes: { ...input.supplierData, registrationOrigin: "ai", extractionRunId: input.extractionRunId, reused },
           userId: ctx.user.id,
           userEmail: ctx.user.email,
         });
 
-        return { supplierId };
+        return { supplierId, reused };
       }),
   }),
 
