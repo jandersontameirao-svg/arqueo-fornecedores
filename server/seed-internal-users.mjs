@@ -20,18 +20,27 @@ import { users } from "../drizzle/schema.ts";
 
 const SALT_ROUNDS = 12;
 
+const DEFAULT_PASSWORD = process.env.SEED_USER_PASSWORD || "grupoarqueo2026!";
+
 const INTERNAL_USERS = [
   {
     name: "Gente e Gestão",
     email: "gentegestao@grupoarqueo.com.br",
-    password: "grupoarqueo2026",
+    password: DEFAULT_PASSWORD,
     role: "manager",
     loginMethod: "internal",
   },
   {
     name: "Fernanda",
     email: "fernanda@arqueoproject.com.br",
-    password: "kesulindo123",
+    password: DEFAULT_PASSWORD,
+    role: "admin",
+    loginMethod: "internal",
+  },
+  {
+    name: "Janderson",
+    email: "janderson@grupoarqueo.com.br",
+    password: DEFAULT_PASSWORD,
     role: "admin",
     loginMethod: "internal",
   },

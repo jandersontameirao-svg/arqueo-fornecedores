@@ -78,11 +78,6 @@ function ProtectedRoutes() {
                 <Suppliers />
               </TopbarLayout>
             </Route>
-            <Route path="/suppliers/add-ai">
-              <TopbarLayout>
-                <AddSupplierAI />
-              </TopbarLayout>
-            </Route>
             <Route path="/suppliers/new-ai">
               <TopbarLayout>
                 <AddSupplierAI />

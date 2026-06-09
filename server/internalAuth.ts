@@ -10,6 +10,7 @@ import { sdk } from "./_core/sdk";
 import * as db from "./db";
 import { users } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
+import { checkRateLimit } from "./routers";
 
 /**
  * Registra a rota POST /api/auth/login para login interno (email + senha).
@@ -27,6 +28,12 @@ export function registerInternalAuthRoutes(app: Express) {
 
       if (!email || !password) {
         res.status(400).json({ error: "Email e senha são obrigatórios." });
+        return;
+      }
+
+      const ip = req.ip || req.socket.remoteAddress || "unknown";
+      if (!checkRateLimit(`login:${ip}`, 10, 15 * 60 * 1000)) {
+        res.status(429).json({ error: "Muitas tentativas de login. Tente novamente em 15 minutos." });
         return;
       }
 

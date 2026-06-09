@@ -11,6 +11,7 @@
  */
 
 import PDFDocument from "pdfkit";
+import crypto from "node:crypto";
 import { ENV } from "./_core/env";
 
 // ==================== TYPES ====================
@@ -801,7 +802,6 @@ export function verifyWebhookSignature(
   }
 
   try {
-    const crypto = require("crypto") as typeof import("crypto");
     const expectedSignature = crypto
       .createHmac("sha256", secret)
       .update(payload)

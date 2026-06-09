@@ -40,8 +40,8 @@ import mammoth from "mammoth";
 // Rate-limit helpers — in-memory, per-process. Resets on restart. Sufficient for
 // public endpoints in a single-instance PM2 deploy. For a clustered deploy use Redis.
 // =============================================================================
-const rateLimitBuckets: Map<string, { count: number; resetAt: number }> = new Map();
-function checkRateLimit(bucketKey: string, maxPerWindow: number, windowMs: number): boolean {
+export const rateLimitBuckets: Map<string, { count: number; resetAt: number }> = new Map();
+export function checkRateLimit(bucketKey: string, maxPerWindow: number, windowMs: number): boolean {
   const now = Date.now();
   const entry = rateLimitBuckets.get(bucketKey);
   if (!entry || entry.resetAt <= now) {
@@ -2744,6 +2744,11 @@ Estruture o contrato com:
         const cancelledAt = new Date().toISOString();
 
         const result = await clicksign.cancelEnvelope(cancelledEnvelopeId);
+        if (!result?.success) {
+          const errorMsg = result?.error || "Falha ao cancelar envelope no Clicksign";
+          await db.updateContract(input.contractId, { lastSendError: errorMsg });
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: errorMsg });
+        }
 
         // Limpar IDs externos e marcar como cancelado para liberar novo envio
         await db.updateContract(input.contractId, {
