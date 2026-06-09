@@ -4222,7 +4222,14 @@ REGRAS CRÍTICAS:
         logoUrl: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        return db.createCompany({ ...input, createdById: ctx.user.id });
+        // Deriva o grupo organizacional da área (business unit). Sem isto a empresa
+        // ficaria com organizationalGroupId NULL e apareceria em TODOS os grupos.
+        const bu = await db.getBusinessUnitById(input.businessUnitId);
+        return db.createCompany({
+          ...input,
+          organizationalGroupId: bu?.organizationalGroupId ?? null,
+          createdById: ctx.user.id,
+        } as any);
       }),
 
     update: adminProcedure

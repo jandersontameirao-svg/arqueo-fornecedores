@@ -7,11 +7,24 @@ import {
   Users,
   ArrowRight,
   FileText,
+  Plus,
 } from "lucide-react";
 import { useBusinessUnitContext } from "@/contexts/BusinessUnitContext";
 import { useSelectedCompany, type SelectedCompany } from "@/contexts/SelectedCompanyContext";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 
 // ─── Importação do módulo centralizado de empresas ──────────────────────────────
@@ -165,7 +178,36 @@ export default function SelectCompany() {
   const [, setLocation] = useLocation();
   const { activeUnit } = useBusinessUnitContext();
   const { setSelectedCompany } = useSelectedCompany();
+  const { user } = useAuth();
   const [view, setView] = useState<View>("menu");
+  const isAdmin = user?.role === "admin";
+  const utils = trpc.useUtils();
+
+  // ── Criação de empresa na área atual ──
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newCompany, setNewCompany] = useState({ legalName: "", tradeName: "", cnpj: "" });
+  const createCompanyMutation = trpc.companies.create.useMutation({
+    onSuccess: () => {
+      toast.success("Empresa cadastrada com sucesso!");
+      utils.businessUnits.getCompanies.invalidate();
+      utils.companies.listAll.invalidate();
+      utils.supplierCompanyLinks.countByBusinessUnit.invalidate();
+      setCreateOpen(false);
+      setNewCompany({ legalName: "", tradeName: "", cnpj: "" });
+    },
+    onError: (e) => toast.error(e.message || "Erro ao cadastrar empresa."),
+  });
+
+  const handleCreateCompany = () => {
+    if (!activeUnit?.id) { toast.error("Selecione uma área de negócio primeiro."); return; }
+    if (!newCompany.legalName.trim()) { toast.error("Razão Social é obrigatória."); return; }
+    createCompanyMutation.mutate({
+      businessUnitId: activeUnit.id,
+      legalName: newCompany.legalName.trim(),
+      tradeName: newCompany.tradeName.trim() || undefined,
+      cnpj: newCompany.cnpj.trim() || undefined,
+    });
+  };
 
   // Fonte primária: backend (businessUnits.getCompanies por businessUnitId real).
   // Sem isto, a lista vinha de um dicionário hardcoded que dependia do nome da
@@ -323,22 +365,35 @@ export default function SelectCompany() {
       {/* ── Vista: lista de empresas ── */}
       {view === "empresas" && (
         <section>
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-9 h-9 rounded-xl icon-laranja flex items-center justify-center">
-              <Building2 size={18} />
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl icon-laranja flex items-center justify-center">
+                <Building2 size={18} />
+              </div>
+              <div>
+                <h2 className="font-bold font-heading text-foreground text-lg">Empresas</h2>
+                <p className="text-xs text-muted-foreground">Selecione uma empresa para continuar ou cadastre um fornecedor diretamente</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-bold font-heading text-foreground text-lg">Empresas</h2>
-              <p className="text-xs text-muted-foreground">Selecione uma empresa para continuar ou cadastre um fornecedor diretamente</p>
-            </div>
+            {isAdmin && activeUnit && (
+              <Button onClick={() => setCreateOpen(true)} className="gap-2 bg-arqueo-laranja hover:bg-arqueo-laranja-light text-white shrink-0">
+                <Plus size={16} /> Nova Empresa
+              </Button>
+            )}
           </div>
 
           {companies.length === 0 ? (
             <div className="text-center py-16">
-              <p className="text-muted-foreground">Nenhuma empresa disponível para este grupo.</p>
-              <Button onClick={() => setView("menu")} variant="outline" className="mt-4 gap-2">
-                <ArrowLeft size={16} /> Voltar
-              </Button>
+              <p className="text-muted-foreground mb-4">Nenhuma empresa cadastrada nesta área ainda.</p>
+              {isAdmin && activeUnit ? (
+                <Button onClick={() => setCreateOpen(true)} className="gap-2 bg-arqueo-laranja hover:bg-arqueo-laranja-light text-white">
+                  <Plus size={16} /> Cadastrar primeira empresa
+                </Button>
+              ) : (
+                <Button onClick={() => setView("menu")} variant="outline" className="gap-2">
+                  <ArrowLeft size={16} /> Voltar
+                </Button>
+              )}
             </div>
           ) : (
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -393,6 +448,57 @@ export default function SelectCompany() {
           </div>
         </section>
       )}
+
+      {/* ── Diálogo: cadastrar empresa na área atual ── */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cadastrar empresa</DialogTitle>
+            <DialogDescription>
+              A empresa será criada na área <strong>{activeUnit?.name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="legalName">Razão Social *</Label>
+              <Input
+                id="legalName"
+                value={newCompany.legalName}
+                onChange={(e) => setNewCompany({ ...newCompany, legalName: e.target.value })}
+                placeholder="Ex: Arqueo Foods Ltda"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tradeName">Nome Fantasia</Label>
+              <Input
+                id="tradeName"
+                value={newCompany.tradeName}
+                onChange={(e) => setNewCompany({ ...newCompany, tradeName: e.target.value })}
+                placeholder="Ex: Arqueo Foods"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cnpj">CNPJ</Label>
+              <Input
+                id="cnpj"
+                value={newCompany.cnpj}
+                onChange={(e) => setNewCompany({ ...newCompany, cnpj: e.target.value })}
+                placeholder="00.000.000/0000-00"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={handleCreateCompany}
+              disabled={createCompanyMutation.isPending}
+              className="bg-arqueo-laranja hover:bg-arqueo-laranja-light text-white"
+            >
+              {createCompanyMutation.isPending ? "Cadastrando..." : "Cadastrar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

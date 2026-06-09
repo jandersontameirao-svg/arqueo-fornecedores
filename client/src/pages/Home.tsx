@@ -205,11 +205,11 @@ export default function Home() {
           </div>
           <h2 className="text-xl font-semibold mb-2">Não há empresas registradas</h2>
           <p className="text-muted-foreground max-w-sm mb-6">
-            Esta área ainda não possui empresas cadastradas. Acesse a tela de seleção para cadastrar uma nova empresa.
+            Esta área ainda não possui empresas cadastradas. Acesse a tela de empresas para cadastrar uma nova.
           </p>
-          <Button onClick={() => setLocation("/")} variant="outline" className="gap-2">
+          <Button onClick={() => setLocation("/select-company")} className="gap-2 bg-arqueo-laranja hover:bg-arqueo-laranja-light text-white">
             <ArrowRight className="h-4 w-4" />
-            Voltar para Áreas de Negócio
+            Cadastrar empresa
           </Button>
         </div>
       </div>
