@@ -20,28 +20,33 @@ import { users } from "../drizzle/schema.ts";
 
 const SALT_ROUNDS = 12;
 
-const DEFAULT_PASSWORD = process.env.SEED_USER_PASSWORD || "grupoarqueo2026!";
-
 const INTERNAL_USERS = [
   {
     name: "Gente e Gestão",
     email: "gentegestao@grupoarqueo.com.br",
-    password: DEFAULT_PASSWORD,
+    password: process.env.SEED_PW_GENTEGESTAO || "grupoarqueo2026!",
     role: "manager",
     loginMethod: "internal",
   },
   {
     name: "Fernanda",
     email: "fernanda@arqueoproject.com.br",
-    password: DEFAULT_PASSWORD,
+    password: process.env.SEED_PW_FERNANDA || "grupoarqueo2026fernanda",
     role: "admin",
     loginMethod: "internal",
   },
   {
     name: "Janderson",
     email: "janderson@grupoarqueo.com.br",
-    password: DEFAULT_PASSWORD,
+    password: process.env.SEED_PW_JANDERSON || "grupoarqueo2026janderson",
     role: "admin",
+    loginMethod: "internal",
+  },
+  {
+    name: "Financeiro",
+    email: "financeiro@grupoarqueo.com.br",
+    password: process.env.SEED_PW_FINANCEIRO || "grupoarqueo2026financeiro",
+    role: "manager",
     loginMethod: "internal",
   },
 ];
