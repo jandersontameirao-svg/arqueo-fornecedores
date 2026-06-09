@@ -212,6 +212,17 @@ const UNIT_STYLES = [
   },
 ];
 
+// Cor fixa por NOME da área (não por posição na lista). Assim cada área mantém
+// sua cor mesmo quando a lista é filtrada por grupo e exibe só uma unidade.
+// Brasil = laranja (0), Foods and Drinks = vinho/bordô (1), Africa = lilás/roxo (2).
+function styleForUnit(name: string) {
+  const n = (name || "").toLowerCase();
+  if (n.includes("foods") || n.includes("drink")) return UNIT_STYLES[1]; // vinho/bordô
+  if (n.includes("africa") || n.includes("áfrica")) return UNIT_STYLES[2]; // lilás/roxo
+  if (n.includes("brasil") || n.includes("brazil")) return UNIT_STYLES[0]; // laranja
+  return null; // sem match → usa fallback por índice
+}
+
 // Ordem personalizada das unidades de negócio
 const UNIT_ORDER = ["Grupo Arqueo Brasil", "Foods and Drinks", "Grupo Arqueo Africa"];
 
@@ -382,7 +393,7 @@ export default function SelectBusinessUnit() {
               <UnitCard
                 key={unit.id}
                 unit={unit}
-                style={UNIT_STYLES[idx % UNIT_STYLES.length]}
+                style={styleForUnit(unit.name) ?? UNIT_STYLES[idx % UNIT_STYLES.length]}
                 isAdmin={isAdmin}
                 onSelect={handleSelectUnit}
                 onEdit={setEditingArea}
