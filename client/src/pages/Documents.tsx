@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -53,11 +53,17 @@ const typeColors: Record<string, string> = {
 export default function Documents() {
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [expirationFilter, setExpirationFilter] = useState<string>("all");
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const { data: documents, isLoading } = trpc.documents.listAll.useQuery({
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     type: typeFilter !== "all" ? typeFilter : undefined,
     expirationStatus: expirationFilter !== "all" ? expirationFilter : undefined,
   });
