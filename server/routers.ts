@@ -4123,7 +4123,12 @@ REGRAS CRÍTICAS:
   // ==================== BUSINESS UNITS ====================
    businessUnits: router({
     list: protectedProcedure.query(async ({ ctx }) => {
-      return db.listBusinessUnitsForUser(ctx.user.id, ctx.user.role);
+      const base = await db.listBusinessUnitsForUser(ctx.user.id, ctx.user.role);
+      // Filtra pelo grupo organizacional ATIVO (seletor do topo). Sem isto, um
+      // admin/superadmin via TODAS as áreas de todos os grupos mesmo após trocar
+      // o grupo no seletor. Se nenhum grupo ativo estiver definido, devolve a base.
+      if (!ctx.activeOrgGroupId) return base;
+      return base.filter((u: any) => u.organizationalGroupId === ctx.activeOrgGroupId);
     }),
     listAll: adminProcedure.query(async () => {
       return db.listBusinessUnits();
