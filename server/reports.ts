@@ -13,7 +13,10 @@ export interface ReportOptions {
     criticality?: string;
     dateFrom?: Date;
     dateTo?: Date;
+    orgGroupIds?: number[];
   };
+  orgGroupIds?: number[];
+  organizationalGroupId?: number;
 }
 
 /**
@@ -28,6 +31,7 @@ export async function generateSuppliersReport(options: ReportOptions): Promise<{
     status: options.filters?.status,
     categoryId: options.filters?.categoryId,
     criticality: options.filters?.criticality,
+    orgGroupIds: options.filters?.orgGroupIds,
   });
 
   const rows = suppliers.map((s) => ({
@@ -75,6 +79,7 @@ export async function generateDocumentsReport(options: ReportOptions & {
   const documents = await db.getAllDocuments({
     type: options.filters?.status,
     expirationStatus: options.expirationStatus,
+    orgGroupIds: options.orgGroupIds,
   });
 
   const rows = documents.map((d) => ({
@@ -161,7 +166,7 @@ export async function generateAuditReport(options: ReportOptions & {
 }> {
   const logs = await db.getAuditLogs({
     entityType: options.entityType,
-    // action filter not supported in current implementation
+    organizationalGroupId: options.organizationalGroupId,
     limit: 1000,
   });
 
@@ -194,12 +199,12 @@ export async function generateAuditReport(options: ReportOptions & {
 /**
  * Generate expiring documents summary report
  */
-export async function generateExpiringDocumentsReport(daysAhead: number = 30): Promise<{
+export async function generateExpiringDocumentsReport(daysAhead: number = 30, orgGroupIds?: number[]): Promise<{
   data: string;
   filename: string;
   contentType: string;
 }> {
-  const expiringDocs = await db.getExpiringDocuments(daysAhead);
+  const expiringDocs = await db.getExpiringDocuments(daysAhead, orgGroupIds ? { orgGroupIds } : undefined);
 
   const rows = expiringDocs.map((d) => {
     const daysUntil = d.document.expiresAt

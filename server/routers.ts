@@ -31,6 +31,8 @@ import {
   assertScopeInput,
 } from "./_core/tenant-guard";
 import { canAccessGroup, canAccessCompany } from "./orgContext";
+import { complianceAlerts } from "../drizzle/schema";
+import { eq as drizzleEq } from "drizzle-orm";
 import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 
@@ -840,7 +842,8 @@ export const appRouter = router({
     // Contacts
     getContacts: protectedProcedure
       .input(z.object({ supplierId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
         return db.getSupplierContacts(input.supplierId);
       }),
 
@@ -854,6 +857,7 @@ export const appRouter = router({
         isPrimary: z.boolean().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
         const id = await db.createSupplierContact(input);
         await db.createAuditLog({
           entityType: "contact",
@@ -876,6 +880,9 @@ export const appRouter = router({
         isPrimary: z.boolean().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        const contact = await db.getSupplierContactById(input.id);
+        if (!contact) throw new TRPCError({ code: "NOT_FOUND", message: "Contato não encontrado" });
+        await assertSupplierAccess(ctx.user, contact.supplierId);
         const { id, ...data } = input;
         await db.updateSupplierContact(id, data);
         return { success: true };
@@ -883,7 +890,10 @@ export const appRouter = router({
 
     deleteContact: managerProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        const contact = await db.getSupplierContactById(input.id);
+        if (!contact) throw new TRPCError({ code: "NOT_FOUND", message: "Contato não encontrado" });
+        await assertSupplierAccess(ctx.user, contact.supplierId);
         await db.deleteSupplierContact(input.id);
         return { success: true };
       }),
@@ -1418,13 +1428,15 @@ export const appRouter = router({
   workflows: router({
     list: protectedProcedure
       .input(z.object({ supplierId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
         return db.getSupplierWorkflows(input.supplierId);
       }),
 
     getBySupplierId: protectedProcedure
       .input(z.object({ supplierId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
         const workflows = await db.getSupplierWorkflows(input.supplierId);
         return workflows.length > 0 ? workflows[0] : null;
       }),
@@ -1760,6 +1772,11 @@ export const appRouter = router({
     resolveAlert: managerProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
+        const dbConn = await db.getDb();
+        if (!dbConn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const [alert] = await dbConn.select({ supplierId: complianceAlerts.supplierId }).from(complianceAlerts).where(drizzleEq(complianceAlerts.id, input.id)).limit(1);
+        if (!alert) throw new TRPCError({ code: "NOT_FOUND", message: "Alerta não encontrado" });
+        if (alert.supplierId) await assertSupplierAccess(ctx.user, alert.supplierId);
         await db.resolveAlert(input.id, ctx.user.id);
         return { success: true };
       }),
@@ -1774,7 +1791,9 @@ export const appRouter = router({
         description: z.string().optional(),
         dueDate: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        if (input.supplierId) await assertSupplierAccess(ctx.user, input.supplierId);
+        if (input.documentId) await assertDocumentAccess(ctx.user, input.documentId);
         const id = await db.createAlert({
           ...input,
           dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
@@ -1930,13 +1949,15 @@ export const appRouter = router({
         categoryId: z.number().optional(),
         criticality: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         return reports.generateSuppliersReport({
           format: input.format,
           filters: {
             status: input.status,
             categoryId: input.categoryId,
             criticality: input.criticality,
+            orgGroupIds: orgCtx.isSuperAdmin ? undefined : orgCtx.accessibleGroupIds,
           },
         });
       }),
@@ -1947,11 +1968,13 @@ export const appRouter = router({
         type: z.string().optional(),
         expirationStatus: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         return reports.generateDocumentsReport({
           format: input.format,
           filters: { status: input.type },
           expirationStatus: input.expirationStatus,
+          orgGroupIds: orgCtx.isSuperAdmin ? undefined : orgCtx.accessibleGroupIds,
         });
       }),
 
@@ -1959,9 +1982,11 @@ export const appRouter = router({
       .input(z.object({
         format: z.enum(["csv", "json"]),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         return reports.generateEvaluationsReport({
           format: input.format,
+          orgGroupIds: orgCtx.isSuperAdmin ? undefined : orgCtx.accessibleGroupIds,
         });
       }),
 
@@ -1970,10 +1995,12 @@ export const appRouter = router({
         format: z.enum(["csv", "json"]),
         entityType: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         return reports.generateAuditReport({
           format: input.format,
           entityType: input.entityType,
+          organizationalGroupId: orgCtx.isSuperAdmin ? undefined : orgCtx.accessibleGroupIds[0],
         });
       }),
 
@@ -1981,8 +2008,9 @@ export const appRouter = router({
       .input(z.object({
         daysAhead: z.number().optional(),
       }))
-      .mutation(async ({ input }) => {
-        return reports.generateExpiringDocumentsReport(input.daysAhead || 30);
+      .mutation(async ({ input, ctx }) => {
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
+        return reports.generateExpiringDocumentsReport(input.daysAhead || 30, orgCtx.isSuperAdmin ? undefined : orgCtx.accessibleGroupIds);
       }),
   }),
 
@@ -2020,7 +2048,8 @@ export const appRouter = router({
 
     getEffectiveEndDate: protectedProcedure
       .input(z.object({ contractId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertContractAccess(ctx.user, input.contractId);
         return db.getContractEffectiveEndDate(input.contractId);
       }),
 
@@ -2291,7 +2320,8 @@ Estruture o contrato com:
     // ==================== VERSIONS (VERSIONAMENTO) ====================
     listVersions: protectedProcedure
       .input(z.object({ contractId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertContractAccess(ctx.user, input.contractId);
         return db.getContractVersions(input.contractId);
       }),
 
@@ -2301,8 +2331,7 @@ Estruture o contrato com:
         changeDescription: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        const contract = await db.getContractById(input.contractId);
-        if (!contract) throw new TRPCError({ code: "NOT_FOUND", message: "Contrato não encontrado" });
+        const contract = await assertContractAccess(ctx.user, input.contractId);
 
         const latestVersion = await db.getLatestVersionNumber(input.contractId);
         const newVersion = latestVersion + 1;
@@ -2334,7 +2363,8 @@ Estruture o contrato com:
     // ==================== SIGNERS (SIGNATÁRIOS) ====================
     listSigners: protectedProcedure
       .input(z.object({ contractId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertContractAccess(ctx.user, input.contractId);
         return db.getContractSigners(input.contractId);
       }),
 
@@ -2811,7 +2841,8 @@ Estruture o contrato com:
 
     listClicksignEvents: protectedProcedure
       .input(z.object({ contractId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertContractAccess(ctx.user, input.contractId);
         return db.getContractClicksignEvents(input.contractId);
       }),
 
@@ -3005,7 +3036,8 @@ Estruture o contrato com:
   amendments: router({
     listByContract: protectedProcedure
       .input(z.object({ contractId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertContractAccess(ctx.user, input.contractId);
         return db.getAmendmentsByContract(input.contractId);
       }),
 
@@ -3033,6 +3065,7 @@ Estruture o contrato com:
         signedAt: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        await assertContractAccess(ctx.user, input.contractId);
         const { newEndDate, signedAt, ...rest } = input;
         const id = await db.createAmendment({
           ...rest,
@@ -3185,13 +3218,15 @@ Estruture o contrato com:
   milestones: router({
     listByContract: protectedProcedure
       .input(z.object({ contractId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertContractAccess(ctx.user, input.contractId);
         return db.getMilestonesByContract(input.contractId);
       }),
 
     listByAmendment: protectedProcedure
       .input(z.object({ amendmentId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertAmendmentAccess(ctx.user, input.amendmentId);
         return db.getMilestonesByAmendment(input.amendmentId);
       }),
 
@@ -3210,6 +3245,7 @@ Estruture o contrato com:
         notes: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        await assertContractAccess(ctx.user, input.contractId);
         const { dueDate, paidAt, ...rest } = input;
         const id = await db.createMilestone({
           ...rest,
@@ -3233,7 +3269,10 @@ Estruture o contrato com:
         status: z.enum(["pending", "paid", "overdue", "cancelled"]).optional(),
         notes: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        const milestone = await db.getMilestoneById(input.id);
+        if (!milestone) throw new TRPCError({ code: "NOT_FOUND", message: "Marco financeiro não encontrado" });
+        await assertContractAccess(ctx.user, milestone.contractId);
         const { id, dueDate, paidAt, ...rest } = input;
         await db.updateMilestone(id, {
           ...rest,
@@ -3245,7 +3284,10 @@ Estruture o contrato com:
 
     delete: managerProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        const milestone = await db.getMilestoneById(input.id);
+        if (!milestone) throw new TRPCError({ code: "NOT_FOUND", message: "Marco financeiro não encontrado" });
+        await assertContractAccess(ctx.user, milestone.contractId);
         await db.deleteMilestone(input.id);
         return { success: true };
       }),
@@ -3995,13 +4037,14 @@ REGRAS CRÍTICAS:
         }).optional(),
         fields: z.array(z.string()).optional(),
       }))
-      .mutation(async ({ input }) => {
-        // Get suppliers with filters
+      .mutation(async ({ input, ctx }) => {
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         const result = await db.getAllSuppliers({
           categoryId: input.filters?.categoryId,
           status: input.filters?.status,
           criticality: input.filters?.criticality,
           search: input.filters?.searchTerm,
+          orgGroupIds: orgCtx.isSuperAdmin ? undefined : orgCtx.accessibleGroupIds,
         });
         
         // Extract supplier objects
@@ -4186,7 +4229,8 @@ REGRAS CRÍTICAS:
     // Stats consolidados para home da central de fornecedores
     unitStats: protectedProcedure
       .input(z.object({ businessUnitId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        await assertBusinessUnitAccess(ctx.user, input.businessUnitId);
         const [suppliers, categories, templates, usersCount, auditCount] = await Promise.all([
           db.countSuppliersByBusinessUnit(input.businessUnitId),
           db.countCategories(),
@@ -4288,6 +4332,9 @@ REGRAS CRÍTICAS:
         internalNotes: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        const link = await db.getSupplierCompanyLinkById(input.id);
+        if (!link) throw new TRPCError({ code: "NOT_FOUND", message: "Vínculo não encontrado" });
+        if (link.companyId) await assertCompanyAccess(ctx.user, link.companyId);
         const { id, ...data } = input;
         const updateData: any = { ...data };
         if (data.homologationStatus === "approved") {
@@ -4310,6 +4357,9 @@ REGRAS CRÍTICAS:
     deactivate: managerProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
+        const link = await db.getSupplierCompanyLinkById(input.id);
+        if (!link) throw new TRPCError({ code: "NOT_FOUND", message: "Vínculo não encontrado" });
+        if (link.companyId) await assertCompanyAccess(ctx.user, link.companyId);
         await db.deleteSupplierCompanyLink(input.id);
         await db.createAuditLog({
           entityType: "supplier_company_link",

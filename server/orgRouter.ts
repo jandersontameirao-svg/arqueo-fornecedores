@@ -128,6 +128,10 @@ export const orgRouter = router({
       role: groupRoleEnum,
     }))
     .mutation(async ({ ctx, input }) => {
+      const orgCtx = await resolveOrgContext(ctx.user, null);
+      if (!canAccessGroup(orgCtx, input.organizationalGroupId)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Sem acesso a este grupo organizacional" });
+      }
       const db = await getDb();
       await db.insert(userGroupRoles).values({
         userId: input.userId,
@@ -146,6 +150,10 @@ export const orgRouter = router({
       role: companyRoleEnum,
     }))
     .mutation(async ({ ctx, input }) => {
+      const orgCtx = await resolveOrgContext(ctx.user, null);
+      if (!canAccessGroup(orgCtx, input.organizationalGroupId)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Sem acesso a este grupo organizacional" });
+      }
       const db = await getDb();
       await db.insert(userCompanyRoles).values({
         userId: input.userId,
@@ -165,6 +173,10 @@ export const orgRouter = router({
       role: buRoleEnum,
     }))
     .mutation(async ({ ctx, input }) => {
+      const orgCtx = await resolveOrgContext(ctx.user, null);
+      if (!canAccessGroup(orgCtx, input.organizationalGroupId)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Sem acesso a este grupo organizacional" });
+      }
       const db = await getDb();
       await db.insert(userBusinessUnitRoles).values({
         userId: input.userId,
@@ -178,24 +190,42 @@ export const orgRouter = router({
 
   removeGroupRole: orgAdminProcedure
     .input(z.object({ id: z.number() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const db = await getDb();
+      const [role] = await db.select().from(userGroupRoles).where(eq(userGroupRoles.id, input.id)).limit(1);
+      if (!role) throw new TRPCError({ code: "NOT_FOUND", message: "Role não encontrada" });
+      const orgCtx = await resolveOrgContext(ctx.user, null);
+      if (!canAccessGroup(orgCtx, role.organizationalGroupId)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Sem acesso a este grupo organizacional" });
+      }
       await db.delete(userGroupRoles).where(eq(userGroupRoles.id, input.id));
       return { success: true };
     }),
 
   removeCompanyRole: orgAdminProcedure
     .input(z.object({ id: z.number() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const db = await getDb();
+      const [role] = await db.select().from(userCompanyRoles).where(eq(userCompanyRoles.id, input.id)).limit(1);
+      if (!role) throw new TRPCError({ code: "NOT_FOUND", message: "Role não encontrada" });
+      const orgCtx = await resolveOrgContext(ctx.user, null);
+      if (!canAccessGroup(orgCtx, role.organizationalGroupId)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Sem acesso a este grupo organizacional" });
+      }
       await db.delete(userCompanyRoles).where(eq(userCompanyRoles.id, input.id));
       return { success: true };
     }),
 
   removeBusinessUnitRole: orgAdminProcedure
     .input(z.object({ id: z.number() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const db = await getDb();
+      const [role] = await db.select().from(userBusinessUnitRoles).where(eq(userBusinessUnitRoles.id, input.id)).limit(1);
+      if (!role) throw new TRPCError({ code: "NOT_FOUND", message: "Role não encontrada" });
+      const orgCtx = await resolveOrgContext(ctx.user, null);
+      if (!canAccessGroup(orgCtx, role.organizationalGroupId)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Sem acesso a este grupo organizacional" });
+      }
       await db.delete(userBusinessUnitRoles).where(eq(userBusinessUnitRoles.id, input.id));
       return { success: true };
     }),
@@ -203,20 +233,25 @@ export const orgRouter = router({
   // ==================== USER ROLES FOR A SPECIFIC USER (ADMIN) ====================
   getUserRoles: orgAdminProcedure
     .input(z.object({ userId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const db = await getDb();
-      const groupRoles = await db
-        .select()
-        .from(userGroupRoles)
-        .where(eq(userGroupRoles.userId, input.userId));
-      const companyRoles = await db
-        .select()
-        .from(userCompanyRoles)
-        .where(eq(userCompanyRoles.userId, input.userId));
-      const buRoles = await db
-        .select()
-        .from(userBusinessUnitRoles)
-        .where(eq(userBusinessUnitRoles.userId, input.userId));
+      const orgCtx = await resolveOrgContext(ctx.user, null);
+      const { inArray } = await import("drizzle-orm");
+      const groupRoles = orgCtx.isSuperAdmin
+        ? await db.select().from(userGroupRoles).where(eq(userGroupRoles.userId, input.userId))
+        : await db.select().from(userGroupRoles).where(
+            eq(userGroupRoles.userId, input.userId)
+          ).then(rows => rows.filter((r: any) => orgCtx.accessibleGroupIds.includes(r.organizationalGroupId)));
+      const companyRoles = orgCtx.isSuperAdmin
+        ? await db.select().from(userCompanyRoles).where(eq(userCompanyRoles.userId, input.userId))
+        : await db.select().from(userCompanyRoles).where(
+            eq(userCompanyRoles.userId, input.userId)
+          ).then(rows => rows.filter((r: any) => orgCtx.accessibleGroupIds.includes(r.organizationalGroupId)));
+      const buRoles = orgCtx.isSuperAdmin
+        ? await db.select().from(userBusinessUnitRoles).where(eq(userBusinessUnitRoles.userId, input.userId))
+        : await db.select().from(userBusinessUnitRoles).where(
+            eq(userBusinessUnitRoles.userId, input.userId)
+          ).then(rows => rows.filter((r: any) => orgCtx.accessibleGroupIds.includes(r.organizationalGroupId)));
       return { groupRoles, companyRoles, buRoles };
     }),
 });

@@ -545,6 +545,13 @@ export async function rejectSupplier(id: number) {
 }
 
 // ==================== SUPPLIER CONTACTS FUNCTIONS ====================
+export async function getSupplierContactById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(supplierContacts).where(eq(supplierContacts.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
 export async function getSupplierContacts(supplierId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -1383,6 +1390,13 @@ export async function deleteAmendment(id: number): Promise<void> {
 }
 
 // ==================== FINANCIAL MILESTONE FUNCTIONS ====================
+export async function getMilestoneById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(financialMilestones).where(eq(financialMilestones.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
 export async function getMilestonesByContract(contractId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -2148,6 +2162,13 @@ export async function createSupplierCompanyLink(data: InsertSupplierCompanyLink)
   if (!db) throw new Error("Database not available");
   const result = await db.insert(supplierCompanyLinks).values(data);
   return Number(result[0].insertId);
+}
+
+export async function getSupplierCompanyLinkById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(supplierCompanyLinks).where(eq(supplierCompanyLinks.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
 }
 
 export async function updateSupplierCompanyLink(id: number, data: Partial<InsertSupplierCompanyLink>): Promise<void> {
