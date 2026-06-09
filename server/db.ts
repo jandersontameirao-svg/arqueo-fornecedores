@@ -250,6 +250,61 @@ export async function deleteUser(id: number) {
   await db.update(users).set({ isActive: false }).where(eq(users.id, id));
 }
 
+/**
+ * Hard delete que PRESERVA os dados de negócio criados pelo usuário.
+ * Antes de remover o usuário, nula todas as colunas de autoria que apontam para
+ * ele (createdById, approvedById, uploadedById, etc.) — assim os fornecedores,
+ * contratos e documentos permanecem, apenas perdem o vínculo de "criado por".
+ * Os vínculos de ACESSO do próprio usuário (roles/áreas) são removidos, pois não
+ * fazem sentido sem o usuário. Cada statement é tolerante a coluna/tabela ausente.
+ */
+export async function hardDeleteUser(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const uid = Number(id);
+  if (!Number.isFinite(uid)) throw new Error("ID de usuário inválido");
+
+  // Colunas de autoria → NULL (preserva o dado de negócio)
+  const nullRefs: Array<[string, string]> = [
+    ["suppliers", "createdById"], ["suppliers", "approvedById"],
+    ["supplier_company_links", "internalResponsibleId"], ["supplier_company_links", "homologatedById"], ["supplier_company_links", "linkedById"],
+    ["documents", "uploadedById"],
+    ["approval_workflows", "createdById"], ["approval_steps", "assignedToId"],
+    ["audit_logs", "userId"],
+    ["interactions", "createdById"],
+    ["performance_evaluations", "evaluatedById"],
+    ["compliance_alerts", "resolvedById"],
+    ["contracts", "createdById"],
+    ["contract_amendments", "createdById"],
+    ["financial_milestones", "createdById"],
+    ["contract_versions", "createdById"],
+    ["extraction_runs", "createdById"], ["extraction_runs", "reviewedById"],
+    ["supplier_document_links", "linkedById"],
+    ["contract_templates", "createdById"],
+    ["organizational_groups", "createdById"],
+    ["user_group_roles", "grantedById"], ["user_company_roles", "grantedById"], ["user_business_unit_roles", "grantedById"],
+  ];
+  for (const [table, col] of nullRefs) {
+    try {
+      await db.execute(sql.raw(`UPDATE \`${table}\` SET \`${col}\` = NULL WHERE \`${col}\` = ${uid}`));
+    } catch { /* coluna/tabela pode não existir nesta versão — ignora */ }
+  }
+
+  // Vínculos de acesso DO PRÓPRIO usuário → remover
+  const ownRows: Array<[string, string]> = [
+    ["user_group_roles", "userId"], ["user_company_roles", "userId"],
+    ["user_business_unit_roles", "userId"], ["user_business_units", "userId"],
+  ];
+  for (const [table, col] of ownRows) {
+    try {
+      await db.execute(sql.raw(`DELETE FROM \`${table}\` WHERE \`${col}\` = ${uid}`));
+    } catch { /* ignora */ }
+  }
+
+  // Por fim, remove o usuário
+  await db.delete(users).where(eq(users.id, uid));
+}
+
 // ==================== SUPPLIER CATEGORY FUNCTIONS =====================
 export async function getAllCategories() {
   const db = await getDb();

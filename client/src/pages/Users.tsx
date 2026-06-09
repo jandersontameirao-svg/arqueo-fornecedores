@@ -41,6 +41,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import {
   Users as UsersIcon,
@@ -56,6 +63,7 @@ import {
   XCircle,
   Building2,
   KeyRound,
+  MoreHorizontal,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -153,7 +161,7 @@ export default function Users() {
 
   const deleteMutation = trpc.users.delete.useMutation({
     onSuccess: () => {
-      toast.success("Usuário desativado com sucesso!");
+      toast.success("Usuário excluído com sucesso!");
       utils.users.listWithAreas.invalidate();
       setDeletingUser(null);
     },
@@ -383,46 +391,35 @@ export default function Users() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenEdit(user)}
-                            className="h-8 w-8 hover:bg-muted"
-                            title="Editar usuário"
-                          >
-                            <Edit className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                          {user.role !== "admin" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setAccessUser(user)}
-                              className="h-8 w-8 hover:bg-blue-50 hover:text-blue-600"
-                              title="Gerenciar acesso a áreas de negócio"
-                            >
-                              <Building2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => { setPasswordUser(user); setNewPassword(""); }}
-                            className="h-8 w-8 hover:bg-amber-50 hover:text-amber-600"
-                            title={user.passwordHash ? "Redefinir senha" : "Definir senha"}
-                          >
-                            <KeyRound className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeletingUser(user)}
-                            disabled={user.id === currentUser?.id}
-                            className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
-                            title={user.id === currentUser?.id ? "Não é possível desativar sua própria conta" : "Desativar usuário"}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <div className="flex items-center justify-end">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted" title="Ações">
+                                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                              <DropdownMenuItem onClick={() => handleOpenEdit(user)}>
+                                <Edit className="h-4 w-4 mr-2" /> Editar
+                              </DropdownMenuItem>
+                              {user.role !== "admin" && (
+                                <DropdownMenuItem onClick={() => setAccessUser(user)}>
+                                  <Building2 className="h-4 w-4 mr-2" /> Gerenciar áreas
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onClick={() => { setPasswordUser(user); setNewPassword(""); }}>
+                                <KeyRound className="h-4 w-4 mr-2" /> {user.passwordHash ? "Redefinir senha" : "Definir senha"}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                disabled={user.id === currentUser?.id}
+                                onClick={() => setDeletingUser(user)}
+                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </TableCell>
                       </>
@@ -588,9 +585,9 @@ export default function Users() {
       {/* ── AlertDialog: Confirmar Exclusão ─────────────────────────────────────── */}   <AlertDialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Desativar usuário?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
             <AlertDialogDescription>
-              O usuário <strong>{deletingUser?.name || deletingUser?.email}</strong> será desativado e não poderá mais acessar o sistema. Esta ação pode ser revertida editando o usuário.
+              O usuário <strong>{deletingUser?.name || deletingUser?.email}</strong> será excluído permanentemente. Os fornecedores, contratos e documentos que ele cadastrou <strong>são preservados</strong> (apenas o vínculo de autoria é removido). Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -599,7 +596,7 @@ export default function Users() {
               onClick={handleDelete}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
-              {deleteMutation.isPending ? "Desativando..." : "Desativar"}
+              {deleteMutation.isPending ? "Excluindo..." : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

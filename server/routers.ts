@@ -488,6 +488,12 @@ export const appRouter = router({
         isActive: z.boolean().optional().default(true),
       }))
       .mutation(async ({ input, ctx }) => {
+        // Defesa: conceder perfil "admin" exige que o solicitante seja admin.
+        // (Hoje o endpoint já é adminProcedure; esta checagem protege caso a
+        // criação seja liberada a gestores no futuro.)
+        if (input.role === "admin" && ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem conceder o perfil Administrador." });
+        }
         const id = await db.createUser(input);
         await db.createAuditLog({
           entityType: "user",
@@ -510,6 +516,10 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const { id, ...data } = input;
+        // Defesa: promover alguém a "admin" exige solicitante admin.
+        if (data.role === "admin" && ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem conceder o perfil Administrador." });
+        }
         await db.updateUser(id, data);
         await db.createAuditLog({
           entityType: "user",
@@ -528,12 +538,14 @@ export const appRouter = router({
         if (input.id === ctx.user.id) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Você não pode excluir sua própria conta" });
         }
-        await db.deleteUser(input.id);
+        // Exclusão real preservando os dados de negócio criados pelo usuário
+        // (fornecedores/contratos/documentos permanecem; só a autoria é desvinculada).
+        await db.hardDeleteUser(input.id);
         await db.createAuditLog({
           entityType: "user",
           entityId: input.id,
           action: "delete",
-          changes: { deleted: true, softDelete: true },
+          changes: { deleted: true, hardDelete: true, preservedBusinessData: true },
           userId: ctx.user.id,
           userEmail: ctx.user.email,
         });
