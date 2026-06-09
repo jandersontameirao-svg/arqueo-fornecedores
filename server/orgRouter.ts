@@ -16,7 +16,7 @@
 
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { protectedProcedure, router } from "./_core/trpc";
 import {
   organizationalGroups,
@@ -236,7 +236,6 @@ export const orgRouter = router({
     .query(async ({ ctx, input }) => {
       const db = await getDb();
       const orgCtx = await resolveOrgContext(ctx.user, null);
-      const { inArray } = await import("drizzle-orm");
       const groupRoles = orgCtx.isSuperAdmin
         ? await db.select().from(userGroupRoles).where(eq(userGroupRoles.userId, input.userId))
         : await db.select().from(userGroupRoles).where(

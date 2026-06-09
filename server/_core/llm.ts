@@ -409,8 +409,8 @@ export async function uploadFileToOpenAI(
   let blob: Blob;
   if (typeof fileBuffer === "string") {
     // Assume it's base64
-    const binaryString = Buffer.from(fileBuffer, "base64").toString("binary");
-    blob = new Blob([binaryString], { type: mimeType });
+    const buf = Buffer.from(fileBuffer, "base64");
+    blob = new Blob([buf], { type: mimeType });
   } else if (Buffer.isBuffer(fileBuffer)) {
     blob = new Blob([(fileBuffer.buffer as ArrayBuffer).slice(fileBuffer.byteOffset, fileBuffer.byteOffset + fileBuffer.length)], { type: mimeType });
   } else {

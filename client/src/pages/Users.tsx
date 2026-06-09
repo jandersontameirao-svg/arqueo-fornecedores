@@ -126,7 +126,7 @@ export default function Users() {
   const createMutation = trpc.users.create.useMutation({
     onSuccess: () => {
       toast.success("Usuário criado com sucesso!");
-      utils.users.list.invalidate();
+      utils.users.listWithAreas.invalidate();
       setCreateOpen(false);
       setForm(emptyForm);
       setFormErrors({});
@@ -140,7 +140,7 @@ export default function Users() {
   const updateMutation = trpc.users.update.useMutation({
     onSuccess: () => {
       toast.success("Usuário atualizado com sucesso!");
-      utils.users.list.invalidate();
+      utils.users.listWithAreas.invalidate();
       setEditingUser(null);
       setForm(emptyForm);
       setFormErrors({});
@@ -154,7 +154,7 @@ export default function Users() {
   const deleteMutation = trpc.users.delete.useMutation({
     onSuccess: () => {
       toast.success("Usuário desativado com sucesso!");
-      utils.users.list.invalidate();
+      utils.users.listWithAreas.invalidate();
       setDeletingUser(null);
     },
     onError: (error) => {
@@ -174,7 +174,7 @@ export default function Users() {
   const setPasswordMutation = trpc.users.setPassword.useMutation({
     onSuccess: () => {
       toast.success("Senha definida com sucesso! O usuário agora pode fazer login por email/senha.");
-      utils.users.list.invalidate();
+      utils.users.listWithAreas.invalidate();
       setPasswordUser(null);
       setNewPassword("");
     },

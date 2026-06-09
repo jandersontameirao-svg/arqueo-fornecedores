@@ -1532,11 +1532,17 @@ export const appRouter = router({
     create: managerProcedure
       .input(interactionSchema)
       .mutation(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
+        const orgCtxInteraction = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
+        const interactionGroupId = orgCtxInteraction.isSuperAdmin
+          ? (ctx.user.defaultOrgGroupId ?? orgCtxInteraction.accessibleGroupIds[0] ?? null)
+          : (orgCtxInteraction.accessibleGroupIds[0] ?? null);
         const id = await db.createInteraction({
           ...input,
           interactionDate: new Date(input.interactionDate),
           followUpDate: input.followUpDate ? new Date(input.followUpDate) : undefined,
           createdById: ctx.user.id,
+          organizationalGroupId: interactionGroupId,
         });
         await db.createAuditLog({
           entityType: "interaction",
@@ -2022,18 +2028,7 @@ export const appRouter = router({
         companySlug: z.string().optional(), // Slug da empresa selecionada (segregação por empresa)
       }))
       .query(async ({ input, ctx }) => {
-        // GUARD: manager/reader só pode ver contratos de fornecedores das áreas designadas
-        if (ctx.user.role !== "admin") {
-          const allowedBUIds = await db.getUserBusinessUnitIds(ctx.user.id);
-          if (allowedBUIds.length === 0) return [];
-          // Verificar se o fornecedor pertence a uma área permitida
-          const supplier = await db.getSupplierById(input.supplierId);
-          if (supplier && supplier.supplier.groupId && !allowedBUIds.includes(supplier.supplier.groupId)) {
-            return [];
-          }
-        }
-        // Retorna contratos com vigência efetiva calculada (aditivo mais recente ou original)
-        // Se companySlug fornecido: retorna apenas contratos dessa empresa + contratos all_group
+        await assertSupplierAccess(ctx.user, input.supplierId);
         return db.getContractsBySupplierWithEffectiveEndDate(input.supplierId, input.companySlug);
       }),
 
@@ -2089,6 +2084,7 @@ export const appRouter = router({
         })).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
         const { items, startDate, endDate, ...contractData } = input;
         // Injetar escopo organizacional do usuário criador
         const orgCtxContractCreate = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
@@ -2281,7 +2277,9 @@ Estruture o contrato com:
         companyId: z.number().optional(),
         customValues: z.record(z.string(), z.string()).optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
+        if (input.companyId) await assertCompanyAccess(ctx.user, input.companyId);
         // Busca template
         const allTemplates = await db.getAllContractTemplates();
         const template = allTemplates.find(t => t.id === input.templateId);
@@ -2867,7 +2865,8 @@ Estruture o contrato com:
     // ==================== GERAR PDF DO CONTRATO ====================
     generatePDF: protectedProcedure
       .input(z.object({ contractId: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        await assertContractAccess(ctx.user, input.contractId);
         const { execFile } = await import("child_process");
         const { writeFile, readFile, unlink } = await import("fs/promises");
         const { tmpdir } = await import("os");
@@ -3320,7 +3319,14 @@ Estruture o contrato com:
         content: z.string().optional(),
         isActive: z.boolean().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
+        if (!orgCtx.isSuperAdmin && orgCtx.effectiveLevel !== "admin") {
+          const tmpl = (await db.getAllContractTemplates()).find(t => t.id === input.id);
+          if (tmpl?.organizationalGroupId && !orgCtx.accessibleGroupIds.includes(tmpl.organizationalGroupId)) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Sem acesso a este template" });
+          }
+        }
         const { id, ...data } = input;
         await db.updateContractTemplate(id, data);
         return { success: true };
@@ -3328,7 +3334,14 @@ Estruture o contrato com:
 
     delete: managerProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
+        if (!orgCtx.isSuperAdmin && orgCtx.effectiveLevel !== "admin") {
+          const tmpl = (await db.getAllContractTemplates()).find(t => t.id === input.id);
+          if (tmpl?.organizationalGroupId && !orgCtx.accessibleGroupIds.includes(tmpl.organizationalGroupId)) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Sem acesso a este template" });
+          }
+        }
         await db.deleteContractTemplate(input.id);
         return { success: true };
       }),
@@ -3770,7 +3783,14 @@ REGRAS CRÍTICAS:
           sortOrder: z.number().default(0),
         })),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
+        if (!orgCtx.isSuperAdmin) {
+          const tmpl = (await db.getAllContractTemplates()).find(t => t.id === input.templateId);
+          if (tmpl?.organizationalGroupId && !orgCtx.accessibleGroupIds.includes(tmpl.organizationalGroupId)) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Sem acesso a este template" });
+          }
+        }
         await db.deleteTemplateFieldsByTemplateId(input.templateId);
         for (const field of input.fields) {
           await db.createTemplateField({
@@ -3789,7 +3809,7 @@ REGRAS CRÍTICAS:
       }),
 
     // ==================== GERAR CONTRATO A PARTIR DE TEMPLATE ====================
-    generateContract: protectedProcedure
+    generateContract: managerProcedure
       .input(z.object({
         templateId: z.number().int().positive(),
         supplierId: z.number().int().positive(),
@@ -3800,9 +3820,8 @@ REGRAS CRÍTICAS:
         idempotencyKey: z.string().optional(), // proteção contra duplo clique
       }))
       .mutation(async ({ input, ctx }) => {
-        // Validate required fields
+        await assertSupplierAccess(ctx.user, input.supplierId);
         if (!input.templateId) throw new TRPCError({ code: "BAD_REQUEST", message: "Template não selecionado." });
-        if (!input.supplierId) throw new TRPCError({ code: "BAD_REQUEST", message: "Fornecedor não selecionado." });
 
         let contractId: number;
         try {

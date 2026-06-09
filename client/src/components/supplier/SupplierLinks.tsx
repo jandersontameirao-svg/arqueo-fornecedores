@@ -288,7 +288,7 @@ export default function SupplierLinks({ supplierId }: SupplierLinksProps) {
                   )}
                 </div>
                 {item.link.notes && (
-                  <p className="text-sm text-muted-foreground mt-3 pl-13">
+                  <p className="text-sm text-muted-foreground mt-3 pl-12">
                     {item.link.notes}
                   </p>
                 )}

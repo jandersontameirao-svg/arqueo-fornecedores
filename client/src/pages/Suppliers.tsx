@@ -479,7 +479,7 @@ export default function Suppliers() {
               </div>
               <h3 className="text-lg font-medium">Nenhum fornecedor encontrado</h3>
               <p className="text-muted-foreground text-sm mt-1 text-center max-w-sm">
-                {search || statusFilter !== "all" || categoryFilter !== "all"
+                {search || statusFilter !== "all" || categoryFilter !== "all" || criticalityFilter !== "all"
                   ? "Tente ajustar os filtros de busca para encontrar o que procura"
                   : "Comece cadastrando um novo fornecedor para gerenciar"}
               </p>

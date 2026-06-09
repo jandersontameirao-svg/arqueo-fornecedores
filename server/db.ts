@@ -633,7 +633,7 @@ export async function getExpiringDocuments(daysAhead: number = 15, opts?: { orgG
   const conds: any[] = [
     lte(documents.expiresAt, futureDate),
     gte(documents.expiresAt, new Date()),
-    eq(documents.expirationAlertSent, false),
+    or(eq(documents.expirationAlertSent, false), isNull(documents.expirationAlertSent)),
   ];
   // Filtro de escopo organizacional. Sem este, notifications e relatorios vazam
   // documentos de outros tenants.
@@ -1547,7 +1547,7 @@ export async function listCompaniesByUnit(businessUnitId: number) {
 export async function getCompanyById(id: number) {
   const db = await getDb();
   if (!db) return null;
-  const rows = await db.select().from(companies).where(eq(companies.id, id));
+  const rows = await db.select().from(companies).where(eq(companies.id, id)).limit(1);
   return rows[0] || null;
 }
 
@@ -1714,7 +1714,7 @@ export async function getDocumentsExpiringInDaysWithoutNotification(daysAhead: n
     .where(
       and(
         eq(documentExpirationNotifications.daysBeforeExpiration, daysAhead),
-        sql`${documentExpirationNotifications.documentId} IN (${docIds.join(",")})`
+        inArray(documentExpirationNotifications.documentId, docIds)
       )
     );
 
@@ -1873,7 +1873,7 @@ export async function getContractsExpiringInDaysWithoutNotification(daysAhead: n
     .where(
       and(
         eq(contractExpirationNotifications.daysBeforeExpiration, daysAhead),
-        sql`${contractExpirationNotifications.contractId} IN (${contractIds.join(",")})`
+        inArray(contractExpirationNotifications.contractId, contractIds)
       )
     );
 

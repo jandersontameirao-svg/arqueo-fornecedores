@@ -10,10 +10,10 @@ export default function AdminRoute({ children }: { children: React.ReactNode }) 
   const { user, loading } = useAuth();
 
   // Enquanto carrega, não renderiza nada (o TopbarLayout já exibe skeleton)
-  if (loading) return null;
+  if (loading || !user) return null;
 
   // Usuário autenticado mas sem permissão de admin
-  if (user && user.role !== "admin") {
+  if (user.role !== "admin") {
     return <AccessDenied />;
   }
 

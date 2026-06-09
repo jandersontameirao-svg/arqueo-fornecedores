@@ -427,6 +427,18 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
             <CreditCard className="h-4 w-4" />
             <span className="hidden lg:inline">Financeiro</span>
           </TabsTrigger>
+          <TabsTrigger value="interactions" className="flex items-center gap-2 py-2.5">
+            <MessageSquare className="h-4 w-4" />
+            <span className="hidden lg:inline">Interações</span>
+          </TabsTrigger>
+          <TabsTrigger value="vinculos" className="flex items-center gap-2 py-2.5">
+            <Link2 className="h-4 w-4" />
+            <span className="hidden lg:inline">Vínculos</span>
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="flex items-center gap-2 py-2.5">
+            <LayoutTemplate className="h-4 w-4" />
+            <span className="hidden lg:inline">Templates</span>
+          </TabsTrigger>
           <TabsTrigger value="workflow" className="flex items-center gap-2 py-2.5">
             <Shield className="h-4 w-4" />
             <span className="hidden lg:inline">Aprovação</span>
@@ -644,7 +656,7 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
                       <Calendar className="h-4 w-4 text-[oklch(0.50_0.12_350)]" />
                       Últimas Interações
                     </CardTitle>
-                    <Button variant="ghost" size="sm" onClick={() => setLocation("/interactions")}>
+                    <Button variant="ghost" size="sm" onClick={() => setActiveTab("interactions")}>
                       Ver todas
                     </Button>
                   </div>
