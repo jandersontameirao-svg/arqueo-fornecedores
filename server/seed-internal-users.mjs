@@ -79,6 +79,9 @@ async function seedInternalUsers() {
       }
       if (user.loginMethod !== loginMethod) updates.loginMethod = loginMethod;
       if (user.name !== name) updates.name = name;
+      // Reativa a conta — usuários internos do seed devem poder logar.
+      // Sem isto, uma conta que estava Inativa continua bloqueada no login.
+      if (!user.isActive) updates.isActive = true;
 
       if (Object.keys(updates).length > 0) {
         await db.update(users).set(updates).where(eq(users.id, user.id));
