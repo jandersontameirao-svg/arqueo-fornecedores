@@ -264,41 +264,63 @@ export async function hardDeleteUser(id: number): Promise<void> {
   const uid = Number(id);
   if (!Number.isFinite(uid)) throw new Error("ID de usuário inválido");
 
-  // Colunas de autoria → NULL (preserva o dado de negócio)
-  const nullRefs: Array<[string, string]> = [
-    ["suppliers", "createdById"], ["suppliers", "approvedById"],
-    ["supplier_company_links", "internalResponsibleId"], ["supplier_company_links", "homologatedById"], ["supplier_company_links", "linkedById"],
-    ["documents", "uploadedById"],
-    ["approval_workflows", "createdById"], ["approval_steps", "assignedToId"],
-    ["audit_logs", "userId"],
-    ["interactions", "createdById"],
-    ["performance_evaluations", "evaluatedById"],
-    ["compliance_alerts", "resolvedById"],
-    ["contracts", "createdById"],
-    ["contract_amendments", "createdById"],
-    ["financial_milestones", "createdById"],
-    ["contract_versions", "createdById"],
-    ["extraction_runs", "createdById"], ["extraction_runs", "reviewedById"],
-    ["supplier_document_links", "linkedById"],
-    ["contract_templates", "createdById"],
-    ["organizational_groups", "createdById"],
-    ["user_group_roles", "grantedById"], ["user_company_roles", "grantedById"], ["user_business_unit_roles", "grantedById"],
-  ];
-  for (const [table, col] of nullRefs) {
-    try {
-      await db.execute(sql.raw(`UPDATE \`${table}\` SET \`${col}\` = NULL WHERE \`${col}\` = ${uid}`));
-    } catch { /* coluna/tabela pode não existir nesta versão — ignora */ }
+  // Descobre DINAMICAMENTE todas as colunas (FK) que apontam para users.id.
+  // Isso garante que nenhuma referência seja esquecida — qualquer coluna que
+  // bloquearia o DELETE é tratada aqui, independente de quantas tabelas existam.
+  let fkCols: Array<{ tbl: string; col: string }> = [];
+  try {
+    const res: any = await db.execute(sql`
+      SELECT TABLE_NAME AS tbl, COLUMN_NAME AS col
+      FROM information_schema.KEY_COLUMN_USAGE
+      WHERE REFERENCED_TABLE_NAME = 'users'
+        AND REFERENCED_COLUMN_NAME = 'id'
+        AND TABLE_SCHEMA = DATABASE()
+    `);
+    const rows = Array.isArray(res) ? res[0] : res;
+    fkCols = (rows as any[]).map((r) => ({ tbl: r.tbl, col: r.col }));
+  } catch (e) {
+    console.warn("[hardDeleteUser] Falha ao descobrir FKs, usando lista estática:", e);
   }
 
-  // Vínculos de acesso DO PRÓPRIO usuário → remover
-  const ownRows: Array<[string, string]> = [
-    ["user_group_roles", "userId"], ["user_company_roles", "userId"],
-    ["user_business_unit_roles", "userId"], ["user_business_units", "userId"],
-  ];
-  for (const [table, col] of ownRows) {
+  // Fallback estático caso a introspecção não retorne nada (ex.: FKs não declaradas).
+  if (fkCols.length === 0) {
+    fkCols = [
+      { tbl: "suppliers", col: "createdById" }, { tbl: "suppliers", col: "approvedById" },
+      { tbl: "supplier_company_links", col: "internalResponsibleId" }, { tbl: "supplier_company_links", col: "homologatedById" }, { tbl: "supplier_company_links", col: "linkedById" },
+      { tbl: "supplier_links", col: "createdById" },
+      { tbl: "documents", col: "uploadedById" },
+      { tbl: "approval_workflows", col: "createdById" }, { tbl: "approval_steps", col: "assignedToId" },
+      { tbl: "audit_logs", col: "userId" },
+      { tbl: "interactions", col: "createdById" },
+      { tbl: "performance_evaluations", col: "evaluatedById" },
+      { tbl: "compliance_alerts", col: "resolvedById" },
+      { tbl: "contracts", col: "createdById" },
+      { tbl: "contract_amendments", col: "createdById" },
+      { tbl: "financial_milestones", col: "createdById" },
+      { tbl: "contract_versions", col: "createdById" },
+      { tbl: "extraction_runs", col: "createdById" }, { tbl: "extraction_runs", col: "reviewedById" },
+      { tbl: "supplier_document_links", col: "linkedById" },
+      { tbl: "contract_templates", col: "createdById" },
+      { tbl: "organizational_groups", col: "createdById" },
+      { tbl: "companies", col: "createdById" }, { tbl: "business_units", col: "createdById" },
+      { tbl: "user_group_roles", col: "userId" }, { tbl: "user_group_roles", col: "grantedById" },
+      { tbl: "user_company_roles", col: "userId" }, { tbl: "user_company_roles", col: "grantedById" },
+      { tbl: "user_business_unit_roles", col: "userId" }, { tbl: "user_business_unit_roles", col: "grantedById" },
+      { tbl: "user_business_units", col: "userId" },
+    ];
+  }
+
+  // Para cada referência: tenta NULL (preserva o registro). Se a coluna for
+  // NOT NULL (ex.: userId de uma tabela de vínculo), o NULL falha e então a
+  // linha é REMOVIDA — esses vínculos não fazem sentido sem o usuário.
+  for (const { tbl, col } of fkCols) {
     try {
-      await db.execute(sql.raw(`DELETE FROM \`${table}\` WHERE \`${col}\` = ${uid}`));
-    } catch { /* ignora */ }
+      await db.execute(sql.raw(`UPDATE \`${tbl}\` SET \`${col}\` = NULL WHERE \`${col}\` = ${uid}`));
+    } catch {
+      try {
+        await db.execute(sql.raw(`DELETE FROM \`${tbl}\` WHERE \`${col}\` = ${uid}`));
+      } catch { /* tabela/coluna ausente — ignora */ }
+    }
   }
 
   // Por fim, remove o usuário
