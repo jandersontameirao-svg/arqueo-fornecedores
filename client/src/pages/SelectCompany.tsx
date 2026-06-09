@@ -47,7 +47,7 @@ function CompanyCard({
   };
 
   const { data: supplierCount } = trpc.supplierCompanyLinks.countByCompanyStringId.useQuery(
-    { companyId: company.id },
+    { companyId: String(company.companyId) },
     { staleTime: 30_000 }
   );
 
@@ -123,7 +123,7 @@ function CompanySupplierCard({
   };
 
   const { data: count } = trpc.supplierCompanyLinks.countByCompanyStringId.useQuery(
-    { companyId: company.id },
+    { companyId: String(company.companyId) },
     { staleTime: 30_000 }
   );
 
