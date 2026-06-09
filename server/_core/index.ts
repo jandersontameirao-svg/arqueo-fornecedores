@@ -62,16 +62,38 @@ async function startServer() {
     serveStatic(app);
   }
 
-  const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  // Quando PORT está definido explicitamente (produção, atrás de proxy reverso),
+  // vinculamos ESTRITAMENTE a essa porta. NUNCA "vagamos" para outra porta livre —
+  // fazer isso faria este app servir no slot de outro app que está atrás do mesmo
+  // Nginx, mostrando o site errado no domínio. Se a porta estiver ocupada,
+  // tentamos novamente algumas vezes (cobre o intervalo de restart do próprio app)
+  // e então falhamos, deixando o PM2 reiniciar — sem nunca roubar outra porta.
+  // Sem PORT definido (dev), mantemos a busca automática por conveniência.
+  const strict = !!process.env.PORT;
+  const port = strict ? parseInt(process.env.PORT as string) : await findAvailablePort(3000);
 
-  if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
+  if (!strict && port !== 3000) {
+    console.log(`Port 3000 is busy, using port ${port} instead`);
   }
 
-  server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
-  });
+  const MAX_RETRIES = 15;
+  const listenWithRetry = (attemptsLeft: number) => {
+    const onError = (err: NodeJS.ErrnoException) => {
+      if (err.code === "EADDRINUSE" && strict && attemptsLeft > 0) {
+        console.warn(`Porta ${port} ocupada — nova tentativa em 2s (${attemptsLeft} restantes). NÃO vou usar outra porta.`);
+        setTimeout(() => listenWithRetry(attemptsLeft - 1), 2000);
+      } else {
+        console.error(`Falha ao escutar na porta ${port}: ${err.message}`);
+        process.exit(1);
+      }
+    };
+    server.once("error", onError);
+    server.listen(port, () => {
+      server.removeListener("error", onError);
+      console.log(`Server running on http://localhost:${port}/`);
+    });
+  };
+  listenWithRetry(strict ? MAX_RETRIES : 0);
 }
 
 startServer().catch(console.error);
