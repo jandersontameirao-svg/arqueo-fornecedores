@@ -16,6 +16,7 @@ import * as riskScore from "./riskScore";
 import * as supplierRisks from "./supplierRisks";
 import * as assessments from "./assessments";
 import * as offboarding from "./offboarding";
+import * as atena from "./atena";
 import { orgRouter } from "./orgRouter";
 import { resolveOrgContext, buildScopeFilter } from "./orgContext";
 import { invokeLLM, useDirectOpenAI, useAnthropic, providerSupportsFileUrl, uploadFileToOpenAI } from "./_core/llm";
@@ -1307,6 +1308,34 @@ export const appRouter = router({
           userEmail: ctx.user.email,
         });
         return saved;
+      }),
+  }),
+
+  // ==================== ATENA (ASSISTENTE DE IA) ====================
+  atena: router({
+    inconsistencies: protectedProcedure.query(async ({ ctx }) => {
+      const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
+      const scope = buildScopeFilter(orgCtx);
+      const orgGroupIds = orgCtx.isSuperAdmin ? undefined : scope.groupIds;
+      return atena.detectInconsistencies(orgGroupIds);
+    }),
+
+    chat: protectedProcedure
+      .input(z.object({
+        messages: z.array(z.object({
+          role: z.enum(["user", "assistant"]),
+          content: z.string().min(1).max(8000),
+        })).min(1).max(30),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
+        const scope = buildScopeFilter(orgCtx);
+        const orgGroupIds = orgCtx.isSuperAdmin ? undefined : scope.groupIds;
+        return atena.chat(
+          { id: ctx.user.id, email: ctx.user.email, role: ctx.user.role, name: (ctx.user as any).name },
+          input.messages,
+          orgGroupIds,
+        );
       }),
   }),
 

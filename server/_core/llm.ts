@@ -164,6 +164,11 @@ const normalizeMessage = (message: Message) => {
     };
   }
 
+  // Preserva tool_calls do assistant (necessário para fluxos com tool-calling,
+  // ex.: Atena). Aditivo: chamadas que não usam tool_calls não são afetadas.
+  const toolCalls = (message as any).tool_calls;
+  const withToolCalls = toolCalls && toolCalls.length > 0 ? { tool_calls: toolCalls } : {};
+
   const contentParts = ensureArray(message.content).map(normalizeContentPart);
 
   // If there's only text content, collapse to a single string for compatibility
@@ -172,6 +177,7 @@ const normalizeMessage = (message: Message) => {
       role,
       name,
       content: contentParts[0].text,
+      ...withToolCalls,
     };
   }
 
@@ -179,6 +185,7 @@ const normalizeMessage = (message: Message) => {
     role,
     name,
     content: contentParts,
+    ...withToolCalls,
   };
 };
 
