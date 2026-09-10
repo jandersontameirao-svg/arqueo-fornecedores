@@ -12,6 +12,7 @@ import * as notifications from "./notifications";
 import * as reports from "./reports";
 import * as exportService from "./export";
 import * as clicksign from "./clicksign";
+import * as riskScore from "./riskScore";
 import { orgRouter } from "./orgRouter";
 import { resolveOrgContext, buildScopeFilter } from "./orgContext";
 import { invokeLLM, useDirectOpenAI, useAnthropic, providerSupportsFileUrl, uploadFileToOpenAI } from "./_core/llm";
@@ -1258,6 +1259,54 @@ export const appRouter = router({
   }),
 
   // ==================== DOCUMENTS ====================
+  // ==================== RISK SCORE (SCORE DE RISCO 0–1000) ====================
+  risk: router({
+    // Último score persistido do fornecedor
+    latest: protectedProcedure
+      .input(z.object({ supplierId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
+        return riskScore.getLatestRiskScore(input.supplierId);
+      }),
+
+    // Prévia do cálculo (sem persistir) — útil para exibir antes de salvar
+    preview: protectedProcedure
+      .input(z.object({ supplierId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
+        return riskScore.computeRiskBreakdown(input.supplierId);
+      }),
+
+    // Histórico de scores
+    history: protectedProcedure
+      .input(z.object({ supplierId: z.number(), limit: z.number().optional() }))
+      .query(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
+        return riskScore.getRiskScoreHistory(input.supplierId, input.limit ?? 50);
+      }),
+
+    // Recalcula e persiste um novo registro histórico
+    compute: managerProcedure
+      .input(z.object({ supplierId: z.number(), notes: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const row = await assertSupplierAccess(ctx.user, input.supplierId);
+        const saved = await riskScore.computeAndSaveRiskScore(input.supplierId, {
+          computedById: ctx.user.id,
+          organizationalGroupId: (row as any)?.supplier?.organizationalGroupId ?? null,
+          notes: input.notes,
+        });
+        await db.createAuditLog({
+          entityType: "supplier",
+          entityId: input.supplierId,
+          action: "update",
+          changes: { riskScoreComputed: { score: saved.score, level: saved.level } },
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+        });
+        return saved;
+      }),
+  }),
+
   documents: router({
     list: protectedProcedure
       .input(z.object({ supplierId: z.number() }))

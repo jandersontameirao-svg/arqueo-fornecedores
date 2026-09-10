@@ -21,6 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import RiskScorePanel from "@/components/RiskScorePanel";
 import {
   ArrowLeft,
   Building2,
@@ -443,11 +444,20 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
             <Shield className="h-4 w-4" />
             <span className="hidden lg:inline">Aprovação</span>
           </TabsTrigger>
+          <TabsTrigger value="risco" className="flex items-center gap-2 py-2.5">
+            <Shield className="h-4 w-4" />
+            <span className="hidden lg:inline">Risco</span>
+          </TabsTrigger>
           <TabsTrigger value="historico" className="flex items-center gap-2 py-2.5">
             <History className="h-4 w-4" />
             <span className="hidden lg:inline">Histórico</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* Risco Tab */}
+        <TabsContent value="risco" className="space-y-6">
+          <RiskScorePanel supplierId={id} />
+        </TabsContent>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">

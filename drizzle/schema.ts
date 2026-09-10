@@ -804,3 +804,106 @@ export const userBusinessUnitRoles = mysqlTable("user_business_unit_roles", {
 
 export type UserBusinessUnitRole = typeof userBusinessUnitRoles.$inferSelect;
 export type InsertUserBusinessUnitRole = typeof userBusinessUnitRoles.$inferInsert;
+
+// ==================== SUPPLIER RISK SCORES (MÓDULO: SCORE DE RISCO 0–1000) ====================
+// Modelo ponderado transparente. Cada cálculo gera um registro histórico (nunca sobrescreve),
+// permitindo acompanhar a evolução do risco do fornecedor ao longo do tempo.
+export const supplierRiskScores = mysqlTable("supplier_risk_scores", {
+  id: int("id").autoincrement().primaryKey(),
+  supplierId: int("supplierId").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
+  score: int("score").notNull(), // 0–1000 (quanto maior, maior o risco)
+  level: mysqlEnum("level", ["low", "medium", "high", "critical"]).notNull(),
+  breakdown: json("breakdown"), // { fatores: [{ key, label, points, weight, detail }], base }
+  notes: text("notes"),
+  computedById: int("computedById").references(() => users.id),
+  organizationalGroupId: int("organizationalGroupId"),
+  computedAt: timestamp("computedAt").defaultNow().notNull(),
+});
+
+export type SupplierRiskScore = typeof supplierRiskScores.$inferSelect;
+export type InsertSupplierRiskScore = typeof supplierRiskScores.$inferInsert;
+
+// ==================== SUPPLIER RISKS (MÓDULO: RISK REGISTER / ISSUES) ====================
+// Registro de riscos e problemas (issues) por fornecedor, com plano de tratamento.
+export const supplierRisks = mysqlTable("supplier_risks", {
+  id: int("id").autoincrement().primaryKey(),
+  supplierId: int("supplierId").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  category: mysqlEnum("category", ["operational", "financial", "compliance", "security", "reputational", "strategic", "other"]).default("operational").notNull(),
+  likelihood: mysqlEnum("likelihood", ["low", "medium", "high"]).default("medium").notNull(),
+  impact: mysqlEnum("impact", ["low", "medium", "high"]).default("medium").notNull(),
+  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).default("medium").notNull(),
+  status: mysqlEnum("status", ["open", "in_treatment", "mitigated", "accepted", "closed"]).default("open").notNull(),
+  treatmentPlan: text("treatmentPlan"),
+  ownerId: int("ownerId").references(() => users.id),
+  dueDate: timestamp("dueDate"),
+  resolvedAt: timestamp("resolvedAt"),
+  organizationalGroupId: int("organizationalGroupId"),
+  createdById: int("createdById").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SupplierRisk = typeof supplierRisks.$inferSelect;
+export type InsertSupplierRisk = typeof supplierRisks.$inferInsert;
+
+// ==================== ASSESSMENT TEMPLATES (MÓDULO: QUESTIONÁRIOS) ====================
+export const assessmentTemplates = mysqlTable("assessment_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  category: varchar("category", { length: 100 }),
+  // questions: [{ id, text, type: "yes_no"|"scale"|"text"|"single_choice", weight, options?, riskWeights? }]
+  questions: json("questions").notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  organizationalGroupId: int("organizationalGroupId"),
+  createdById: int("createdById").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AssessmentTemplate = typeof assessmentTemplates.$inferSelect;
+export type InsertAssessmentTemplate = typeof assessmentTemplates.$inferInsert;
+
+// ==================== SUPPLIER ASSESSMENTS (RESPOSTAS + PORTAL TOKENIZADO) ====================
+export const supplierAssessments = mysqlTable("supplier_assessments", {
+  id: int("id").autoincrement().primaryKey(),
+  supplierId: int("supplierId").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
+  templateId: int("templateId").notNull().references(() => assessmentTemplates.id),
+  token: varchar("token", { length: 64 }).notNull().unique(), // acesso do fornecedor ao portal
+  status: mysqlEnum("status", ["draft", "sent", "in_progress", "submitted", "reviewed"]).default("draft").notNull(),
+  answers: json("answers"), // { [questionId]: value }
+  score: int("score"), // 0–1000 risco inerente calculado das respostas
+  riskLevel: mysqlEnum("riskLevel", ["low", "medium", "high", "critical"]),
+  sentAt: timestamp("sentAt"),
+  submittedAt: timestamp("submittedAt"),
+  reviewedAt: timestamp("reviewedAt"),
+  reviewedById: int("reviewedById").references(() => users.id),
+  organizationalGroupId: int("organizationalGroupId"),
+  createdById: int("createdById").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SupplierAssessment = typeof supplierAssessments.$inferSelect;
+export type InsertSupplierAssessment = typeof supplierAssessments.$inferInsert;
+
+// ==================== OFFBOARDING CHECKLISTS (MÓDULO: ENCERRAMENTO) ====================
+export const offboardingChecklists = mysqlTable("offboarding_checklists", {
+  id: int("id").autoincrement().primaryKey(),
+  supplierId: int("supplierId").notNull().references(() => suppliers.id, { onDelete: "cascade" }),
+  status: mysqlEnum("status", ["open", "in_progress", "completed", "cancelled"]).default("open").notNull(),
+  reason: text("reason"),
+  // items: [{ id, label, done, doneAt, doneById, notes }]
+  items: json("items").notNull(),
+  startedById: int("startedById").references(() => users.id),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+  organizationalGroupId: int("organizationalGroupId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type OffboardingChecklist = typeof offboardingChecklists.$inferSelect;
+export type InsertOffboardingChecklist = typeof offboardingChecklists.$inferInsert;
