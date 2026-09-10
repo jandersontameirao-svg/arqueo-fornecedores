@@ -13,6 +13,7 @@ import * as reports from "./reports";
 import * as exportService from "./export";
 import * as clicksign from "./clicksign";
 import * as riskScore from "./riskScore";
+import * as supplierRisks from "./supplierRisks";
 import { orgRouter } from "./orgRouter";
 import { resolveOrgContext, buildScopeFilter } from "./orgContext";
 import { invokeLLM, useDirectOpenAI, useAnthropic, providerSupportsFileUrl, uploadFileToOpenAI } from "./_core/llm";
@@ -1304,6 +1305,82 @@ export const appRouter = router({
           userEmail: ctx.user.email,
         });
         return saved;
+      }),
+  }),
+
+  // ==================== RISK REGISTER / ISSUES ====================
+  risks: router({
+    list: protectedProcedure
+      .input(z.object({ supplierId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
+        return supplierRisks.listRisksBySupplier(input.supplierId);
+      }),
+
+    create: managerProcedure
+      .input(z.object({
+        supplierId: z.number(),
+        title: z.string().min(1),
+        description: z.string().optional(),
+        category: z.enum(["operational", "financial", "compliance", "security", "reputational", "strategic", "other"]).optional(),
+        likelihood: z.enum(["low", "medium", "high"]).optional(),
+        impact: z.enum(["low", "medium", "high"]).optional(),
+        treatmentPlan: z.string().optional(),
+        ownerId: z.number().optional(),
+        dueDate: z.coerce.date().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const row = await assertSupplierAccess(ctx.user, input.supplierId);
+        const id = await supplierRisks.createRisk({
+          ...input,
+          organizationalGroupId: (row as any)?.supplier?.organizationalGroupId ?? null,
+          createdById: ctx.user.id,
+        });
+        await db.createAuditLog({
+          entityType: "supplier", entityId: input.supplierId, action: "create",
+          changes: { risk: { id, title: input.title } }, userId: ctx.user.id, userEmail: ctx.user.email,
+        });
+        return { id };
+      }),
+
+    update: managerProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).optional(),
+        description: z.string().optional(),
+        category: z.enum(["operational", "financial", "compliance", "security", "reputational", "strategic", "other"]).optional(),
+        likelihood: z.enum(["low", "medium", "high"]).optional(),
+        impact: z.enum(["low", "medium", "high"]).optional(),
+        status: z.enum(["open", "in_treatment", "mitigated", "accepted", "closed"]).optional(),
+        treatmentPlan: z.string().optional(),
+        ownerId: z.number().optional(),
+        dueDate: z.coerce.date().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const existing = await supplierRisks.getRiskById(input.id);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+        await assertSupplierAccess(ctx.user, existing.supplierId);
+        const { id, ...data } = input;
+        await supplierRisks.updateRisk(id, data);
+        await db.createAuditLog({
+          entityType: "supplier", entityId: existing.supplierId, action: "update",
+          changes: { riskUpdated: { id, ...data } }, userId: ctx.user.id, userEmail: ctx.user.email,
+        });
+        return { success: true };
+      }),
+
+    delete: managerProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const existing = await supplierRisks.getRiskById(input.id);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+        await assertSupplierAccess(ctx.user, existing.supplierId);
+        await supplierRisks.deleteRisk(input.id);
+        await db.createAuditLog({
+          entityType: "supplier", entityId: existing.supplierId, action: "delete",
+          changes: { riskDeleted: input.id }, userId: ctx.user.id, userEmail: ctx.user.email,
+        });
+        return { success: true };
       }),
   }),
 

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import RiskScorePanel from "@/components/RiskScorePanel";
+import SupplierRisksPanel from "@/components/SupplierRisksPanel";
 import {
   ArrowLeft,
   Building2,
@@ -457,6 +458,7 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
         {/* Risco Tab */}
         <TabsContent value="risco" className="space-y-6">
           <RiskScorePanel supplierId={id} />
+          <SupplierRisksPanel supplierId={id} />
         </TabsContent>
 
         {/* Overview Tab */}
