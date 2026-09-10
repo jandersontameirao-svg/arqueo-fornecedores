@@ -15,6 +15,7 @@ import * as clicksign from "./clicksign";
 import * as riskScore from "./riskScore";
 import * as supplierRisks from "./supplierRisks";
 import * as assessments from "./assessments";
+import * as offboarding from "./offboarding";
 import { orgRouter } from "./orgRouter";
 import { resolveOrgContext, buildScopeFilter } from "./orgContext";
 import { invokeLLM, useDirectOpenAI, useAnthropic, providerSupportsFileUrl, uploadFileToOpenAI } from "./_core/llm";
@@ -1306,6 +1307,61 @@ export const appRouter = router({
           userEmail: ctx.user.email,
         });
         return saved;
+      }),
+  }),
+
+  // ==================== OFFBOARDING (ENCERRAMENTO) ====================
+  offboarding: router({
+    get: protectedProcedure
+      .input(z.object({ supplierId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
+        return offboarding.getBySupplier(input.supplierId);
+      }),
+
+    start: managerProcedure
+      .input(z.object({ supplierId: z.number(), reason: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const row = await assertSupplierAccess(ctx.user, input.supplierId);
+        const created = await offboarding.start({
+          supplierId: input.supplierId, reason: input.reason, startedById: ctx.user.id,
+          organizationalGroupId: (row as any)?.supplier?.organizationalGroupId ?? null,
+        });
+        await db.createAuditLog({
+          entityType: "supplier", entityId: input.supplierId, action: "update",
+          changes: { offboardingStarted: created.id }, userId: ctx.user.id, userEmail: ctx.user.email,
+        });
+        return created;
+      }),
+
+    updateItems: managerProcedure
+      .input(z.object({
+        id: z.number(),
+        items: z.array(z.object({
+          id: z.string(), label: z.string(), done: z.boolean(),
+          doneAt: z.string().nullish(), doneById: z.number().nullish(), notes: z.string().optional(),
+        })),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const existing = await offboarding.getById(input.id);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+        await assertSupplierAccess(ctx.user, existing.supplierId);
+        await offboarding.updateItems(input.id, input.items as any, ctx.user.id);
+        return { success: true };
+      }),
+
+    setStatus: managerProcedure
+      .input(z.object({ id: z.number(), status: z.enum(["open", "in_progress", "completed", "cancelled"]) }))
+      .mutation(async ({ input, ctx }) => {
+        const existing = await offboarding.getById(input.id);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+        await assertSupplierAccess(ctx.user, existing.supplierId);
+        await offboarding.setStatus(input.id, input.status);
+        await db.createAuditLog({
+          entityType: "supplier", entityId: existing.supplierId, action: "update",
+          changes: { offboardingStatus: input.status }, userId: ctx.user.id, userEmail: ctx.user.email,
+        });
+        return { success: true };
       }),
   }),
 

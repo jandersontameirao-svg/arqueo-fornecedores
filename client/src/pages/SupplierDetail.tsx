@@ -24,7 +24,8 @@ import { toast } from "sonner";
 import RiskScorePanel from "@/components/RiskScorePanel";
 import SupplierRisksPanel from "@/components/SupplierRisksPanel";
 import SupplierAssessmentsPanel from "@/components/SupplierAssessmentsPanel";
-import { ClipboardList } from "lucide-react";
+import SupplierOffboardingPanel from "@/components/SupplierOffboardingPanel";
+import { ClipboardList, LogOut } from "lucide-react";
 import {
   ArrowLeft,
   Building2,
@@ -455,6 +456,10 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
             <ClipboardList className="h-4 w-4" />
             <span className="hidden lg:inline">Questionários</span>
           </TabsTrigger>
+          <TabsTrigger value="offboarding" className="flex items-center gap-2 py-2.5">
+            <LogOut className="h-4 w-4" />
+            <span className="hidden lg:inline">Offboarding</span>
+          </TabsTrigger>
           <TabsTrigger value="historico" className="flex items-center gap-2 py-2.5">
             <History className="h-4 w-4" />
             <span className="hidden lg:inline">Histórico</span>
@@ -470,6 +475,11 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
         {/* Questionários Tab */}
         <TabsContent value="assessments" className="space-y-6">
           <SupplierAssessmentsPanel supplierId={id} />
+        </TabsContent>
+
+        {/* Offboarding Tab */}
+        <TabsContent value="offboarding" className="space-y-6">
+          <SupplierOffboardingPanel supplierId={id} />
         </TabsContent>
 
         {/* Overview Tab */}
