@@ -34,6 +34,7 @@ import UnitSuppliers from "./pages/UnitSuppliers";
 import GenerateContract from "./pages/GenerateContract";
 import InternalLogin from "./pages/InternalLogin";
 import AccessDenied from "./pages/AccessDenied";
+import AssessmentPortal from "./pages/AssessmentPortal";
 import AdminRoute from "./components/AdminRoute";
 
 /** Routes that require authentication — wrapped with data providers */
@@ -183,6 +184,7 @@ function Router() {
       <Route path="/login" component={InternalLogin} />
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/403" component={AccessDenied} />
+      <Route path="/assessment/:token" component={AssessmentPortal} />
 
       {/* All other routes go through protected wrapper */}
       <Route>

@@ -23,6 +23,8 @@ import {
 import { toast } from "sonner";
 import RiskScorePanel from "@/components/RiskScorePanel";
 import SupplierRisksPanel from "@/components/SupplierRisksPanel";
+import SupplierAssessmentsPanel from "@/components/SupplierAssessmentsPanel";
+import { ClipboardList } from "lucide-react";
 import {
   ArrowLeft,
   Building2,
@@ -449,6 +451,10 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
             <Shield className="h-4 w-4" />
             <span className="hidden lg:inline">Risco</span>
           </TabsTrigger>
+          <TabsTrigger value="assessments" className="flex items-center gap-2 py-2.5">
+            <ClipboardList className="h-4 w-4" />
+            <span className="hidden lg:inline">Questionários</span>
+          </TabsTrigger>
           <TabsTrigger value="historico" className="flex items-center gap-2 py-2.5">
             <History className="h-4 w-4" />
             <span className="hidden lg:inline">Histórico</span>
@@ -459,6 +465,11 @@ export default function SupplierDetail({ id }: SupplierDetailProps) {
         <TabsContent value="risco" className="space-y-6">
           <RiskScorePanel supplierId={id} />
           <SupplierRisksPanel supplierId={id} />
+        </TabsContent>
+
+        {/* Questionários Tab */}
+        <TabsContent value="assessments" className="space-y-6">
+          <SupplierAssessmentsPanel supplierId={id} />
         </TabsContent>
 
         {/* Overview Tab */}

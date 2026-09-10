@@ -14,6 +14,7 @@ import * as exportService from "./export";
 import * as clicksign from "./clicksign";
 import * as riskScore from "./riskScore";
 import * as supplierRisks from "./supplierRisks";
+import * as assessments from "./assessments";
 import { orgRouter } from "./orgRouter";
 import { resolveOrgContext, buildScopeFilter } from "./orgContext";
 import { invokeLLM, useDirectOpenAI, useAnthropic, providerSupportsFileUrl, uploadFileToOpenAI } from "./_core/llm";
@@ -1306,6 +1307,100 @@ export const appRouter = router({
         });
         return saved;
       }),
+  }),
+
+  // ==================== ASSESSMENT TEMPLATES (QUESTIONÁRIOS) ====================
+  assessmentTemplates: router({
+    list: protectedProcedure
+      .input(z.object({ activeOnly: z.boolean().optional() }).optional())
+      .query(async ({ input }) => assessments.listTemplates(input?.activeOnly ?? false)),
+
+    create: managerProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        category: z.string().optional(),
+        questions: z.array(z.object({
+          id: z.string(),
+          text: z.string(),
+          type: z.enum(["yes_no", "scale_0_10", "text"]),
+          weight: z.number().optional(),
+          riskyAnswer: z.enum(["yes", "no"]).optional(),
+        })).min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const id = await assessments.createTemplate({
+          name: input.name, description: input.description, category: input.category,
+          questions: input.questions as any, createdById: ctx.user.id,
+        });
+        return { id };
+      }),
+
+    update: managerProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        description: z.string().optional(),
+        category: z.string().optional(),
+        isActive: z.boolean().optional(),
+        questions: z.array(z.any()).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await assessments.updateTemplate(id, data as any);
+        return { success: true };
+      }),
+  }),
+
+  // ==================== SUPPLIER ASSESSMENTS ====================
+  assessments: router({
+    listBySupplier: protectedProcedure
+      .input(z.object({ supplierId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await assertSupplierAccess(ctx.user, input.supplierId);
+        return assessments.listBySupplier(input.supplierId);
+      }),
+
+    // Cria e envia um questionário (gera token para o portal do fornecedor)
+    create: managerProcedure
+      .input(z.object({ supplierId: z.number(), templateId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const row = await assertSupplierAccess(ctx.user, input.supplierId);
+        const created = await assessments.createAssessment({
+          supplierId: input.supplierId, templateId: input.templateId,
+          organizationalGroupId: (row as any)?.supplier?.organizationalGroupId ?? null,
+          createdById: ctx.user.id,
+        });
+        await db.createAuditLog({
+          entityType: "supplier", entityId: input.supplierId, action: "create",
+          changes: { assessmentSent: { id: created.id, templateId: input.templateId } },
+          userId: ctx.user.id, userEmail: ctx.user.email,
+        });
+        return created;
+      }),
+
+    review: managerProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const a = await assessments.getAssessmentById(input.id);
+        if (!a) throw new TRPCError({ code: "NOT_FOUND" });
+        await assertSupplierAccess(ctx.user, a.supplierId);
+        await assessments.reviewAssessment(input.id, ctx.user.id);
+        return { success: true };
+      }),
+
+    // ---- Portal público do fornecedor (sem autenticação) ----
+    portalGet: publicProcedure
+      .input(z.object({ token: z.string().min(10) }))
+      .query(async ({ input }) => {
+        const data = await assessments.getPortalByToken(input.token);
+        if (!data) throw new TRPCError({ code: "NOT_FOUND", message: "Questionário não encontrado" });
+        return data;
+      }),
+
+    portalSubmit: publicProcedure
+      .input(z.object({ token: z.string().min(10), answers: z.record(z.string(), z.any()) }))
+      .mutation(async ({ input }) => assessments.submitByToken(input.token, input.answers)),
   }),
 
   // ==================== RISK REGISTER / ISSUES ====================
