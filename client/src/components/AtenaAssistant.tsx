@@ -29,7 +29,8 @@ function useSpeech() {
   return { supported, start, stop };
 }
 
-export default function AtenaAssistant() {
+export default function AtenaAssistant({ side = "right" }: { side?: "left" | "right" }) {
+  const pos = side === "left" ? "left-5" : "right-5";
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -83,7 +84,7 @@ export default function AtenaAssistant() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full bg-gradient-to-br from-indigo-600 to-violet-700 text-white px-4 py-3 shadow-xl hover:scale-105 transition-transform"
+        className={`fixed bottom-5 ${pos} z-50 flex items-center gap-2 rounded-full bg-gradient-to-br from-indigo-600 to-violet-700 text-white px-4 py-3 shadow-xl hover:scale-105 transition-transform`}
         title="Atena — assistente de IA"
       >
         <Sparkles className="h-5 w-5" />
@@ -96,7 +97,7 @@ export default function AtenaAssistant() {
   }
 
   return (
-    <Card className="fixed bottom-5 right-5 z-50 w-[min(420px,calc(100vw-2rem))] h-[min(600px,calc(100vh-2rem))] flex flex-col shadow-2xl overflow-hidden p-0">
+    <Card className={`fixed bottom-5 ${pos} z-50 w-[min(420px,calc(100vw-2rem))] h-[min(600px,calc(100vh-2rem))] flex flex-col shadow-2xl overflow-hidden p-0`}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-br from-indigo-600 to-violet-700 text-white">
         <div className="flex items-center gap-2">
