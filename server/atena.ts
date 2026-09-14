@@ -12,7 +12,7 @@ import * as offboarding from "./offboarding";
 import { getDb } from "./db";
 import { suppliers, documents, complianceAlerts } from "../drizzle/schema";
 
-type AtenaUser = { id: number; email: string; role: string; name?: string | null };
+type AtenaUser = { id: number; email: string | null; role: string | null; name?: string | null };
 
 export type Inconsistency = { severity: "low" | "medium" | "high" | "critical"; area: string; detail: string; count?: number };
 

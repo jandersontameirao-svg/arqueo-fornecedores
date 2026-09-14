@@ -1393,7 +1393,7 @@ export const appRouter = router({
         const scope = buildScopeFilter(orgCtx);
         const orgGroupIds = orgCtx.isSuperAdmin ? undefined : scope.groupIds;
         return atena.chat(
-          { id: ctx.user.id, email: ctx.user.email, role: ctx.user.role, name: (ctx.user as any).name },
+          { id: ctx.user.id, email: ctx.user.email, role: ctx.user.role ?? "reader", name: (ctx.user as any).name },
           input.messages,
           orgGroupIds,
         );

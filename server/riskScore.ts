@@ -53,7 +53,8 @@ export async function computeRiskBreakdown(supplierId: number): Promise<RiskBrea
   const now = Date.now();
   const in30d = now + 30 * 24 * 60 * 60 * 1000;
   let expired = 0, expiringSoon = 0;
-  for (const d of docs) {
+  for (const row of docs) {
+    const d = (row as any).document ?? row;
     if (!d.expiresAt) continue;
     const t = new Date(d.expiresAt).getTime();
     if (t < now) expired++;
