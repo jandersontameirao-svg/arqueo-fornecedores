@@ -2241,19 +2241,6 @@ export const appRouter = router({
       }),
   }),
 
-  // Alias for compliance.getAuditLogs
-  complianceAudit: router({
-    getAuditLogs: adminProcedure
-      .input(z.object({
-        entityType: z.string().optional(),
-        action: z.string().optional(),
-        limit: z.number().optional(),
-      }).optional())
-      .query(async ({ input }) => {
-        return db.getAuditLogs(input);
-      }),
-  }),
-
   // ==================== DASHBOARD ====================
   dashboard: router({
     stats: protectedProcedure

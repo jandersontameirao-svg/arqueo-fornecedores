@@ -53,6 +53,8 @@ import {
 import { toast } from "sonner";
 import {
   Plus,
+  ChevronDown,
+  Upload,
   Search,
   Building2,
   Filter,
@@ -119,6 +121,7 @@ export default function Suppliers() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [importOpen, setImportOpen] = useState(false);
   const [criticalityFilter, setCriticalityFilter] = useState<string>("all");
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [deletingSupplier, setDeletingSupplier] = useState<any>(null);
@@ -236,19 +239,31 @@ export default function Suppliers() {
           </Button>
           {canCreate && (
             <>
-              <Button
-                variant="outline"
-                onClick={() => setLocation("/suppliers/new-ai")}
-                className="shadow-sm border-violet-300 text-violet-700 hover:bg-violet-50 hover:text-violet-800"
-              >
-                <Sparkles className="h-4 w-4 mr-2" />
-                Cadastrar via I.A.
-              </Button>
-              <ImportSuppliersDialog onDone={() => refetch()} />
-              <Button onClick={() => setLocation("/suppliers/new")} className="shadow-sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Fornecedor
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="shadow-sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar fornecedor
+                    <ChevronDown className="h-4 w-4 ml-2 opacity-80" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => setLocation("/suppliers/new")}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Cadastro manual
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLocation("/suppliers/new-ai")} className="text-violet-700">
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Cadastrar via I.A.
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Importar CSV (em lote)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <ImportSuppliersDialog hideTrigger open={importOpen} onOpenChange={setImportOpen} onDone={() => refetch()} />
             </>
           )}
         </div>

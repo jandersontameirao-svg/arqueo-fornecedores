@@ -60,8 +60,21 @@ function mapHeaders(headers: string[]): (string | null)[] {
   });
 }
 
-export default function ImportSuppliersDialog({ onDone }: { onDone?: () => void }) {
-  const [open, setOpen] = useState(false);
+export default function ImportSuppliersDialog({
+  onDone,
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
+}: {
+  onDone?: () => void;
+  open?: boolean;
+  onOpenChange?: (o: boolean) => void;
+  hideTrigger?: boolean;
+}) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
+  const setOpen = (o: boolean) => { onOpenChange ? onOpenChange(o) : setUncontrolledOpen(o); };
   const [rows, setRows] = useState<any[]>([]);
   const [fileName, setFileName] = useState("");
   const [result, setResult] = useState<any>(null);
@@ -116,11 +129,13 @@ export default function ImportSuppliersDialog({ onDone }: { onDone?: () => void 
 
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="shadow-sm">
-          <Upload className="h-4 w-4 mr-2" /> Importar CSV
-        </Button>
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <Button variant="outline" className="shadow-sm">
+            <Upload className="h-4 w-4 mr-2" /> Importar CSV
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Importar fornecedores via CSV</DialogTitle>
