@@ -790,6 +790,67 @@ export const appRouter = router({
         return { id };
       }),
 
+    // Importação em massa (CSV parseado no cliente). Cria fornecedores + workflow,
+    // valida cada linha e retorna um relatório com sucessos e erros por linha.
+    importBatch: managerProcedure
+      .input(z.object({
+        rows: z.array(z.object({
+          companyName: z.string().min(1),
+          cnpj: z.string().min(11),
+          email: z.string().email(),
+          tradeName: z.string().optional(),
+          phone: z.string().optional(),
+          website: z.string().optional(),
+          city: z.string().optional(),
+          state: z.string().optional(),
+          criticality: z.enum(["low", "medium", "high", "critical"]).optional(),
+          notes: z.string().optional(),
+        })).min(1).max(1000),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
+        const activeGroupId = orgCtx.isSuperAdmin
+          ? (ctx.user.defaultOrgGroupId ?? orgCtx.accessibleGroupIds[0] ?? null)
+          : (orgCtx.accessibleGroupIds[0] ?? null);
+
+        let created = 0;
+        const errors: Array<{ row: number; companyName: string; message: string }> = [];
+
+        for (let i = 0; i < input.rows.length; i++) {
+          const r = input.rows[i];
+          try {
+            const sanitizedCnpj = r.cnpj.replace(/[.\/\-\s]/g, "");
+            const id = await db.createSupplier({
+              companyName: r.companyName,
+              tradeName: r.tradeName,
+              cnpj: sanitizedCnpj,
+              email: r.email,
+              phone: r.phone,
+              website: r.website,
+              city: r.city,
+              state: r.state,
+              criticality: (r.criticality as any) ?? "medium",
+              notes: r.notes,
+              createdById: ctx.user.id,
+              organizationalGroupId: activeGroupId,
+            });
+            const workflowId = await db.createWorkflow({ supplierId: id, totalSteps: 2, createdById: ctx.user.id });
+            await db.createWorkflowStep({ workflowId, stepNumber: 1, stepName: "Verificação de Documentos" });
+            await db.createWorkflowStep({ workflowId, stepNumber: 2, stepName: "Aprovação Final" });
+            created++;
+          } catch (e: any) {
+            errors.push({ row: i + 1, companyName: r.companyName, message: e?.message || "Erro ao criar" });
+          }
+        }
+
+        await db.createAuditLog({
+          entityType: "supplier", entityId: 0, action: "create",
+          changes: { importBatch: { total: input.rows.length, created, failed: errors.length } },
+          userId: ctx.user.id, userEmail: ctx.user.email,
+        });
+        return { total: input.rows.length, created, failed: errors.length, errors };
+      }),
+
     update: managerProcedure
       .input(z.object({ id: z.number() }).merge(supplierSchema.partial()))
       .mutation(async ({ input, ctx }) => {

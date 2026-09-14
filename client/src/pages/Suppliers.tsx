@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExportDialog } from "@/components/ExportDialog";
+import ImportSuppliersDialog from "@/components/ImportSuppliersDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -170,7 +171,7 @@ export default function Suppliers() {
   const hasScope = contextReady && !!(companyId || (resolvedUnit && areaHasCompanies));
 
   const { data: categories } = trpc.categories.list.useQuery();
-  const { data: suppliers, isLoading } = trpc.suppliers.list.useQuery({
+  const { data: suppliers, isLoading, refetch } = trpc.suppliers.list.useQuery({
     search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
     categoryId: categoryFilter !== "all" ? parseInt(categoryFilter) : undefined,
@@ -243,6 +244,7 @@ export default function Suppliers() {
                 <Sparkles className="h-4 w-4 mr-2" />
                 Cadastrar via I.A.
               </Button>
+              <ImportSuppliersDialog onDone={() => refetch()} />
               <Button onClick={() => setLocation("/suppliers/new")} className="shadow-sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Novo Fornecedor
