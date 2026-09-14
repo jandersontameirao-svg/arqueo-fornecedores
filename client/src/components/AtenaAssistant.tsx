@@ -3,9 +3,9 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Send, Mic, MicOff, Volume2, VolumeX, X, AlertTriangle, Loader2 } from "lucide-react";
+import { Send, Mic, MicOff, Volume2, VolumeX, X, AlertTriangle, Loader2, Paperclip, FileDown, FileText } from "lucide-react";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = { role: "user" | "assistant"; content: string; doc?: { filename: string; content: string } };
 
 // Hook de reconhecimento de voz (Web Speech API — nativo do navegador, pt-BR).
 // Quando o modelo de voz "Astra" for vinculado, este é o ponto de troca.
@@ -36,20 +36,38 @@ export default function AtenaAssistant({ side = "right" }: { side?: "left" | "ri
   const [messages, setMessages] = useState<Msg[]>([]);
   const [listening, setListening] = useState(false);
   const [voiceOut, setVoiceOut] = useState(false);
+  const [attachment, setAttachment] = useState<{ name: string; fileBase64: string } | null>(null);
   const speech = useSpeech();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: inconsistencies } = trpc.atena.inconsistencies.useQuery(undefined, {
     refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000,
   });
 
   const chat = trpc.atena.chat.useMutation({
-    onSuccess: (res) => {
-      setMessages((m) => [...m, { role: "assistant", content: res.reply }]);
+    onSuccess: (res: any) => {
+      const delivered = res.actions?.find((a: any) => a.tool === "deliver_document" && a.args?.content);
+      const doc = delivered ? { filename: delivered.args.filename || "documento.txt", content: delivered.args.content } : undefined;
+      setMessages((m) => [...m, { role: "assistant", content: res.reply, doc }]);
       if (voiceOut) speak(res.reply);
     },
     onError: (e) => setMessages((m) => [...m, { role: "assistant", content: `Erro: ${e.message}` }]),
   });
+
+  const downloadDoc = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const attachFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => setAttachment({ name: file.name, fileBase64: String(reader.result || "") });
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => { scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight); }, [messages, chat.isPending]);
 
@@ -63,12 +81,17 @@ export default function AtenaAssistant({ side = "right" }: { side?: "left" | "ri
   };
 
   const send = (text: string) => {
-    const content = text.trim();
-    if (!content || chat.isPending) return;
-    const next = [...messages, { role: "user" as const, content }];
+    let content = text.trim();
+    if ((!content && !attachment) || chat.isPending) return;
+    if (!content && attachment) content = `Analise o documento anexado "${attachment.name}".`;
+    const shown = attachment ? `${content}\n\n📎 ${attachment.name}` : content;
+    const next = [...messages, { role: "user" as const, content: shown }];
     setMessages(next);
+    // payload para a IA usa apenas o texto (sem o rótulo do anexo)
+    const payloadMsgs = [...messages, { role: "user" as const, content }];
     setInput("");
-    chat.mutate({ messages: next });
+    chat.mutate({ messages: payloadMsgs, attachment: attachment ?? undefined });
+    setAttachment(null);
   };
 
   const toggleMic = () => {
@@ -136,8 +159,19 @@ export default function AtenaAssistant({ side = "right" }: { side?: "left" | "ri
         )}
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-indigo-600 text-white" : "bg-muted"}`}>
-              {m.content}
+            <div className={`max-w-[85%] space-y-2`}>
+              <div className={`rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-indigo-600 text-white" : "bg-muted"}`}>
+                {m.content}
+              </div>
+              {m.doc && (
+                <button
+                  onClick={() => downloadDoc(m.doc!.filename, m.doc!.content)}
+                  className="flex items-center gap-2 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-800 hover:bg-indigo-100 w-full"
+                >
+                  <FileDown className="h-4 w-4 shrink-0" />
+                  Baixar {m.doc.filename}
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -146,8 +180,22 @@ export default function AtenaAssistant({ side = "right" }: { side?: "left" | "ri
         )}
       </div>
 
+      {/* Anexo selecionado */}
+      {attachment && (
+        <div className="px-3 py-2 border-t bg-muted/40 flex items-center gap-2 text-xs">
+          <FileText className="h-4 w-4 text-indigo-600 shrink-0" />
+          <span className="truncate flex-1">{attachment.name}</span>
+          <button onClick={() => setAttachment(null)} className="p-1 rounded hover:bg-muted"><X className="h-3.5 w-3.5" /></button>
+        </div>
+      )}
+
       {/* Input */}
       <div className="p-2 border-t flex items-center gap-1">
+        <input ref={fileRef} type="file" accept=".pdf,.docx,.txt,.md,.csv" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) attachFile(f); if (fileRef.current) fileRef.current.value = ""; }} />
+        <Button variant="ghost" size="icon" onClick={() => fileRef.current?.click()} title="Anexar documento">
+          <Paperclip className="h-4 w-4" />
+        </Button>
         {speech.supported && (
           <Button variant={listening ? "default" : "ghost"} size="icon" onClick={toggleMic} title="Falar">
             {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
@@ -160,7 +208,7 @@ export default function AtenaAssistant({ side = "right" }: { side?: "left" | "ri
           placeholder={listening ? "Ouvindo..." : "Pergunte algo à Atena..."}
           disabled={chat.isPending}
         />
-        <Button size="icon" onClick={() => send(input)} disabled={chat.isPending || !input.trim()}>
+        <Button size="icon" onClick={() => send(input)} disabled={chat.isPending || (!input.trim() && !attachment)}>
           <Send className="h-4 w-4" />
         </Button>
       </div>

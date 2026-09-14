@@ -1387,15 +1387,31 @@ export const appRouter = router({
           role: z.enum(["user", "assistant"]),
           content: z.string().min(1).max(8000),
         })).min(1).max(30),
+        attachment: z.object({
+          name: z.string().min(1).max(255),
+          fileBase64: z.string().max(22_000_000, "Arquivo excede ~16MB"),
+        }).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
         const scope = buildScopeFilter(orgCtx);
         const orgGroupIds = orgCtx.isSuperAdmin ? undefined : scope.groupIds;
+
+        // Documento anexado: extrai texto (pdf/docx/txt/md) para a Atena entender.
+        let doc: { name: string; text: string } | undefined;
+        if (input.attachment) {
+          const base64 = input.attachment.fileBase64.replace(/^data:[^;]+;base64,/, "");
+          const buffer = Buffer.from(base64, "base64");
+          const ext = input.attachment.name.split(".").pop()?.toLowerCase() || "";
+          const text = await extractTextFromBuffer(buffer, ext);
+          doc = { name: input.attachment.name, text: text || "(não foi possível extrair texto deste arquivo)" };
+        }
+
         return atena.chat(
           { id: ctx.user.id, email: ctx.user.email, role: ctx.user.role ?? "reader", name: (ctx.user as any).name },
           input.messages,
           orgGroupIds,
+          doc,
         );
       }),
   }),

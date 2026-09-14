@@ -132,9 +132,16 @@ const TOOLS = [
     name: "reject_supplier", description: "Rejeita um fornecedor. Requer papel admin.",
     parameters: { type: "object", properties: { supplierId: { type: "number" } }, required: ["supplierId"] },
   }},
+  { type: "function", function: {
+    name: "deliver_document", description: "Entrega ao usuário um documento (texto) para download — use ao gerar/editar um documento solicitado. Forneça o conteúdo COMPLETO já com as alterações.",
+    parameters: { type: "object", properties: {
+      filename: { type: "string", description: "Nome do arquivo, ex.: contrato_revisado.md" },
+      content: { type: "string", description: "Conteúdo completo do documento final" },
+    }, required: ["filename", "content"] },
+  }},
 ];
 
-const READ_ONLY = new Set(["find_supplier", "supplier_summary", "list_pending_approvals", "list_expiring", "list_open_alerts", "list_assessment_templates"]);
+const READ_ONLY = new Set(["find_supplier", "supplier_summary", "list_pending_approvals", "list_expiring", "list_open_alerts", "list_assessment_templates", "deliver_document"]);
 const ADMIN_ONLY = new Set(["approve_supplier", "reject_supplier"]);
 
 async function runTool(name: string, args: any, user: AtenaUser): Promise<any> {
@@ -223,6 +230,10 @@ async function runTool(name: string, args: any, user: AtenaUser): Promise<any> {
       await db.createAuditLog({ entityType: "supplier", entityId: args.supplierId, action: "reject", changes: { via: "Atena" }, userId: user.id, userEmail: user.email ?? undefined });
       return { rejeitado: true };
     }
+    case "deliver_document": {
+      // Apenas ecoa: o cliente detecta esta ação e oferece o download.
+      return { entregue: true, filename: args.filename, bytes: (args.content || "").length };
+    }
     default: return { erro: "Ferramenta desconhecida." };
   }
 }
@@ -236,6 +247,7 @@ PERSONA E POSTURA:
 - Você pode OPERAR no sistema usando as ferramentas disponíveis (aprovar/rejeitar fornecedor, enviar questionário, registrar risco, iniciar offboarding, resolver alerta, recalcular risco, além de consultas). Confirme sempre o resultado das ações que executar, informando ids e links gerados.
 - Quando o usuário citar um fornecedor pelo NOME, primeiro use find_supplier para obter o id; só então execute a ação.
 - Para enviar questionário, se não souber o template, use list_assessment_templates antes.
+- DOCUMENTOS: quando um documento for anexado, leia-o e analise. Quando o usuário pedir para ALTERAR/gerar um documento, produza o conteúdo final completo e ENTREGUE via a ferramenta deliver_document (nunca cole o documento inteiro só no texto do chat; use a ferramenta para o usuário poder baixar).
 - Nunca invente dados. Se algo não estiver no contexto, diga que não tem essa informação ou use uma ferramenta de consulta.
 
 USUÁRIO ATUAL: ${user.name || user.email} (papel: ${user.role}).
@@ -251,12 +263,18 @@ ${ctx.recentChanges.slice(0, 15).map((c: any) => `- ${c.quem} fez "${c.acao}" em
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
-export async function chat(user: AtenaUser, history: ChatMessage[], orgGroupIds?: number[]) {
+export async function chat(user: AtenaUser, history: ChatMessage[], orgGroupIds?: number[], doc?: { name: string; text: string }) {
   const ctx = await buildContext(orgGroupIds);
   const messages: any[] = [
     { role: "system", content: SYSTEM_PROMPT(ctx, user) },
-    ...history.map((m) => ({ role: m.role, content: m.content })),
   ];
+  // Documento anexado: injeta o conteúdo (truncado) como contexto antes do histórico.
+  if (doc && doc.text) {
+    const MAX = 24000;
+    const body = doc.text.length > MAX ? doc.text.slice(0, MAX) + "\n[...documento truncado...]" : doc.text;
+    messages.push({ role: "user", content: `DOCUMENTO ANEXADO — nome: "${doc.name}"\n\n${body}` });
+  }
+  for (const m of history) messages.push({ role: m.role, content: m.content });
 
   const actionsPerformed: Array<{ tool: string; args: any; result: any }> = [];
   let final = "";
