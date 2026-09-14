@@ -355,7 +355,15 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   }
 
   if (isDirectOpenAI) {
-    payload.max_tokens = 16384;
+    // Modelos novos da OpenAI (gpt-5.x, o-series) exigem max_completion_tokens
+    // no lugar de max_tokens. Usamos max_completion_tokens por padrão e, para
+    // modelos legados que só aceitam max_tokens, caímos de volta via env.
+    const legacyMaxTokens = process.env.OPENAI_USE_MAX_TOKENS === "1";
+    if (legacyMaxTokens) {
+      payload.max_tokens = 16384;
+    } else {
+      payload.max_completion_tokens = 16384;
+    }
   } else {
     payload.max_tokens = 32768;
     payload.thinking = {
