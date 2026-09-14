@@ -344,6 +344,11 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
 
   if (tools && tools.length > 0) {
     payload.tools = tools;
+    // Modelos gpt-5.x/o-series aplicam um reasoning_effort padrão que a API
+    // recusa junto de function tools em /v1/chat/completions. Forçamos "none".
+    if (isDirectOpenAI && process.env.OPENAI_USE_MAX_TOKENS !== "1") {
+      payload.reasoning_effort = "none";
+    }
   }
 
   const normalizedToolChoice = normalizeToolChoice(
