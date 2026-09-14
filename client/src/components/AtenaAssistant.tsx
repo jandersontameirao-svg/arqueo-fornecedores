@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Sparkles, Send, Mic, MicOff, Volume2, VolumeX, X, AlertTriangle, Loader2 } from "lucide-react";
+import { Send, Mic, MicOff, Volume2, VolumeX, X, AlertTriangle, Loader2 } from "lucide-react";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -87,7 +87,7 @@ export default function AtenaAssistant({ side = "right" }: { side?: "left" | "ri
         className={`fixed bottom-5 ${pos} z-50 flex items-center gap-2 rounded-full bg-gradient-to-br from-indigo-600 to-violet-700 text-white px-4 py-3 shadow-xl hover:scale-105 transition-transform`}
         title="Atena — assistente de IA"
       >
-        <Sparkles className="h-5 w-5" />
+        <img src="/atena.jpg" alt="Atena" className="h-7 w-7 rounded-full object-cover ring-2 ring-white/60" />
         <span className="font-semibold text-sm">Atena</span>
         {critCount > 0 && (
           <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-[11px] font-bold flex items-center justify-center">{critCount}</span>
@@ -101,7 +101,7 @@ export default function AtenaAssistant({ side = "right" }: { side?: "left" | "ri
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-br from-indigo-600 to-violet-700 text-white">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5" />
+          <img src="/atena.jpg" alt="Atena" className="h-8 w-8 rounded-full object-cover ring-2 ring-white/60" />
           <div>
             <p className="font-semibold leading-tight">Atena</p>
             <p className="text-[11px] opacity-80 leading-tight">Assistente de IA · consciência total do site</p>
@@ -129,7 +129,7 @@ export default function AtenaAssistant({ side = "right" }: { side?: "left" | "ri
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3">
         {messages.length === 0 && (
           <div className="text-sm text-muted-foreground text-center mt-8 space-y-2">
-            <Sparkles className="h-8 w-8 mx-auto text-indigo-400" />
+            <img src="/atena.jpg" alt="Atena" className="h-16 w-16 rounded-full object-cover mx-auto ring-2 ring-indigo-200" />
             <p>Olá! Sou a <b>Atena</b>. Sei tudo que acontece no sistema — quem mudou o quê e quando.</p>
             <p className="text-xs">Experimente: "Quais são os principais problemas hoje?" ou "Recalcule o risco do fornecedor X".</p>
           </div>
