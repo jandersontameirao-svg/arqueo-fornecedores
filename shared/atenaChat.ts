@@ -1,0 +1,14 @@
+// Configuração do chat da Atena compartilhada entre cliente e servidor.
+//
+// Apenas estes e-mails podem EXCLUIR o próprio histórico de conversa da Atena.
+// Os demais usuários têm o chat sempre preservado (sem opção de excluir).
+export const ATENA_CAN_CLEAR_CHAT_EMAILS: ReadonlySet<string> = new Set([
+  "fernanda@arqueoproject.com.br",
+  "janderson@grupoarqueo.com.br",
+]);
+
+/** Verifica (case-insensitive) se o usuário pode excluir o próprio chat da Atena. */
+export function canClearAtenaChat(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return ATENA_CAN_CLEAR_CHAT_EMAILS.has(email.toLowerCase().trim());
+}

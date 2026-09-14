@@ -101,3 +101,14 @@ CREATE TABLE IF NOT EXISTS `offboarding_checklists` (
   CONSTRAINT `oc_supplier_fk` FOREIGN KEY (`supplierId`) REFERENCES `suppliers`(`id`) ON DELETE cascade,
   CONSTRAINT `oc_starter_fk` FOREIGN KEY (`startedById`) REFERENCES `users`(`id`)
 );
+
+CREATE TABLE IF NOT EXISTS `atena_chats` (
+  `id` int AUTO_INCREMENT NOT NULL,
+  `userId` int NOT NULL,
+  `messages` json NOT NULL,
+  `createdAt` timestamp NOT NULL DEFAULT (now()),
+  `updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `atena_chats_id` PRIMARY KEY(`id`),
+  CONSTRAINT `atena_chats_userId_unique` UNIQUE(`userId`),
+  CONSTRAINT `ac_user_fk` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE cascade
+);

@@ -11,7 +11,7 @@ import * as supplierRisks from "./supplierRisks";
 import * as offboarding from "./offboarding";
 import * as assessments from "./assessments";
 import { getDb } from "./db";
-import { suppliers, documents, complianceAlerts } from "../drizzle/schema";
+import { suppliers, documents, complianceAlerts, atenaChats } from "../drizzle/schema";
 
 type AtenaUser = { id: number; email: string | null; role: string | null; name?: string | null };
 
@@ -301,4 +301,31 @@ export async function chat(user: AtenaUser, history: ChatMessage[], orgGroupIds?
   }
 
   return { reply: final || "(sem resposta)", actions: actionsPerformed, inconsistencies: ctx.inconsistencies };
+}
+
+// ---------------- Persistência do histórico de conversa (por usuário) ----------------
+export async function getSavedChat(userId: number): Promise<ChatMessage[]> {
+  const db2 = await getDb();
+  if (!db2) return [];
+  const [row] = await db2.select().from(atenaChats).where(eq(atenaChats.userId, userId)).limit(1);
+  return (row?.messages as ChatMessage[]) ?? [];
+}
+
+export async function saveChat(userId: number, messages: ChatMessage[]): Promise<void> {
+  const db2 = await getDb();
+  if (!db2) return;
+  // Guarda apenas role+content (sem anexos/documentos), limitado às últimas 200 mensagens.
+  const clean = messages
+    .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+    .slice(-200)
+    .map((m) => ({ role: m.role, content: m.content }));
+  await db2.insert(atenaChats)
+    .values({ userId, messages: clean as any })
+    .onDuplicateKeyUpdate({ set: { messages: clean as any } });
+}
+
+export async function clearChat(userId: number): Promise<void> {
+  const db2 = await getDb();
+  if (!db2) return;
+  await db2.delete(atenaChats).where(eq(atenaChats.userId, userId));
 }

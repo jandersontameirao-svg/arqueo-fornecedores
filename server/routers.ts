@@ -1,4 +1,5 @@
 import { COOKIE_NAME } from "@shared/const";
+import { canClearAtenaChat } from "@shared/atenaChat";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -1407,13 +1408,31 @@ export const appRouter = router({
           doc = { name: input.attachment.name, text: text || "(não foi possível extrair texto deste arquivo)" };
         }
 
-        return atena.chat(
+        const result = await atena.chat(
           { id: ctx.user.id, email: ctx.user.email, role: ctx.user.role ?? "reader", name: (ctx.user as any).name },
           input.messages,
           orgGroupIds,
           doc,
         );
+        // Persiste o histórico do usuário (mensagens + resposta da Atena).
+        await atena.saveChat(ctx.user.id, [...input.messages, { role: "assistant", content: result.reply }]);
+        return result;
       }),
+
+    // Carrega o histórico salvo do usuário (chamado ao abrir o chat).
+    getHistory: protectedProcedure.query(async ({ ctx }) => {
+      const messages = await atena.getSavedChat(ctx.user.id);
+      return { messages, canClear: canClearAtenaChat(ctx.user.email) };
+    }),
+
+    // Exclui o histórico — permitido APENAS para os e-mails autorizados.
+    clearHistory: protectedProcedure.mutation(async ({ ctx }) => {
+      if (!canClearAtenaChat(ctx.user.email)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Seu usuário não pode excluir o histórico da Atena." });
+      }
+      await atena.clearChat(ctx.user.id);
+      return { success: true };
+    }),
   }),
 
   // ==================== OFFBOARDING (ENCERRAMENTO) ====================

@@ -907,3 +907,16 @@ export const offboardingChecklists = mysqlTable("offboarding_checklists", {
 
 export type OffboardingChecklist = typeof offboardingChecklists.$inferSelect;
 export type InsertOffboardingChecklist = typeof offboardingChecklists.$inferInsert;
+
+// ==================== ATENA CHATS (HISTÓRICO DE CONVERSA POR USUÁRIO) ====================
+// Uma linha por usuário; a conversa inteira fica em `messages` (json).
+export const atenaChats = mysqlTable("atena_chats", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  messages: json("messages").notNull(), // [{ role: "user"|"assistant", content }]
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AtenaChat = typeof atenaChats.$inferSelect;
+export type InsertAtenaChat = typeof atenaChats.$inferInsert;

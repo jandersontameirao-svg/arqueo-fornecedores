@@ -3,7 +3,8 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Send, Mic, MicOff, Volume2, VolumeX, X, AlertTriangle, Loader2, Paperclip, FileDown, FileText } from "lucide-react";
+import { Send, Mic, MicOff, Volume2, VolumeX, X, AlertTriangle, Loader2, Paperclip, FileDown, FileText, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 type Msg = { role: "user" | "assistant"; content: string; doc?: { filename: string; content: string } };
 
@@ -38,11 +39,28 @@ export default function AtenaAssistant({ side = "right" }: { side?: "left" | "ri
   const [voiceOut, setVoiceOut] = useState(false);
   const [attachment, setAttachment] = useState<{ name: string; fileBase64: string } | null>(null);
   const speech = useSpeech();
+  const utils = trpc.useUtils();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: inconsistencies } = trpc.atena.inconsistencies.useQuery(undefined, {
     refetchInterval: 5 * 60 * 1000, staleTime: 60 * 1000,
+  });
+
+  // Histórico persistido por usuário
+  const { data: histData } = trpc.atena.getHistory.useQuery(undefined, { staleTime: Infinity });
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (!seededRef.current && histData?.messages) {
+      seededRef.current = true;
+      if (histData.messages.length > 0) setMessages(histData.messages as Msg[]);
+    }
+  }, [histData]);
+  const canClear = !!histData?.canClear;
+
+  const clearHistory = trpc.atena.clearHistory.useMutation({
+    onSuccess: () => { setMessages([]); toast.success("Histórico da Atena excluído."); utils.atena.getHistory.invalidate(); },
+    onError: (e) => toast.error(e.message),
   });
 
   const chat = trpc.atena.chat.useMutation({
@@ -134,6 +152,15 @@ export default function AtenaAssistant({ side = "right" }: { side?: "left" | "ri
           <button onClick={() => setVoiceOut((v) => !v)} title={voiceOut ? "Voz ligada" : "Voz desligada"} className="p-1.5 rounded hover:bg-white/20">
             {voiceOut ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </button>
+          {canClear && (
+            <button
+              onClick={() => { if (window.confirm("Excluir todo o histórico de conversa da Atena? Esta ação não pode ser desfeita.")) clearHistory.mutate(); }}
+              title="Excluir histórico"
+              className="p-1.5 rounded hover:bg-white/20"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
           <button onClick={() => setOpen(false)} className="p-1.5 rounded hover:bg-white/20"><X className="h-4 w-4" /></button>
         </div>
       </div>
