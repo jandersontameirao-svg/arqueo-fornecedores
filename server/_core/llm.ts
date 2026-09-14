@@ -259,9 +259,11 @@ const resolveApiKey = () => {
 
 const resolveModel = () => {
   if (useDirectOpenAI()) {
-    return "gpt-4o-mini";
+    // Configurável por env (OPENAI_MODEL). Ex.: "gpt-5.6-sol" para usar o Sol
+    // em todo o sistema (chat da Atena + prototipação de contrato).
+    return process.env.OPENAI_MODEL || "gpt-4o-mini";
   }
-  return "gemini-2.5-flash";
+  return process.env.OPENAI_MODEL || "gemini-2.5-flash";
 };
 
 const assertApiKey = () => {
