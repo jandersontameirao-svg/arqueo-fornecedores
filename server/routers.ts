@@ -3164,7 +3164,7 @@ Estruture o contrato com:
 
         const result = await clicksign.cancelEnvelope(cancelledEnvelopeId);
         if (!result?.success) {
-          const errorMsg = result?.error || "Falha ao cancelar envelope no Clicksign";
+          const errorMsg = result?.error?.message || "Falha ao cancelar envelope no Clicksign";
           await db.updateContract(input.contractId, { lastSendError: errorMsg });
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: errorMsg });
         }

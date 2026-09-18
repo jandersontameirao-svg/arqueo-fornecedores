@@ -16,7 +16,6 @@ import {
   supplierCompanyLinks,
   documents,
   contracts,
-  contractAmendments,
   interactions,
   performanceEvaluations,
   approvalWorkflows,
@@ -284,15 +283,8 @@ export async function assertFileKeyAccess(user: AuthedUser, fileKey: string) {
     return;
   }
 
-  const [amendment] = await dbConn
-    .select({ contractId: contractAmendments.contractId })
-    .from(contractAmendments)
-    .where(eq(contractAmendments.fileKey, fileKey))
-    .limit(1);
-  if (amendment) {
-    await assertContractAccess(user, amendment.contractId);
-    return;
-  }
+  // Aditivos (contract_amendments) não possuem fileKey próprio — seus anexos são
+  // resolvidos pelo contrato pai, então não há lookup por fileKey aqui.
 
   // Anexos de interactions (anexo via uploadAttachment).
   const [interaction] = await dbConn
