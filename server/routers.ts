@@ -18,6 +18,8 @@ import * as supplierRisks from "./supplierRisks";
 import * as assessments from "./assessments";
 import * as offboarding from "./offboarding";
 import * as atena from "./atena";
+import { adminProcedure, managerProcedure, extractTextFromBuffer } from "./routers/_shared";
+import { atenaRouter } from "./routers/atena";
 import { orgRouter } from "./orgRouter";
 import { resolveOrgContext, buildScopeFilter } from "./orgContext";
 import { invokeLLM, useDirectOpenAI, useAnthropic, providerSupportsFileUrl, uploadFileToOpenAI } from "./_core/llm";
@@ -68,41 +70,7 @@ function checkLlmRateLimit(userId: number) {
   return checkRateLimit(`llm:${userId}`, 30, 60 * 60 * 1000);
 }
 
-// Helper: extract text from file buffer based on extension.
-// Supports: pdf (digital text), txt, md, docx (via mammoth). Returns "" for unsupported formats
-// (image/* and legacy doc are handled by the multimodal LLM path in extractFromDocs).
-async function extractTextFromBuffer(buffer: Buffer, ext: string): Promise<string> {
-  if (ext === "pdf") {
-    try {
-      const parser = new PDFParse({ data: buffer });
-      const result = await parser.getText();
-      const text = result.text?.substring(0, 12000) || "";
-      console.log(`[ai-extract] extractTextFromBuffer: ext=pdf, bufferBytes=${buffer.length}, textChars=${text.length}`);
-      return text;
-    } catch (e) {
-      console.error("[ai-extract] PDF text extraction failed:", e);
-      return "";
-    }
-  }
-  if (["txt", "md"].includes(ext)) {
-    const text = buffer.toString("utf-8").substring(0, 12000);
-    console.log(`[ai-extract] extractTextFromBuffer: ext=${ext}, bufferBytes=${buffer.length}, textChars=${text.length}`);
-    return text;
-  }
-  if (ext === "docx") {
-    try {
-      const { value } = await mammoth.extractRawText({ buffer });
-      const text = (value || "").substring(0, 12000);
-      console.log(`[ai-extract] extractTextFromBuffer: ext=docx, bufferBytes=${buffer.length}, textChars=${text.length}`);
-      return text;
-    } catch (e) {
-      console.error("[ai-extract] DOCX text extraction failed:", e);
-      return "";
-    }
-  }
-  console.warn(`[ai-extract] extractTextFromBuffer: ext=${ext} not supported by text extractor (returning empty). bufferBytes=${buffer.length}`);
-  return "";
-}
+// extractTextFromBuffer foi movida para ./routers/_shared (importada acima).
 
 // Build the multimodal content parts for a file when text extraction failed.
 // Images use the standard OpenAI/Anthropic-compatible `image_url` with a data URL.
@@ -127,20 +95,7 @@ function buildMultimodalParts(file: { base64: string; fileName: string; mimeType
   return [];
 }
 
-// ==================== RBAC MIDDLEWARE ====================
-const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a administradores" });
-  }
-  return next({ ctx });
-});
-
-const managerProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin" && ctx.user.role !== "manager") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a gestores" });
-  }
-  return next({ ctx });
-});
+// RBAC (adminProcedure, managerProcedure) movidos para ./routers/_shared (importados acima).
 
 // ==================== SUPPLIER AI EXTRACTION CONSTANTS ====================
 
@@ -1374,66 +1329,8 @@ export const appRouter = router({
   }),
 
   // ==================== ATENA (ASSISTENTE DE IA) ====================
-  atena: router({
-    inconsistencies: protectedProcedure.query(async ({ ctx }) => {
-      const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
-      const scope = buildScopeFilter(orgCtx);
-      const orgGroupIds = orgCtx.isSuperAdmin ? undefined : scope.groupIds;
-      return atena.detectInconsistencies(orgGroupIds);
-    }),
-
-    chat: protectedProcedure
-      .input(z.object({
-        messages: z.array(z.object({
-          role: z.enum(["user", "assistant"]),
-          content: z.string().min(1).max(8000),
-        })).min(1).max(30),
-        attachment: z.object({
-          name: z.string().min(1).max(255),
-          fileBase64: z.string().max(22_000_000, "Arquivo excede ~16MB"),
-        }).optional(),
-      }))
-      .mutation(async ({ input, ctx }) => {
-        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
-        const scope = buildScopeFilter(orgCtx);
-        const orgGroupIds = orgCtx.isSuperAdmin ? undefined : scope.groupIds;
-
-        // Documento anexado: extrai texto (pdf/docx/txt/md) para a Atena entender.
-        let doc: { name: string; text: string } | undefined;
-        if (input.attachment) {
-          const base64 = input.attachment.fileBase64.replace(/^data:[^;]+;base64,/, "");
-          const buffer = Buffer.from(base64, "base64");
-          const ext = input.attachment.name.split(".").pop()?.toLowerCase() || "";
-          const text = await extractTextFromBuffer(buffer, ext);
-          doc = { name: input.attachment.name, text: text || "(não foi possível extrair texto deste arquivo)" };
-        }
-
-        const result = await atena.chat(
-          { id: ctx.user.id, email: ctx.user.email, role: ctx.user.role ?? "reader", name: (ctx.user as any).name },
-          input.messages,
-          orgGroupIds,
-          doc,
-        );
-        // Persiste o histórico do usuário (mensagens + resposta da Atena).
-        await atena.saveChat(ctx.user.id, [...input.messages, { role: "assistant", content: result.reply }]);
-        return result;
-      }),
-
-    // Carrega o histórico salvo do usuário (chamado ao abrir o chat).
-    getHistory: protectedProcedure.query(async ({ ctx }) => {
-      const messages = await atena.getSavedChat(ctx.user.id);
-      return { messages, canClear: canClearAtenaChat(ctx.user.email) };
-    }),
-
-    // Exclui o histórico — permitido APENAS para os e-mails autorizados.
-    clearHistory: protectedProcedure.mutation(async ({ ctx }) => {
-      if (!canClearAtenaChat(ctx.user.email)) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Seu usuário não pode excluir o histórico da Atena." });
-      }
-      await atena.clearChat(ctx.user.id);
-      return { success: true };
-    }),
-  }),
+  // Extraído para ./routers/atena (atenaRouter).
+  atena: atenaRouter,
 
   // ==================== OFFBOARDING (ENCERRAMENTO) ====================
   offboarding: router({
