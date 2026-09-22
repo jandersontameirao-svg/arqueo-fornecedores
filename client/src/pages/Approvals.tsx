@@ -1,7 +1,20 @@
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -20,6 +33,8 @@ import {
   AlertCircle,
   ArrowRight,
   Calendar,
+  Check,
+  X,
 } from "lucide-react";
 
 const statusLabels: Record<string, string> = {
@@ -39,8 +54,41 @@ const statusColors: Record<string, string> = {
 export default function Approvals() {
   const [, setLocation] = useLocation();
   const { selectedCompany } = useSelectedCompany();
+  const { user } = useAuth();
+  const utils = trpc.useUtils();
+  const isAdmin = user?.role === "admin";
+  // Fornecedor aguardando confirmação de rejeição (ação destrutiva).
+  const [rejecting, setRejecting] = useState<{ id: number; name: string } | null>(null);
+
   const { data: pendingWorkflows, isLoading } = trpc.workflows.getPending.useQuery({
     companyId: selectedCompany?.companyId ? String(selectedCompany.companyId) : undefined,
+  });
+
+  // Revalida a fila e os contadores após decidir, para a linha sair da lista.
+  const refreshAfterDecision = () => {
+    utils.workflows.getPending.invalidate();
+    utils.suppliers.list.invalidate();
+    utils.dashboard.stats.invalidate();
+  };
+
+  const approveMutation = trpc.suppliers.approve.useMutation({
+    onSuccess: () => {
+      refreshAfterDecision();
+      toast.success("Fornecedor aprovado com sucesso!");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const rejectMutation = trpc.suppliers.reject.useMutation({
+    onSuccess: () => {
+      refreshAfterDecision();
+      setRejecting(null);
+      toast.success("Fornecedor rejeitado");
+    },
+    onError: (e) => {
+      setRejecting(null);
+      toast.error(e.message);
+    },
   });
 
   return (
@@ -123,14 +171,45 @@ export default function Approvals() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setLocation(`/suppliers/${item.supplier.id}`)}
-                      >
-                        Ver Detalhes
-                        <ArrowRight className="h-4 w-4 ml-2" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        {/* Decidir direto na fila evita entrar/sair do fornecedor a cada aprovação. */}
+                        {isAdmin && (
+                          <>
+                            <Button
+                              size="sm"
+                              className="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                              disabled={approveMutation.isPending}
+                              onClick={() => approveMutation.mutate({ id: item.supplier.id })}
+                            >
+                              <Check className="h-4 w-4" />
+                              Aprovar
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 gap-1 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                              onClick={() =>
+                                setRejecting({
+                                  id: item.supplier.id,
+                                  name: item.supplier.companyName,
+                                })
+                              }
+                            >
+                              <X className="h-4 w-4" />
+                              Rejeitar
+                            </Button>
+                          </>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => setLocation(`/suppliers/${item.supplier.id}`)}
+                        >
+                          Ver Detalhes
+                          <ArrowRight className="h-4 w-4 ml-2" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -147,6 +226,32 @@ export default function Approvals() {
           )}
         </CardContent>
       </Card>
+
+      {/* Confirmação de rejeição — única ação destrutiva da fila. */}
+      <AlertDialog open={!!rejecting} onOpenChange={(open) => !open && setRejecting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rejeitar fornecedor?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O fornecedor <strong>{rejecting?.name}</strong> será marcado como rejeitado e sairá
+              da fila de homologação. A ação fica registrada na auditoria.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={rejectMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (rejecting) rejectMutation.mutate({ id: rejecting.id });
+              }}
+            >
+              {rejectMutation.isPending ? "Rejeitando..." : "Rejeitar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

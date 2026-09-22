@@ -114,65 +114,8 @@ function CompanyCard({
   );
 }
 
-// ─── Card de empresa na vista de Fornecedores (central de gestão) ─────────────
-function CompanySupplierCard({
-  company,
-  groupName,
-  groupId,
-  onSelect,
-}: {
-  company: CompanyDef;
-  groupName: string;
-  groupId: number;
-  onSelect: (c: SelectedCompany) => void;
-}) {
-  const companyData: SelectedCompany = {
-    id: company.id,
-    companyId: company.companyId,
-    name: company.name,
-    color: company.color,
-    groupName,
-    groupId,
-  };
-
-  const { data: count } = trpc.supplierCompanyLinks.countByCompanyStringId.useQuery(
-    { companyId: String(company.companyId) },
-    { staleTime: 30_000 }
-  );
-
-  return (
-    <button
-      onClick={() => onSelect(companyData)}
-      className="w-full text-left bg-white rounded-2xl border border-white/60 shadow-warm hover:shadow-warm-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden group"
-    >
-      <div className="h-1.5 w-full" style={{ backgroundColor: company.color }} />
-      <div className="p-5 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
-          {company.logoUrl ? (
-            <img src={company.logoUrl} alt={company.name} className="w-12 h-12 rounded-xl object-contain shrink-0 shadow-sm" />
-          ) : (
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
-              style={{ backgroundColor: `${company.color}18`, color: company.color }}
-            >
-              <Building2 size={22} />
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <h3 className="font-bold font-heading text-foreground text-[15px] leading-tight">{company.name}</h3>
-            <p className="text-[12px] text-muted-foreground mt-1">
-              <span className="font-bold" style={{ color: company.color }}>{count ?? "—"}</span> fornecedor{count !== 1 ? "es" : ""}
-            </p>
-          </div>
-        </div>
-        <ChevronRight size={18} className="text-muted-foreground shrink-0 group-hover:translate-x-1 transition-transform" />
-      </div>
-    </button>
-  );
-}
-
 // ─── Página principal ─────────────────────────────────────────────────────────
-type View = "menu" | "empresas" | "fornecedores";
+type View = "menu" | "empresas";
 
 export default function SelectCompany() {
   const [, setLocation] = useLocation();
@@ -289,14 +232,6 @@ export default function SelectCompany() {
                 <p className="text-muted-foreground text-sm mt-0.5">Escolha a empresa para acessar o painel de fornecedores</p>
               </>
             )}
-            {view === "fornecedores" && (
-              <>
-                <h1 className="text-xl md:text-2xl font-bold font-heading text-foreground">
-                  <span className="text-arqueo-laranja">Fornecedores</span> da Unidade
-                </h1>
-                <p className="text-muted-foreground text-sm mt-0.5">Visão consolidada de todos os fornecedores desta área de negócio</p>
-              </>
-            )}
           </div>
         </div>
         <img
@@ -311,7 +246,20 @@ export default function SelectCompany() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 max-w-4xl">
           {/* Card Empresas */}
           <button
-            onClick={() => setView("empresas")}
+            onClick={() => {
+              // Só uma empresa na área? Entra direto — listar 1 item é clique perdido.
+              if (companies.length === 1) {
+                const c = companies[0];
+                handleSelect({
+                  id: c.id,
+                  companyId: c.companyId,
+                  name: c.name,
+                  color: c.color,
+                  groupName: activeUnit?.name || "",
+                  groupId: activeUnit?.id || 0,
+                });
+              } else setView("empresas");
+            }}
             className="group text-left bg-white rounded-2xl shadow-warm hover:shadow-warm-lg border border-white/60 transition-all duration-300 hover:-translate-y-1 overflow-hidden"
           >
             <div className="h-1.5 w-full bg-arqueo-laranja" />
@@ -408,44 +356,6 @@ export default function SelectCompany() {
               ))}
             </div>
           )}
-        </section>
-      )}
-
-      {/* ── Vista: fornecedores da unidade (central de gestão) ── */}
-      {view === "fornecedores" && (
-        <section className="space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl icon-bordo flex items-center justify-center">
-              <Users size={18} />
-            </div>
-            <div>
-              <h2 className="font-bold font-heading text-foreground text-lg">Fornecedores</h2>
-              <p className="text-xs text-muted-foreground">Todos os fornecedores vinculados a esta área de negócio</p>
-            </div>
-          </div>
-
-          {/* Grid de empresas com contagem de fornecedores */}
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {companies.map((company) => (
-              <CompanySupplierCard
-                key={company.id}
-                company={company}
-                groupName={activeUnit?.name || ""}
-                groupId={activeUnit?.id || 0}
-                onSelect={handleSelect}
-              />
-            ))}
-          </div>
-
-          {/* Botão para ver todos os fornecedores */}
-          <div className="flex justify-center pt-4">
-            <Button
-              className="gap-2 bg-arqueo-bordo hover:bg-arqueo-bordo/90 text-white"
-              onClick={() => setLocation("/unit-suppliers")}
-            >
-              <Users size={16} /> Acessar Central de Fornecedores
-            </Button>
-          </div>
         </section>
       )}
 

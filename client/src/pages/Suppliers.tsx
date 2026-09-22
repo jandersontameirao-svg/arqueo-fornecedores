@@ -59,7 +59,6 @@ import {
   Building2,
   Filter,
   Settings,
-  Eye,
   Edit,
   FileText,
   MoreHorizontal,
@@ -403,7 +402,8 @@ export default function Suppliers() {
                 {suppliers.map((item) => (
                   <TableRow
                     key={item.supplier.id}
-                    className="group hover:bg-muted/50 transition-colors"
+                    onClick={() => setLocation(`/suppliers/${item.supplier.id}`)}
+                    className="group hover:bg-muted/50 transition-colors cursor-pointer"
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -477,12 +477,6 @@ export default function Suppliers() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => setLocation(`/suppliers/${item.supplier.id}`)}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              Visualizar
-                            </DropdownMenuItem>
                             {canEdit && (
                               <DropdownMenuItem
                                 onClick={() => setLocation(`/suppliers/${item.supplier.id}/edit`)}

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -101,9 +101,31 @@ const criticalityColors: Record<string, string> = {
   critical: "bg-[oklch(0.92_0.08_15)] text-[oklch(0.45_0.15_15)]",
 };
 
+// Abas válidas para deep-link via ?tab=... (ex.: /suppliers/12?tab=contratos).
+const VALID_TABS = new Set([
+  "overview", "cadastro", "documents", "contacts", "evaluations", "contratos",
+  "financeiro", "interactions", "vinculos", "templates", "workflow", "risco",
+  "assessments", "offboarding", "historico",
+]);
+
+/** Lê a aba inicial da query string, caindo em "overview" se ausente/inválida. */
+function initialTabFromUrl(): string {
+  if (typeof window === "undefined") return "overview";
+  const tab = new URLSearchParams(window.location.search).get("tab");
+  return tab && VALID_TABS.has(tab) ? tab : "overview";
+}
+
 export default function SupplierDetail({ id }: SupplierDetailProps) {
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(initialTabFromUrl);
+  const search = useSearch();
+
+  // Mantém o deep-link ?tab=... funcionando mesmo quando a URL muda sem
+  // remontar a página (ex.: ir de ?tab=documents para ?tab=contratos).
+  useEffect(() => {
+    const tab = new URLSearchParams(search).get("tab");
+    if (tab && VALID_TABS.has(tab)) setActiveTab(tab);
+  }, [search]);
   const { user } = useAuth();
   const utils = trpc.useUtils();
 
