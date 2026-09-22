@@ -12,6 +12,7 @@ import * as offboarding from "./offboarding";
 import * as assessments from "./assessments";
 import { getDb } from "./db";
 import { suppliers, documents, complianceAlerts, atenaChats } from "../drizzle/schema";
+import { isAtenaSuperuser } from "@shared/atenaChat";
 
 type AtenaUser = { id: number; email: string | null; role: string | null; name?: string | null };
 
@@ -186,7 +187,10 @@ const READ_ONLY = new Set(["find_supplier", "supplier_summary", "list_pending_ap
 const ADMIN_ONLY = new Set(["approve_supplier", "reject_supplier"]);
 
 async function runTool(name: string, args: any, user: AtenaUser): Promise<any> {
-  const isAdmin = user.role === "admin";
+  // Superusuários (fernanda/janderson) têm poder total, independente do cargo.
+  // Os demais operam no máximo o que o próprio cargo autoriza.
+  const isSuperuser = isAtenaSuperuser(user.email);
+  const isAdmin = isSuperuser || user.role === "admin";
   const canWrite = isAdmin || user.role === "manager";
   if (ADMIN_ONLY.has(name) && !isAdmin) {
     return { erro: "Sem permissão: esta ação (aprovar/rejeitar) exige papel de administrador." };
@@ -357,7 +361,8 @@ PERSONA E POSTURA:
 - DOCUMENTOS: quando um documento for anexado, leia-o e analise. Quando o usuário pedir para ALTERAR/gerar um documento, produza o conteúdo final completo e ENTREGUE via a ferramenta deliver_document (nunca cole o documento inteiro só no texto do chat; use a ferramenta para o usuário poder baixar).
 - Nunca invente dados. Se algo não estiver no contexto, diga que não tem essa informação ou use uma ferramenta de consulta.
 
-USUÁRIO ATUAL: ${user.name || user.email} (papel: ${user.role}).
+USUÁRIO ATUAL: ${user.name || user.email} (papel: ${user.role}${isAtenaSuperuser(user.email) ? ", SUPERUSUÁRIO — poder total" : ""}).
+- PODER DE OPERAÇÃO: superusuários (fernanda/janderson) podem executar QUALQUER ação. Os demais usuários só podem executar o que o próprio cargo autoriza (leitura=todos; escrita=gestor/admin; aprovar/rejeitar=admin). Se o usuário atual pedir uma ação acima do seu poder, NÃO execute: explique educadamente que ele não tem permissão para aquilo.
 
 ESTADO ATUAL DO SISTEMA (snapshot):
 ${JSON.stringify(ctx.stats ?? {}, null, 0)}
