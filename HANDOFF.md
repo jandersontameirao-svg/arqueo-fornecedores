@@ -1,6 +1,6 @@
-# Handoff — Arqueo Fornecedores (branch `feat/vrm-modules`)
+# Handoff — Arqueo Fornecedores (branch `main`)
 
-_Última atualização: 2026-09-21. HEAD: `3426369`. Branch de trabalho: **`feat/vrm-modules`** (NÃO mesclada em `main`; produção na VPS roda esta branch)._
+_Última atualização: 2026-09-22. **Fonte única: `main`** (produção e deploy saem dela). `feat/vrm-modules` foi integrada e fica igual a `main`; trabalho novo = branch curta a partir de `main` → PR → merge. CI (check + test) roda em todo push/PR._
 
 ## 1. Visão geral
 Projeto: gestão de fornecedores (VRM). Stack: React + tRPC + Drizzle/MySQL, deploy VPS via **PM2** atrás de Nginx. Porta = env `PORT` (produção); Nginx `proxy_pass` aponta para ela.
@@ -37,19 +37,20 @@ Migração: **NÃO usar `pnpm db:migrate`** (a migração 0000 do drizzle é um 
 ## 4. Deploy na VPS (checklist)
 ```bash
 cd /var/www/arqueo-fornecedores
-git pull origin feat/vrm-modules
-pnpm install
-node scripts/run-vrm-migration.mjs      # cria as 6 tabelas (idempotente)
+git checkout main
+bash scripts/deploy.sh                   # pull + install + migração idempotente + build (c/ typecheck) + pm2
+# --- equivalente manual ---
+# git pull origin main && pnpm install --frozen-lockfile
+# node scripts/run-vrm-migration.mjs    # cria as 6 tabelas (idempotente)
 # .env (uma vez):
 grep -q '^OPENAI_API_KEY=' .env || echo 'OPENAI_API_KEY=SUA_CHAVE' >> .env
 grep -q '^OPENAI_MODEL='   .env || echo 'OPENAI_MODEL=gpt-5.6-sol' >> .env
-pnpm build                               # ESSENCIAL (esbuild+vite; não faz typecheck)
-pm2 restart arqueo-fornecedores && pm2 save
+# pnpm build                            # ESSENCIAL (agora roda tsc antes; build:fast pula)
+# pm2 restart arqueo-fornecedores && pm2 save
 ```
 Validar: `ls -la dist/public/index.html` (data atual), `grep -rl atena.jpg dist/public/assets/*.js`, Ctrl+Shift+R no browser.
 
 ## 5. Pendências / próximos passos sugeridos
-- **Abrir PR** `feat/vrm-modules` → `main` quando estabilizar (hoje produção roda a branch direto).
 - **Automação #1 (recomendada, alto ROI)**: jobs agendados (cron) — as funções `checkAndNotify*` em `server/notifications.ts` já existem; falta agendar (varrer vencimentos/alertas sozinho).
 - **Automação #2**: recalcular risco automaticamente em eventos (upload de doc, nova avaliação, novo alerta).
 - **Fonte de verdade única** (médio risco, exige backup+backfill): criticidade só no vínculo; "status efetivo" derivado; aposentar campos de escopo legados (`groupId`/`companyId` string) → `organizationalGroupId`.
