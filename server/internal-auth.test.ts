@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import bcrypt from "bcryptjs";
 import * as db from "./db";
 
-describe("Internal Auth — Login por email/senha", () => {
+// Integração: exige o banco real com os usuários internos cadastrados.
+describe.skipIf(!process.env.DATABASE_URL)("Internal Auth — Login por email/senha", () => {
   describe("getUserByEmail", () => {
     it("deve retornar o usuário quando email existe", async () => {
       const user = await db.getUserByEmail("gentegestao@grupoarqueo.com.br");

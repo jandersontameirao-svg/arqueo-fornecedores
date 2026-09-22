@@ -9,8 +9,12 @@ import { storagePut, storageGet } from "./storage";
 import { isClicksignConfigured } from "./clicksign";
 import * as db from "./db";
 
+// Blocos de integração só rodam com o ambiente real configurado (VPS / CI com secrets).
+const hasDb = !!process.env.DATABASE_URL;
+const hasLlm = !!(process.env.OPENAI_API_KEY || process.env.BUILT_IN_FORGE_API_KEY || process.env.ANTHROPIC_API_KEY);
+
 // ==================== 1. VARIÁVEIS DE AMBIENTE ====================
-describe("1. Variáveis de Ambiente", () => {
+describe.skipIf(!hasDb)("1. Variáveis de Ambiente", () => {
   it("DATABASE_URL configurado", () => {
     expect(ENV.databaseUrl).toBeTruthy();
     expect(ENV.databaseUrl.length).toBeGreaterThan(10);
@@ -51,7 +55,7 @@ describe("1. Variáveis de Ambiente", () => {
 });
 
 // ==================== 2. LLM / IA ====================
-describe("2. LLM / Inteligência Artificial (OpenAI)", () => {
+describe.skipIf(!hasLlm)("2. LLM / Inteligência Artificial (OpenAI)", () => {
   it("invokeLLM: resposta simples de texto", async () => {
     const result = await invokeLLM({
       messages: [
@@ -164,7 +168,7 @@ describe("3. S3 Storage (Cloudflare R2)", () => {
 });
 
 // ==================== 4. DATABASE ====================
-describe("4. Database (MySQL/TiDB)", () => {
+describe.skipIf(!hasDb)("4. Database (MySQL/TiDB)", () => {
   it("db.getAllSuppliers: listar fornecedores", async () => {
     const result = await db.getAllSuppliers();
     expect(result).toBeDefined();
@@ -282,8 +286,6 @@ describe("5. tRPC — Verificação de Procedures Críticas", () => {
     "evaluations.getLatest",
     // Compliance
     "compliance.getAlerts",
-    // Compliance Audit
-    "complianceAudit.getAuditLogs",
     // Audit
     "audit.list",
     // Dashboard

@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { invokeLLM } from "./server/_core/llm";
 
-describe("OpenAI Integration", () => {
+// Integração: exige chave de LLM real.
+describe.skipIf(!!!(process.env.OPENAI_API_KEY || process.env.BUILT_IN_FORGE_API_KEY || process.env.ANTHROPIC_API_KEY))("OpenAI Integration", () => {
   it("should successfully call OpenAI LLM with valid API key", async () => {
     const response = await invokeLLM({
       messages: [

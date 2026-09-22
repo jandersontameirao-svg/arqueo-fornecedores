@@ -4,7 +4,8 @@ import { isClicksignConfigured } from "./clicksign";
 // Mock fetch for HTML error response test
 const originalFetch = global.fetch;
 
-describe("Clicksign Integration", () => {
+// Integração: exige CLICKSIGN_API_KEY real.
+describe.skipIf(!process.env.CLICKSIGN_API_KEY)("Clicksign Integration", () => {
   it("should have CLICKSIGN_API_KEY configured", () => {
     const configured = isClicksignConfigured();
     expect(configured).toBe(true);
