@@ -19,6 +19,7 @@ import { trpc } from "@/lib/trpc";
 import OrgGroupSelector from "@/components/OrgGroupSelector";
 import {
   LayoutDashboard,
+  Gauge,
   LogOut,
   Users,
   Building2,
@@ -54,6 +55,7 @@ interface NavItem {
 
 const primaryNav: NavItem[] = [
   { icon: Home, label: "Início", path: "/" },
+  { icon: Gauge, label: "Painel", path: "/painel", requiresUnit: true },
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", requiresUnit: true },
   { icon: Building2, label: "Fornecedores", path: "/suppliers", requiresUnit: true },
   { icon: FolderOpen, label: "Categorias", path: "/categories", requiresUnit: true },
@@ -102,6 +104,7 @@ function Breadcrumbs() {
 
     const pathMap: Record<string, string> = {
       "/dashboard": "Dashboard",
+      "/painel": "Painel Executivo",
       "/suppliers": "Fornecedores",
       "/suppliers/new": "Novo Fornecedor",
       "/suppliers/link": "Vincular",

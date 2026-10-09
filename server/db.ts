@@ -2878,6 +2878,54 @@ export async function getAllContracts(params: {
   return (query as any).orderBy(desc(contracts.createdAt)).limit(params.limit ?? 100);
 }
 
+// ==================== RESUMO EXECUTIVO DE CONTRATOS (PAINEL DA DIRETORIA) ====================
+// Agregação org-scoped: valor total sob contrato ativo + vencimentos em 30/60/90 dias.
+// Usa o mesmo padrão de isolamento multi-grupo (orgScopeOrNull) do resto do módulo.
+export async function getExecutiveContractSummary(opts?: { orgGroupIds?: number[] }) {
+  const dbConn = await getDb();
+  const empty = {
+    activeCount: 0, totalValueActive: 0,
+    expiring30: 0, expiring60: 0, expiring90: 0,
+  };
+  if (!dbConn) return empty;
+
+  const orgFilter = opts?.orgGroupIds !== undefined
+    ? orgScopeOrNull(contracts.organizationalGroupId, opts.orgGroupIds)
+    : undefined;
+  // orgGroupIds fornecido e vazio => sem acesso a nenhum grupo.
+  if (opts?.orgGroupIds !== undefined && opts.orgGroupIds.length === 0) return empty;
+
+  const now = new Date();
+  const inDays = (n: number) => { const d = new Date(now); d.setDate(d.getDate() + n); return d; };
+  const activeCond = eq(contracts.status, "active" as any);
+  const whereActive = orgFilter ? and(activeCond, orgFilter) : activeCond;
+
+  // Vencimento entre hoje e hoje+N, apenas contratos ativos.
+  const expiringWhere = (n: number) => {
+    const base = and(activeCond, sql`${contracts.endDate} IS NOT NULL`,
+      sql`${contracts.endDate} >= ${now}`, sql`${contracts.endDate} <= ${inDays(n)}`);
+    return orgFilter ? and(base, orgFilter) : base;
+  };
+
+  const [activeAgg, exp30, exp60, exp90] = await Promise.all([
+    dbConn.select({
+      count: sql<number>`count(*)`,
+      total: sql<number>`COALESCE(SUM(${contracts.totalValue}), 0)`,
+    }).from(contracts).where(whereActive),
+    dbConn.select({ count: sql<number>`count(*)` }).from(contracts).where(expiringWhere(30)),
+    dbConn.select({ count: sql<number>`count(*)` }).from(contracts).where(expiringWhere(60)),
+    dbConn.select({ count: sql<number>`count(*)` }).from(contracts).where(expiringWhere(90)),
+  ]);
+
+  return {
+    activeCount: Number(activeAgg[0]?.count ?? 0),
+    totalValueActive: Number(activeAgg[0]?.total ?? 0),
+    expiring30: Number(exp30[0]?.count ?? 0),
+    expiring60: Number(exp60[0]?.count ?? 0),
+    expiring90: Number(exp90[0]?.count ?? 0),
+  };
+}
+
 // ==================== COUNT TEMPLATES & CONTRACTS FOR UNIT STATS ====================
 
 export async function countContractsByBusinessUnit(businessUnitId: number) {

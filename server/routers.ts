@@ -2184,6 +2184,28 @@ export const appRouter = router({
         await assertScopeInput(ctx.user, input);
         return db.getSuppliersByCriticality(input?.companyId, input?.groupId);
       }),
+
+    // Resumo executivo (Painel da Diretoria): números-chave reunidos num só lugar.
+    // Compõe estatísticas já existentes + agregação de contratos, respeitando o
+    // grupo organizacional ativo. Sem SQL novo arriscado — reaproveita helpers.
+    executive: protectedProcedure
+      .input(z.object({ companyId: z.string().optional(), groupId: z.number().optional() }).optional())
+      .query(async ({ input, ctx }) => {
+        await assertScopeInput(ctx.user, input);
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
+        const orgGroupIds = orgCtx.isSuperAdmin && !ctx.activeOrgGroupId ? undefined : orgCtx.accessibleGroupIds;
+        const [stats, contracts, criticality, expiringDocs] = await Promise.all([
+          db.getDashboardStats(input?.companyId, input?.groupId, { orgGroupIds }),
+          db.getExecutiveContractSummary({ orgGroupIds }),
+          db.getSuppliersByCriticality(input?.companyId, input?.groupId),
+          db.getExpiringDocuments(30, { orgGroupIds }),
+        ]);
+        const upcoming = (expiringDocs as any[]).slice(0, 10).map((d: any) => {
+          const doc = d.document ?? d;
+          return { id: doc.id, nome: doc.name, vence: doc.expiresAt, fornecedorId: doc.supplierId };
+        });
+        return { stats, contracts, criticality, upcomingDocs: upcoming };
+      }),
   }),
 
   // ==================== ONBOARDING (Public) ====================

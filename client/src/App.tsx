@@ -14,6 +14,7 @@ import TopbarLayout from "./components/TopbarLayout";
 import SelectBusinessUnit from "./pages/SelectBusinessUnit";
 import SelectCompany from "./pages/SelectCompany";
 import Home from "./pages/Home";
+import Painel from "./pages/Painel";
 import Suppliers from "./pages/Suppliers";
 import SupplierDetail from "./pages/SupplierDetail";
 import SupplierForm from "./pages/SupplierForm";
@@ -71,6 +72,13 @@ function ProtectedRoutes() {
             <Route path="/dashboard">
               <TopbarLayout>
                 <Home />
+              </TopbarLayout>
+            </Route>
+
+            {/* Painel Executivo (visão da diretoria) */}
+            <Route path="/painel">
+              <TopbarLayout>
+                <Painel />
               </TopbarLayout>
             </Route>
 
