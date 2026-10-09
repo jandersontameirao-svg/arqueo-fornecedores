@@ -13,6 +13,7 @@ import * as assessments from "./assessments";
 import { getDb } from "./db";
 import { suppliers, documents, complianceAlerts, atenaChats } from "../drizzle/schema";
 import { isAtenaSuperuser } from "@shared/atenaChat";
+import { APPROVAL_POLICY_LABEL } from "@shared/approval";
 
 type AtenaUser = { id: number; email: string | null; role: string | null; name?: string | null };
 
@@ -357,6 +358,7 @@ PERSONA E POSTURA:
 - Você pode OPERAR no sistema usando as ferramentas disponíveis (aprovar/rejeitar fornecedor, enviar questionário, registrar risco, iniciar offboarding, resolver alerta, recalcular risco, além de consultas). Confirme sempre o resultado das ações que executar, informando ids e links gerados.
 - Quando o usuário citar um fornecedor pelo NOME, primeiro use find_supplier para obter o id; só então execute a ação.
 - Para enviar questionário, se não souber o template, use list_assessment_templates antes.
+- ALÇADA DE APROVAÇÃO: ${APPROVAL_POLICY_LABEL} Ao lidar com aprovação de fornecedor/contrato cujo valor ultrapasse esse limite, avise que a decisão é da diretoria e não aprove sem confirmação dela.
 - CONTRATOS: para ler/revisar/corrigir contratos, use list_contracts (achar), get_contract (ler na íntegra), review_contract (checklist de cláusulas essenciais e alertas) e, só após CONFIRMAÇÃO do usuário, update_contract (aplica correções, versiona e audita). Ao revisar, cite cláusulas ausentes e proponha a redação da correção antes de gravar.
 - DOCUMENTOS: quando um documento for anexado, leia-o e analise. Quando o usuário pedir para ALTERAR/gerar um documento, produza o conteúdo final completo e ENTREGUE via a ferramenta deliver_document (nunca cole o documento inteiro só no texto do chat; use a ferramenta para o usuário poder baixar).
 - Nunca invente dados. Se algo não estiver no contexto, diga que não tem essa informação ou use uma ferramenta de consulta.

@@ -11,6 +11,8 @@ import { useLocation } from "wouter";
 import { useBusinessUnitContext } from "@/contexts/BusinessUnitContext";
 import { useSelectedCompany } from "@/contexts/SelectedCompanyContext";
 import { getCompaniesForGroup } from "@/pages/SelectCompany";
+import { APPROVAL_POLICY_LABEL } from "@shared/approval";
+import { Printer } from "lucide-react";
 
 const BRL = (v: number | null | undefined) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v || 0));
@@ -33,6 +35,7 @@ export default function Painel() {
   const hasScope = !!(companyId || (activeUnit && areaCompanies.length > 0));
 
   const { data, isLoading } = trpc.dashboard.executive.useQuery({ companyId, groupId }, { enabled: hasScope });
+  const { data: monthly } = trpc.reports.monthlySummary.useQuery({}, { enabled: hasScope });
 
   if (!hasScope) {
     return (
@@ -61,10 +64,33 @@ export default function Painel() {
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Painel Executivo</h1>
-        <p className="text-muted-foreground">Visão consolidada de contratos, risco e pendências.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Painel Executivo</h1>
+          <p className="text-muted-foreground">Visão consolidada de contratos, risco e pendências.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => window.print()}>
+          <Printer className="mr-2 h-4 w-4" /> Imprimir resumo
+        </Button>
       </div>
+
+      {/* Política de alçada (feature: aprovação por valor) */}
+      <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-900">
+        ℹ️ {APPROVAL_POLICY_LABEL}
+      </div>
+
+      {/* Resumo do mês (relatório da diretoria) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Resumo do mês {monthly?.month?.periodo ? `(${monthly.month.periodo})` : ""}</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div><div className="text-xl font-bold">{monthly?.month?.newSuppliers ?? "—"}</div><div className="text-xs text-muted-foreground">Novos fornecedores</div></div>
+          <div><div className="text-xl font-bold">{monthly?.month?.contractsCreated ?? "—"}</div><div className="text-xs text-muted-foreground">Contratos criados</div></div>
+          <div><div className="text-xl font-bold">{monthly ? BRL(monthly.month.contractsValue) : "—"}</div><div className="text-xs text-muted-foreground">Valor contratado</div></div>
+          <div><div className="text-xl font-bold">{monthly?.pendingApprovals ?? "—"}</div><div className="text-xs text-muted-foreground">Aprovações pendentes</div></div>
+        </CardContent>
+      </Card>
 
       {/* Linha 1 — dinheiro e contratos */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

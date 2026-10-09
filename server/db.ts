@@ -2926,6 +2926,45 @@ export async function getExecutiveContractSummary(opts?: { orgGroupIds?: number[
   };
 }
 
+// ==================== RESUMO MENSAL (RELATÓRIO DA DIRETORIA) ====================
+// Números do mês para a diretora levar à reunião: novos fornecedores, contratos
+// criados e valor contratado no período, + pendências atuais. Org-scoped.
+export async function getMonthlyExecutiveSummary(opts?: { year?: number; month?: number; orgGroupIds?: number[] }) {
+  const dbConn = await getDb();
+  const now = new Date();
+  const year = opts?.year ?? now.getFullYear();
+  const month = opts?.month ?? now.getMonth() + 1; // 1-12
+  const start = new Date(year, month - 1, 1);
+  const end = new Date(year, month, 1);
+  const base = {
+    periodo: `${String(month).padStart(2, "0")}/${year}`,
+    newSuppliers: 0, contractsCreated: 0, contractsValue: 0,
+  };
+  if (!dbConn) return base;
+  if (opts?.orgGroupIds !== undefined && opts.orgGroupIds.length === 0) return base;
+
+  const supOrg = opts?.orgGroupIds !== undefined ? orgScopeOrNull(suppliers.organizationalGroupId, opts.orgGroupIds) : undefined;
+  const conOrg = opts?.orgGroupIds !== undefined ? orgScopeOrNull(contracts.organizationalGroupId, opts.orgGroupIds) : undefined;
+  const inMonth = (col: any) => and(sql`${col} >= ${start}`, sql`${col} < ${end}`);
+  const supWhere = supOrg ? and(inMonth(suppliers.createdAt), supOrg) : inMonth(suppliers.createdAt);
+  const conWhere = conOrg ? and(inMonth(contracts.createdAt), conOrg) : inMonth(contracts.createdAt);
+
+  const [sup, con] = await Promise.all([
+    dbConn.select({ count: sql<number>`count(*)` }).from(suppliers).where(supWhere),
+    dbConn.select({
+      count: sql<number>`count(*)`,
+      total: sql<number>`COALESCE(SUM(${contracts.totalValue}), 0)`,
+    }).from(contracts).where(conWhere),
+  ]);
+
+  return {
+    periodo: base.periodo,
+    newSuppliers: Number(sup[0]?.count ?? 0),
+    contractsCreated: Number(con[0]?.count ?? 0),
+    contractsValue: Number(con[0]?.total ?? 0),
+  };
+}
+
 // ==================== COUNT TEMPLATES & CONTRACTS FOR UNIT STATS ====================
 
 export async function countContractsByBusinessUnit(businessUnitId: number) {

@@ -2286,6 +2286,20 @@ export const appRouter = router({
 
   // ==================== REPORTS ====================
   reports: router({
+    // Resumo executivo do mês (Relatório da Diretoria) — pronto para imprimir/levar à reunião.
+    monthlySummary: protectedProcedure
+      .input(z.object({ year: z.number().optional(), month: z.number().min(1).max(12).optional() }).optional())
+      .query(async ({ input, ctx }) => {
+        const orgCtx = await resolveOrgContext(ctx.user, ctx.activeOrgGroupId);
+        const orgGroupIds = orgCtx.isSuperAdmin && !ctx.activeOrgGroupId ? undefined : orgCtx.accessibleGroupIds;
+        const [month, contracts, pending] = await Promise.all([
+          db.getMonthlyExecutiveSummary({ year: input?.year, month: input?.month, orgGroupIds }),
+          db.getExecutiveContractSummary({ orgGroupIds }),
+          db.getPendingWorkflows(),
+        ]);
+        return { month, contracts, pendingApprovals: (pending as any[]).length };
+      }),
+
     suppliers: protectedProcedure
       .input(z.object({
         format: z.enum(["csv", "json"]),
