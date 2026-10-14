@@ -6,6 +6,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerInternalAuthRoutes } from "../internalAuth";
 import { registerClicksignWebhookRoute } from "../clicksignWebhook";
+import { registerPublicApiRoutes } from "../publicApi";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -47,6 +48,9 @@ async function startServer() {
   registerInternalAuthRoutes(app);
   // Clicksign webhook endpoint
   registerClicksignWebhookRoute(app);
+  // API REST pública de Fornecedores (/api/v1) — auth por chave (env API_KEY).
+  // Registrada antes do SPA catch-all para não cair no index.html.
+  registerPublicApiRoutes(app);
   // tRPC API
   app.use(
     "/api/trpc",
