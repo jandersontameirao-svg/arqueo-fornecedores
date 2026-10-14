@@ -140,8 +140,9 @@ function mapInput(b: z.infer<typeof createSchema>) {
 }
 
 export function registerPublicApiRoutes(app: Express) {
-  // Health check (exige chave, igual às demais rotas).
-  app.get("/api/v1/ping", requireApiKey, (_req, res) => {
+  // Health check PÚBLICO (sem chave): serve de smoke-test do deploy.
+  // Não expõe nada sensível — só liveness. As rotas de dados exigem chave.
+  app.get("/api/v1/ping", (_req, res) => {
     res.json({ ok: true, service: "arqueo-fornecedores", time: new Date().toISOString() });
   });
 
